@@ -16,7 +16,7 @@ function CustomerDataFetcher({ customerId, userId }: { customerId: string, userI
     const firestore = useFirestore();
 
     const customerRef = useMemoFirebase(
-        () => doc(firestore, `users/${userId}/customers`, customerId),
+        () => (firestore && userId && customerId) ? doc(firestore, `users/${userId}/customers`, customerId) : null,
         [firestore, userId, customerId]
     );
 
@@ -26,15 +26,10 @@ function CustomerDataFetcher({ customerId, userId }: { customerId: string, userI
         return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    if (error) {
-        console.error("Firestore Error:", error);
+    if (error || !customer) {
         // This could be a permissions error or the document doesn't exist for this user.
         // We'll treat it as not found.
         notFound();
-    }
-
-    if (!customer) {
-        return notFound();
     }
 
     return (
@@ -67,7 +62,7 @@ export default function CustomerDetailPage() {
   }
   
   if (!id) {
-    return notFound();
+    notFound();
   }
 
   // We have a user and an ID, now we can fetch the data.
