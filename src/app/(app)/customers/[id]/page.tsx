@@ -8,14 +8,18 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 // This is a mock global state for demo purposes.
 // In a real app, this would be a proper state management solution (Context, Zustand, etc.)
 // or data would be fetched from a server.
 let globalCustomers = initialCustomers;
 
-export default function CustomerDetailPage({ params }: { params: { id: string } }) {
+export default function CustomerDetailPage({ params: paramsProp }: { params: { id: string } }) {
+  // `use` is a new React hook that unwraps promises.
+  // In this case, it's used to get the params from Next.js.
+  const params = React.use(Promise.resolve(paramsProp));
+  
   // Use local state to manage the customer, initialized from our mock global state
   const [customers, setCustomers] = useState(globalCustomers);
 
