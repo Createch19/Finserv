@@ -9,39 +9,35 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import React, { useState, useEffect } from "react";
+import type { Customer } from "@/types";
 
 // This is a mock global state for demo purposes.
-// In a real app, this would be a proper state management solution (Context, Zustand, etc.)
-// or data would be fetched from a server.
 let globalCustomers = initialCustomers;
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  // Use local state to manage the customer, initialized from our mock global state
-  const [customers, setCustomers] = useState(globalCustomers);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // In a real app with a proper state management solution, you might subscribe to updates.
-  // For this demo, we'll just re-read the global state on component mount/update.
   useEffect(() => {
-    setCustomers(globalCustomers);
-  }, []);
-  
-  const customer = customers.find((c) => c.id === params.id);
-
-  if (!customer) {
-    // This will show a loading state while we find the customer.
-    // On a real app, this could be a skeleton loader.
-    // If the customer is truly not found after checking, then we can show notFound().
-    // For now, if it's not found immediately, we will check again in case state is updating.
-    // A better solution would be a centralized data fetching/caching layer.
-    const checkAgain = globalCustomers.find((c) => c.id === params.id);
-    if (!checkAgain) {
+    const foundCustomer = globalCustomers.find((c) => c.id === params.id);
+    
+    if (foundCustomer) {
+      setCustomer(foundCustomer);
+    } else {
+      // If not found, you might want to redirect or show a not found page.
+      // For this demo, we'll trigger Next.js's notFound() utility.
       notFound();
     }
+    setLoading(false);
+  }, [params.id]);
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
-  // If customer is not yet found in state, we can return a loading indicator
   if (!customer) {
-      return <div>Loading...</div>;
+    // This case should be handled by notFound(), but as a fallback:
+    return notFound();
   }
 
   return (
