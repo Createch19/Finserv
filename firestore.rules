@@ -1,79 +1,80 @@
 /**
- * @fileoverview Firestore Security Rules for the FINSERV application.
- *
- * Core Philosophy:
- * This ruleset enforces a role-based access control model, with agents creating and managing customer records, and potentially admins having broader access.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a role-based access control model for the FINSERV application.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles, with 'admin' or 'agent' roles.
- * - /customers/{customerId}: Stores customer records, each linked to an agent via the 'agentId' field.  Payments are denormalized into the `customers` documents as an array.
+ * - /users/{userId}: Stores user profiles, accessible only to the user themselves (owner) and admins.
+ * - /customers/{customerId}: Stores customer data, readable by all authenticated users, but writeable only by the agent who created the customer record.
  *
  * Key Security Decisions:
- * - Users can only read and write their own user profiles.
- * - Customers are publicly readable but create, update, and delete operations are restricted to the agent who created them.
- *
- * Denormalization for Authorization:
- * - Customer documents denormalize the `agentId` to enable efficient ownership checks.
+ * - User listing is explicitly denied.
+ * - Customer data is readable by all logged-in users, regardless of role.
+ * - The 'agentId' field on Customer documents is used to enforce ownership for write operations (create, update, delete).
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile data.
+     * @description Manages user profile data. Only the user themselves and admins can access their own profile.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their own profile at /users/user123.
-     * @allow (get, update, delete) User with UID 'user123' can read, update, and delete their own profile at /users/user123.
-     * @deny (create, get, update, delete) User with UID 'user456' cannot access the profile at /users/user123.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (get) User 'Oj6wlYl66YgTGpM1YZtIAWy1CVl1' can read their own profile data.
+     * @allow (create) User 'Oj6wlYl66YgTGpM1YZtIAWy1CVl1' can create their own profile data.
+     * @allow (update) User 'Oj6wlYl66YgTGpM1YZtIAWy1CVl1' can update their own profile data.
+     * @allow (delete) User 'Oj6wlYl66YgTGpM1YZtIAWy1CVl1' can delete their own profile data.
+     * @deny (get) User 'randomId' cannot read another user's profile.
+     * @deny (create) User 'randomId' cannot create a profile with a different userId.
+     * @deny (update) User 'randomId' cannot update another user's profile.
+     * @deny (delete) User 'randomId' cannot delete another user's profile.
+     * @principle Enforces user-ownership for access to profile information.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
+      // Only signed-in users can attempt to access user data.
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false; // Listing users is not permitted.
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId) && resource.data != null;
-      allow delete: if isSignedIn() && isExistingOwner(userId) && resource.data != null;
+      // Prevent listing of all users
+      allow list: if false;
+      // Allow the user to create their own document if the userId matches their auth.uid
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.email == request.auth.token.email;
+      // Allow the user to update their own document if the userId matches their auth.uid
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.email == request.auth.token.email;
+      // Allow the user to delete their own document if the userId matches their auth.uid and the document exists
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to customer records. Customers are publicly readable, but only the agent who created the customer can modify or delete.
+     * @description Manages customer data. All authenticated users can read customer data, but only the creating agent can modify it.
      * @path /customers/{customerId}
-     * @allow (get, list) Any authenticated user can read customer data.
-     * @allow (create) Agent with UID 'agent123' can create a customer record and assigns the 'agentId' to their UID.
-     * @allow (update, delete) Agent with UID 'agent123' can update or delete a customer record where resource.data.agentId == 'agent123'.
-     * @deny (create, update, delete) User with UID 'agent456' cannot create, update, or delete a customer record owned by 'agent123'.
-     * @principle Enforces agent ownership for customer records, allowing public read access.
+     * @allow (get) Any logged in user can get any customer data.
+     * @allow (list) Any logged in user can list any customer data.
+     * @allow (create) User creates customer with their user id.
+     * @allow (update) User can update customer with their user id.
+     * @allow (delete) User can delete customer with their user id.
+     * @deny (create) A user cannot create a customer and assign it to another agent.
+     * @deny (update) A user cannot update a customer assigned to another agent.
+     * @deny (delete) A user cannot delete a customer assigned to another agent.
+     * @principle Enforces that only the creating agent can modify customer data. Public read, owner-only write.
      */
     match /customers/{customerId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+      // Allow all authenticated users to read customer data
+      allow get, list: if isSignedIn();
 
-      function isOwner(agentId) {
-        return request.auth.uid == agentId;
-      }
-
-       function isExistingOwner() {
-        return request.auth.uid == resource.data.agentId;
-      }
-
-      allow get: if true;
-      allow list: if true;
+      // Allow create, update, and delete if the user is the owner (agentId matches) and the document exists for update/delete
       allow create: if isSignedIn() && request.resource.data.agentId == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner() && resource.data != null;
-      allow delete: if isSignedIn() && isExistingOwner() && resource.data != null;
+      allow update: if isSignedIn() && resource != null && resource.data.agentId == request.auth.uid;
+      allow delete: if isSignedIn() && resource != null && resource.data.agentId == request.auth.uid;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
   }
 }
