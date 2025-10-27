@@ -1,0 +1,243 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the FINSERV application, storing their basic profile information and role.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user.",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user (admin or agent)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "role"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a financed customer, storing their personal details, loan information, and agent assignment.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the customer.",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the customer."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the customer."
+        },
+        "aadhar": {
+          "type": "string",
+          "description": "The Aadhar number of the customer."
+        },
+        "phoneModel": {
+          "type": "string",
+          "description": "The phone model purchased by the customer."
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "The total price of the phone."
+        },
+        "downPayment": {
+          "type": "number",
+          "description": "The down payment made by the customer."
+        },
+        "financedAmount": {
+          "type": "number",
+          "description": "The amount financed for the customer."
+        },
+        "interestAmount": {
+          "type": "number",
+          "description": "The total interest amount for the loan."
+        },
+        "totalPayable": {
+          "type": "number",
+          "description": "The total amount payable (financed amount + interest)."
+        },
+        "duration": {
+          "type": "number",
+          "description": "The duration of the loan in months."
+        },
+        "monthlyEMI": {
+          "type": "number",
+          "description": "The monthly EMI amount."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the loan.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the loan (active, completed, overdue)."
+        },
+        "agentId": {
+          "type": "string",
+          "description": "Reference to User (Agent). (Relationship: User 1:N Customer)",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phone",
+        "address",
+        "aadhar",
+        "phoneModel",
+        "totalPrice",
+        "downPayment",
+        "financedAmount",
+        "interestAmount",
+        "totalPayable",
+        "duration",
+        "monthlyEMI",
+        "startDate",
+        "status",
+        "agentId"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made by a customer towards their loan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the payment.",
+          "format": "uuid"
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N Payment)",
+          "format": "uuid"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the payment was made.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount paid."
+        },
+        "mode": {
+          "type": "string",
+          "description": "The mode of payment (cash, UPI, etc.)."
+        },
+        "remainingBalance": {
+          "type": "number",
+          "description": "The remaining balance after the payment."
+        }
+      },
+      "required": [
+        "id",
+        "customerId",
+        "date",
+        "amount",
+        "mode",
+        "remainingBalance"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user data, including role (admin/agent).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Stores customer data. Includes denormalized 'agentId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (agent)."
+            },
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/customers/{customerId}/payments/{paymentId}",
+        "definition": {
+          "entityName": "Payment",
+          "schema": {
+            "$ref": "#/backend/entities/Payment"
+          },
+          "description": "Stores payment information for a specific customer.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (agent)."
+            },
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer."
+            },
+            {
+              "name": "paymentId",
+              "description": "The unique identifier for the payment."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. User roles (admin/agent) are stored directly in the `/users` collection, and access is controlled based on `request.auth.uid`.  Authorization Independence is achieved by storing the `agentId` inside the customer document.  This denormalization avoids the need for `get()` calls in security rules, which would break atomic operations. The use of hierarchical paths for User-Owned Data is demonstrated with the `/users/{userId}/customers/{customerId}` structure, enforcing clear ownership. The structure also facilitates secure list operations (QAPs) by segregating customer data based on agent ownership."
+  }
+}
