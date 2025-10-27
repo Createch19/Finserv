@@ -106,7 +106,7 @@ export function SettingsTabs() {
             <CardDescription>
               Backup or export your application data.
             </CardDescription>
-          </CardHeader>
+          </Header>
           <CardContent>
             <Button onClick={() => downloadCSV(customers || [], 'customers-backup.csv')} disabled={customersLoading}>
                 {customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}

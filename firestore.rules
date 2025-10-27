@@ -1,106 +1,90 @@
 /**
- * @fileoverview Firestore Security Rules for FINSERV application.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces role-based access control for the FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model where agents can only access and manage data related to their assigned customers.
- * Administrative privileges are not yet implemented in this ruleset.
+ * Access is strictly controlled based on the user's role (admin or agent) and ownership of data.
+ * Admins have broad read access, while agents are limited to their own customer records.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. 'userId' corresponds to the Firebase Authentication UID.
- * - /users/{userId}/customers/{customerId}: Stores customer data, linked to a specific agent. 'userId' here represents the agent's ID.
- * - /users/{userId}/customers/{customerId}/payments/{paymentId}: Stores payment information for a customer, nested under the customer document.
+ * - /users/{userId}: Stores user profile data, including role.
+ * - /customers/{customerId}: Stores customer records, with an 'agentId' field linking to the responsible agent.
  *
  * Key Security Decisions:
- * - Users can only access their own profile data.  Listing all users is disallowed.
- * - Agents can only manage customers and payments associated with their user ID.
- * - No public data access is permitted.
+ * - Admins can read all customer records, but writes are implicitly denied unless explicitly granted elsewhere (not in the current schema).
+ * - Agents can only create, read, update, and delete customer records they own (where agentId matches their UID).
+ * - User listing is denied to prevent information disclosure.
  *
  * Denormalization for Authorization:
- * - The 'Customer' entity includes 'agentId', mirroring the 'userId' from the parent path. This denormalization allows rules to validate customer ownership without additional reads.
+ * - The 'Customer' entity denormalizes the 'agentId' to allow direct rule evaluation without additional reads.
+ *
+ * Structural Segregation:
+ * - No explicit structural segregation is used. Both users and customers are stored in top-level collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile data.  Users can only read and write their own profile.
+     * @description Controls access to user profile data.
      * @path /users/{userId}
-     * @allow (get, create, update, delete) if the request is made by the user with matching userId.
-     * @deny (get, create, update, delete) if the request is made by a different user.
-     * @principle Enforces user-ownership for profile data.
+     * @allow (create) - User with UID 'user_abc' can create their own profile document at /users/user_abc.
+     * @allow (get, list, update, delete) - User with UID 'user_abc' can read, update, and delete their own profile document at /users/user_abc.
+     * @deny (create, update, delete) - User with UID 'user_xyz' cannot create, update, or delete the profile document of user 'user_abc'.
+     * @principle Enforces document ownership for user profiles and restricts listing to prevent information disclosure.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-
-      allow get: if isOwner(userId);
+      // Verified user can create their own profile.
+      allow create: if isSignedIn() && isOwner(userId) ;
+      allow get: if isOwner(userId) ;
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isExistingOwner(userId) ;
+      allow delete: if isExistingOwner(userId) ;
     }
 
     /**
-     * @description Controls access to customer data. Agents can only manage customers assigned to them.
-     * @path /users/{userId}/customers/{customerId}
-     * @allow (get, create, update, delete) if the request is made by the agent with matching userId and agentId on customer data matches that userId.
-     * @deny (get, create, update, delete) if the request is made by a different agent or the agentId does not match the userId.
-     * @principle Enforces agent-ownership for customer data.
+     * @description Controls access to customer records.
+     * @path /customers/{customerId}
+     * @allow (create) - Agent with UID 'agent_abc' can create a customer record with agentId 'agent_abc'.
+     * @allow (get) - Admin can read any customer record. Agent 'agent_abc' can read customer record with agentId 'agent_abc'.
+     * @allow (list) - Admin can list all customer records. Agent 'agent_abc' can list customer record with agentId 'agent_abc'.
+     * @allow (update, delete) - Agent 'agent_abc' can update and delete customer record with agentId 'agent_abc'.
+     * @deny (create, update, delete) - Agent 'agent_xyz' cannot create, update, or delete a customer record with agentId 'agent_abc'.
+     * @principle Enforces agent ownership for customer records and allows admin read access.
      */
-    match /users/{userId}/customers/{customerId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.agentId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.agentId == userId;
-      allow delete: if isExistingOwner(userId);
+    match /customers/{customerId} {
+      allow create: if isSignedIn() && request.resource.data.agentId == request.auth.uid;
+      allow get: if isAdmin() || isAgentOwner(resource.data.agentId);
+      allow list: if isAdmin() || isAgentOwner(resource.data.agentId);
+      allow update: if isSignedIn() && isExistingAgentOwner(resource.data.agentId);
+      allow delete: if isSignedIn() && isExistingAgentOwner(resource.data.agentId);
     }
 
-    /**
-     * @description Controls access to payment data. Agents can only manage payments for customers assigned to them.
-     * @path /users/{userId}/customers/{customerId}/payments/{paymentId}
-     * @allow (get, create, update, delete) if the request is made by the agent with matching userId.
-     * @deny (get, create, update, delete) if the request is made by a different agent.
-     * @principle Enforces agent-ownership for customer payment data.
-     */
-    match /users/{userId}/customers/{customerId}/payments/{paymentId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+    // --- Helper functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
+    function isExistingOwner(userId) {
+      return isSignedIn() && isOwner(userId) && resource != null;
+    }
 
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+    // Check if the user is an admin based on their role in the user document.
+    function isAdmin() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Check if the user is the agent assigned to the customer
+    function isAgentOwner(agentId) {
+      return isSignedIn() && request.auth.uid == agentId;
+    }
+
+     function isExistingAgentOwner(agentId) {
+      return isSignedIn() && request.auth.uid == agentId && resource != null;
     }
   }
 }

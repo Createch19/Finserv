@@ -18,6 +18,7 @@ function CustomerDataFetcher({ customerId }: { customerId: string }) {
     const customerRef = useMemoFirebase(
         () => {
             if (firestore && customerId) {
+                // Query the top-level 'customers' collection
                 return doc(firestore, `customers`, customerId);
             }
             return null;
@@ -55,6 +56,7 @@ export default function CustomerDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, isUserLoading } = useUser();
 
+  // We must wait for BOTH the user to be loaded AND the ID to be present
   const isReadyToFetch = !isUserLoading && user && id;
 
   if (isUserLoading) {
@@ -69,10 +71,12 @@ export default function CustomerDetailPage() {
     return <CustomerDataFetcher customerId={id} />;
   }
   
+  // This case handles if the user is not logged in or the id is missing after loading is complete
   if (!isUserLoading && (!user || !id)) {
       return notFound();
   }
 
+  // Fallback loader while waiting for initial conditions to be met
   return (
     <div className="flex justify-center items-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

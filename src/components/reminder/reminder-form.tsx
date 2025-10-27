@@ -85,7 +85,7 @@ export function ReminderForm() {
     try {
         const paymentsMade = customer.payments?.length || 0;
         const nextDueDate = new Date(customer.startDate);
-        nextDueDate.setMonth(nextDueDate.getMonth() + paymentsMade);
+        nextDueDate.setMonth(nextDueDate.getMonth() + paymentsMade + 1);
 
       const input = {
         customerName: customer.name,
