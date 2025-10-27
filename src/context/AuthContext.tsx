@@ -42,15 +42,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (demoUser) {
       setUser(demoUser);
       localStorage.setItem('demo-user', JSON.stringify(demoUser));
-    } else {
-      // If email doesn't match, you might want to throw an error
-      // For simplicity, we just won't log in
-      console.error("Invalid demo user credentials");
     }
 
     setLoading(false);
     if (!demoUser) {
-        throw new Error("Invalid credentials. Use 'admin@finserv.com' or 'agent@finserv.com'.");
+      throw new Error("Invalid credentials. Use 'admin@finserv.com' or 'agent@finserv.com'.");
     }
   };
   
