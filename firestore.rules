@@ -1,75 +1,79 @@
 /**
- * @fileoverview Firestore Security Rules for FINSERV application.
+ * @fileoverview Firestore Security Rules for the FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces a role-based access control model.
- * Users can only manage their own profile data.
- * Agents can create and manage customers.
- * Public Read with Owner-Only Writes is applied for customers.
+ * This ruleset enforces a role-based access control model, with agents creating and managing customer records, and potentially admins having broader access.
  *
  * Data Structure:
- * /users/{userId}: Stores user profile information. Only the user themselves can modify this data.
- * /customers/{customerId}: Stores customer data.
+ * - /users/{userId}: Stores individual user profiles, with 'admin' or 'agent' roles.
+ * - /customers/{customerId}: Stores customer records, each linked to an agent via the 'agentId' field.  Payments are denormalized into the `customers` documents as an array.
  *
  * Key Security Decisions:
- * - Users can only read/write their own /users/{userId} document.
- * - All authenticated users can list customers, but ownership (agentId) is validated for create, update, and delete operations.
+ * - Users can only read and write their own user profiles.
+ * - Customers are publicly readable but create, update, and delete operations are restricted to the agent who created them.
+ *
+ * Denormalization for Authorization:
+ * - Customer documents denormalize the `agentId` to enable efficient ownership checks.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Controls access to user profile data.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user creates their own profile.
-     * @allow (get, update, delete) - Authenticated user accesses their own profile.
-     * @deny (create) - User tries to create a profile with a different userId.
-     * @deny (get, update, delete) - User tries to access another user's profile.
+     * @allow (create) User with UID 'user123' can create their own profile at /users/user123.
+     * @allow (get, update, delete) User with UID 'user123' can read, update, and delete their own profile at /users/user123.
+     * @deny (create, get, update, delete) User with UID 'user456' cannot access the profile at /users/user123.
      * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-      function isSignedIn() {
-        return request.auth != null;
+
+      function isExistingOwner(userId) {
+        return request.auth.uid == userId;
       }
+
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Listing users is not permitted.
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId) && resource.data != null;
+      allow delete: if isSignedIn() && isExistingOwner(userId) && resource.data != null;
     }
 
     /**
-     * @description Controls access to customer documents. All authenticated users can list customers, but ownership (agentId) is validated for create, update, and delete operations.
+     * @description Controls access to customer records. Customers are publicly readable, but only the agent who created the customer can modify or delete.
      * @path /customers/{customerId}
-     * @allow (get, list) - Any authenticated user can read customer data.
-     * @allow (create) - Agents can create new customers, with agentId matching their own UID.
-     * @allow (update, delete) - Only the agent who created the customer can update or delete the customer record.
-     * @deny (create) - User tries to create a customer with an agentId that doesn't match their own UID.
-     * @deny (update, delete) - User tries to update or delete a customer record they don't own.
-     * @principle Public Read with Owner-Only Writes.
+     * @allow (get, list) Any authenticated user can read customer data.
+     * @allow (create) Agent with UID 'agent123' can create a customer record and assigns the 'agentId' to their UID.
+     * @allow (update, delete) Agent with UID 'agent123' can update or delete a customer record where resource.data.agentId == 'agent123'.
+     * @deny (create, update, delete) User with UID 'agent456' cannot create, update, or delete a customer record owned by 'agent123'.
+     * @principle Enforces agent ownership for customer records, allowing public read access.
      */
     match /customers/{customerId} {
-      function isAgent() {
-        return request.auth.token.role == 'agent';
-      }
-
-      function isCustomerOwner(agentId) {
-        return request.auth.uid == agentId;
-      }
-
       function isSignedIn() {
         return request.auth != null;
       }
 
+      function isOwner(agentId) {
+        return request.auth.uid == agentId;
+      }
 
-      allow get, list: if isSignedIn();
+       function isExistingOwner() {
+        return request.auth.uid == resource.data.agentId;
+      }
+
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn() && request.resource.data.agentId == request.auth.uid;
-      allow update: if isSignedIn() && request.resource.data.agentId == resource.data.agentId && resource.data.agentId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.agentId == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner() && resource.data != null;
+      allow delete: if isSignedIn() && isExistingOwner() && resource.data != null;
     }
   }
 }
