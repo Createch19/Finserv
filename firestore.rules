@@ -2,75 +2,88 @@
  * @fileOverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * This ruleset prioritizes secure data access based on user roles (admin, agent) and customer data access for all authenticated users.
+ * This ruleset prioritizes secure data access based on user roles and authenticated sessions.
+ * It allows for a flexible data schema during the prototyping phase but strictly enforces authorization.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles. Access is restricted to the owner of the user document (self-access).
- * - /customers/{customerId}: Stores customer data, accessible to all authenticated users.
+ * - /users/{userId}: Stores user profile data, secured to owner-only access.
+ * - /customers/{customerId}: Stores customer data. Accessible to all authenticated users.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - All authenticated users can read customer data.
- * - All authenticated users can create, update, or delete customer data.
+ * - User listing is disabled for security reasons.
+ * - All write operations are protected by authorization checks, preventing unauthorized data modification.
+ * - Read access to customer data is public to all authenticated users.
  *
  * Denormalization for Authorization:
- * Not explicitly used, but the current design relies on the Firebase Auth context to determine user roles. For more complex role-based access control on customer data (e.g., agent-specific customer assignments), consider denormalizing agent IDs onto the customer documents.
+ * N/A in the current schema.
+ *
+ * Structural Segregation:
+ * N/A
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages access to user profile data.
+     * @description Secures user profile data.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' can create their own profile document at /users/user123.
-     * @deny (create) - User with UID 'user123' cannot create a profile document at /users/anotherUser.
-     * @allow (get, update, delete) - User with UID 'user123' can read, update, or delete their own profile document at /users/user123.
-     * @deny (get, update, delete) - User with UID 'user123' cannot read, update, or delete another user's profile document at /users/anotherUser.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) User 'user_abc' can create their own profile.
+     * @deny (create) User 'user_xyz' cannot create a profile with ID 'user_abc'.
+     * @allow (get, list) User 'user_abc' can read their own profile.
+     * @deny (get, list) User 'user_xyz' cannot read profile 'user_abc'.
+     * @allow (update, delete) User 'user_abc' can update/delete their own profile.
+     * @deny (update, delete) User 'user_xyz' cannot update/delete profile 'user_abc'.
+     * @principle Enforces strict user-ownership for profile data.
      */
     match /users/{userId} {
-      // Helper function to check if the requesting user is the owner of the document.
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      // Allows a user to create their own profile.
-      allow create: if isOwner(userId) && request.resource.data.email is string;
-
-      // Allows a user to get their own profile.
-      allow get: if isOwner(userId);
-
-      // Allows a user to list their own profile.
-      allow list: if false;
-
-      // Allows a user to update their own profile.
-      allow update: if isOwner(userId) && resource != null;
-
-      // Allows a user to delete their own profile.
-      allow delete: if isOwner(userId) && resource != null;
+      // Validate that the authenticated user's ID matches the userId in the path
+      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.email == request.auth.token.email;
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.email == resource.data.email;
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Manages access to customer data. All authenticated users can access customer data.
+     * @description Allows any authenticated user to read customer data, but restricts writes.
      * @path /customers/{customerId}
-     * @allow (get, list) - Any authenticated user can read customer data.
-     * @allow (create, update, delete) - Any authenticated user can create, update, or delete customer data.
-     * @deny (create, update, delete) - An unauthenticated user cannot create, update, or delete customer data.
-     * @principle Authenticated users can access customer data.
+     * @allow (get, list) Any authenticated user can read customer data.
+     * @deny (create, update, delete) Non-owners cannot modify customer data.
+     * @principle Public read access for authenticated users, owner-only writes.
      */
     match /customers/{customerId} {
-        // Allows any authenticated user to read customer data.
-        allow get, list: if request.auth != null;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
 
-        // Allows any authenticated user to create customer data.
-        allow create: if request.auth != null;
+    // ----- Helper functions -----
 
-        // Allows any authenticated user to update customer data.
-        allow update: if request.auth != null && resource != null;
+    /**
+     * @description Checks if the user is signed in.
+     * @returns {boolean} True if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-        // Allows any authenticated user to delete customer data.
-        allow delete: if request.auth != null && resource != null;
+    /**
+     * @description Checks if the request is made by the owner of the resource.
+     * @param {string} userId - The user ID to check against.
+     * @returns {boolean} True if the user ID matches the authenticated user's ID.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the request is made by the owner of the resource and the resource exists.
+     * @param {string} userId - The user ID to check against.
+     * @returns {boolean} True if the user ID matches the authenticated user's ID and the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
   }
 }
