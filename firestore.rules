@@ -2,94 +2,60 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Controls access to user profile data.
-     * @path /users/{userId}
-     * @allow (create) User with matching ID can create their profile.
-     * @allow (get, update, delete) User with matching ID can read, update, or delete their profile.
-     * @deny (create) User cannot create a profile with a mismatched ID.
-     * @deny (get, update, delete) User cannot read, update, or delete another user's profile.
-     * @principle Enforces document ownership for user profiles.
-     */
     match /users/{userId} {
       function isSignedIn() {
         return request.auth != null;
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false; // Listing all users is not permitted
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
-    /**
-     * @description Controls access to customer data for a specific agent.
-     * @path /users/{userId}/customers/{customerId}
-     * @allow (create) Agent can create a customer under their ID, with a matching agentId in the document.
-     * @allow (get, list, update, delete) Agent can read, list, update, or delete customers assigned to them.
-     * @deny (create) Agent cannot create a customer under their ID with a mismatched agentId.
-     * @deny (get, list, update, delete) Agent cannot access customers not assigned to them.
-     * @principle Enforces ownership of customer data by the assigned agent.
-     */
     match /users/{userId}/customers/{customerId} {
       function isSignedIn() {
         return request.auth != null;
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isOwner(userId) && getAfter(resource).data != null;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
-    /**
-     * @description Controls access to payment data for a specific customer and agent.
-     * @path /users/{userId}/customers/{customerId}/payments/{paymentId}
-     * @allow (create) Agent can create a payment record for a customer assigned to them.
-     * @allow (get, list, update, delete) Agent can read, list, update, or delete payment records for customers assigned to them.
-     * @deny (create) Agent cannot create a payment record for a customer not assigned to them.
-     * @deny (get, list, update, delete) Agent cannot access payment records for customers not assigned to them.
-     * @principle Enforces ownership of payment data by the assigned agent and customer.
-     */
     match /users/{userId}/customers/{customerId}/payments/{paymentId} {
       function isSignedIn() {
         return request.auth != null;
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
-       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      function isExistingOwner(userId) {
+        return isOwner(userId) && getAfter(resource).data != null;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
   }
 }
