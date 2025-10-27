@@ -20,15 +20,15 @@ function CustomerDataFetcher({ customerId, userId }: { customerId: string, userI
         [firestore, userId, customerId]
     );
 
-    const { data: customer, isLoading: isCustomerLoading, error } = useDoc<WithId<Customer>>(customerRef);
+    const { data: customer, isLoading: isCustomerLoading } = useDoc<WithId<Customer>>(customerRef);
 
     if (isCustomerLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    if (error || !customer) {
-        // This could be a permissions error or the document doesn't exist for this user.
-        // We'll treat it as not found.
+    if (!customer) {
+        // If loading is finished and there's no customer, it's a genuine not found case.
+        // This could be due to permissions or the document not existing.
         notFound();
     }
 
@@ -52,19 +52,20 @@ export default function CustomerDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, isUserLoading } = useUser();
 
-  if (isUserLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  }
-  
-  if (!user) {
-    // This case should be handled by the AppLayout, but as a fallback:
-    return null; 
-  }
-  
-  if (!id) {
-    notFound();
+  // The primary change is here: We explicitly wait for BOTH user loading to finish AND the ID to be present.
+  // This prevents rendering the data fetcher with incomplete data.
+  const isReadyToFetch = !isUserLoading && user && id;
+
+  if (!isReadyToFetch) {
+    // Show a loading screen until we have everything we need to fetch.
+    return (
+        <div className="flex justify-center items-center h-screen">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
   }
 
-  // We have a user and an ID, now we can fetch the data.
+  // At this point, we are guaranteed to have a user and an ID.
+  // It is now safe to render the data fetching component.
   return <CustomerDataFetcher customerId={id} userId={user.uid} />;
 }
