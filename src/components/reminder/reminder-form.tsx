@@ -34,12 +34,25 @@ import { Loader2, Wand2, MessageSquare, Send, Calendar as CalendarIcon } from "l
 import { intelligentEmiReminder, type IntelligentEmiReminderOutput } from "@/ai/flows/intelligent-emi-reminder";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Customer, WithId } from "@/types";
+import { collection, query, where } from "firebase/firestore";
+import type { Customer, User, WithId } from "@/types";
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
 });
+
+function getCustomersQuery(firestore: any, user: User | null) {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    // Admins can see all customers, agents only see their own.
+    if (user.role === 'admin') {
+        return query(customersCollection, where('status', '!=', 'completed'));
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid), where('status', '!=', 'completed'));
+    }
+}
 
 export function ReminderForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -48,8 +61,8 @@ export function ReminderForm() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const customersRef = useMemoFirebase(() => (user ? collection(firestore, `users/${user.uid}/customers`) : null), [user, firestore]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersRef);
+  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -121,7 +134,7 @@ export function ReminderForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {customers?.filter(c => c.status !== 'completed').map((customer) => (
+                        {customers?.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id}>
                             {customer.name}
                           </SelectItem>

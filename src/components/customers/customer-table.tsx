@@ -26,10 +26,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
-import type { Customer, WithId } from '@/types';
+import type { Customer, WithId, User } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore, useUser, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
-import { collection, deleteDoc, doc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, query, where } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
   switch (status) {
@@ -46,14 +46,28 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 
 const ITEMS_PER_PAGE = 10;
 
+function getCustomersQuery(firestore: any, user: User | null) {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    // Admins can see all customers, agents only see their own.
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
+}
+
+
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
+  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [firestore, user]);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
@@ -84,8 +98,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   };
 
   const handleDelete = (customerId: string) => {
-    if (!user || !firestore) return;
-    const docRef = doc(firestore, `users/${user.uid}/customers`, customerId);
+    if (!firestore) return;
+    const docRef = doc(firestore, 'customers', customerId);
     
     deleteDoc(docRef).then(() => {
       toast({
@@ -141,7 +155,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Link href={`/customers/${customer.id}`} passHref onClick={() => console.log('Navigating to customer ID:', customer.id)}>
+                    <Link href={`/customers/${customer.id}`} passHref>
                       <Button variant="outline" size="sm">
                         <Eye className="mr-2 h-4 w-4" />
                         View

@@ -1,7 +1,7 @@
+
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
       "description": "Represents a user within the FINSERV application, storing their basic profile information and role.",
@@ -17,7 +17,8 @@
         },
         "role": {
           "type": "string",
-          "description": "The role of the user (admin or agent)."
+          "description": "The role of the user (admin or agent).",
+          "enum": ["admin", "agent"]
         }
       },
       "required": [
@@ -27,7 +28,6 @@
       ]
     },
     "Customer": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Customer",
       "type": "object",
       "description": "Represents a financed customer, storing their personal details, loan information, and agent assignment.",
@@ -87,12 +87,19 @@
         },
         "status": {
           "type": "string",
-          "description": "The status of the loan (active, completed, overdue)."
+          "description": "The status of the loan (active, completed, overdue).",
+          "enum": ["active", "completed", "overdue"]
         },
         "agentId": {
           "type": "string",
-          "description": "Reference to User (Agent). (Relationship: User 1:N Customer)",
-          "format": "uuid"
+          "description": "The UID of the agent who created this customer record."
+        },
+        "payments": {
+            "type": "array",
+            "description": "An array of payments made by the customer.",
+            "items": {
+                "$ref": "#/entities/Payment"
+            }
         }
       },
       "required": [
@@ -114,20 +121,13 @@
       ]
     },
     "Payment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Payment",
       "type": "object",
-      "description": "Represents a payment made by a customer towards their loan.",
+      "description": "Represents a payment made by a customer towards their loan. This is embedded within a Customer document.",
       "properties": {
-        "id": {
+        "paymentId": {
           "type": "string",
-          "description": "Unique identifier for the payment.",
-          "format": "uuid"
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to Customer. (Relationship: Customer 1:N Payment)",
-          "format": "uuid"
+          "description": "Unique identifier for the payment."
         },
         "date": {
           "type": "string",
@@ -148,8 +148,7 @@
         }
       },
       "required": [
-        "id",
-        "customerId",
+        "paymentId",
         "date",
         "amount",
         "mode",
@@ -159,73 +158,21 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
-    "structure": [
+    "collections": [
       {
         "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user data, including role (admin/agent).",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+        "schema": { "$ref": "#/entities/User" },
+        "description": "Stores user profile data, including their role (admin or agent)."
       },
       {
-        "path": "/users/{userId}/customers/{customerId}",
-        "definition": {
-          "entityName": "Customer",
-          "schema": {
-            "$ref": "#/backend/entities/Customer"
-          },
-          "description": "Stores customer data. Includes denormalized 'agentId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (agent)."
-            },
-            {
-              "name": "customerId",
-              "description": "The unique identifier for the customer."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/customers/{customerId}/payments/{paymentId}",
-        "definition": {
-          "entityName": "Payment",
-          "schema": {
-            "$ref": "#/backend/entities/Payment"
-          },
-          "description": "Stores payment information for a specific customer.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (agent)."
-            },
-            {
-              "name": "customerId",
-              "description": "The unique identifier for the customer."
-            },
-            {
-              "name": "paymentId",
-              "description": "The unique identifier for the payment."
-            }
-          ]
-        }
+        "path": "/customers/{customerId}",
+        "schema": { "$ref": "#/entities/Customer" },
+        "description": "A top-level collection of all customers. The 'agentId' field links a customer to a user with the 'agent' role. Admins can access all customer documents, while agents are restricted to their own."
       }
-    ],
-    "reasoning": "The Firestore structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. User roles (admin/agent) are stored directly in the `/users` collection, and access is controlled based on `request.auth.uid`.  Authorization Independence is achieved by storing the `agentId` inside the customer document.  This denormalization avoids the need for `get()` calls in security rules, which would break atomic operations. The use of hierarchical paths for User-Owned Data is demonstrated with the `/users/{userId}/customers/{customerId}` structure, enforcing clear ownership. The structure also facilitates secure list operations (QAPs) by segregating customer data based on agent ownership."
+    ]
   }
 }

@@ -1,122 +1,104 @@
 /**
- * @fileoverview Firestore Security Rules for the FINSERV application.
+ * @fileoverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for most data, with role-based access for admin users.
- * Data is organized hierarchically under `/users/{userId}`, ensuring clear ownership and facilitating efficient querying.
+ * This ruleset enforces a strict user-ownership model where agents can only access and manage data related to their assigned customers.
+ * Administrative privileges are not yet implemented in this ruleset.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles, including their role ('admin' or 'agent').
- * - /users/{userId}/customers/{customerId}: Stores customer data, including a denormalized `agentId` field.
- * - /users/{userId}/customers/{customerId}/payments/{paymentId}: Stores payment information for customers.
+ * - /users/{userId}: Stores user profiles. 'userId' corresponds to the Firebase Authentication UID.
+ * - /users/{userId}/customers/{customerId}: Stores customer data, linked to a specific agent. 'userId' here represents the agent's ID.
+ * - /users/{userId}/customers/{customerId}/payments/{paymentId}: Stores payment information for a customer, nested under the customer document.
  *
  * Key Security Decisions:
- * - Users can only read and write their own user document (`/users/{userId}`).
- * - Only authenticated users can create user documents, and the `userId` must match their `auth.uid`.
- * - Agents can only manage customers and payments associated with their own user ID (`agentId`).
- * - Listing of all users (`/users`) is forbidden to prevent information disclosure.
+ * - Users can only access their own profile data.  Listing all users is disallowed.
+ * - Agents can only manage customers and payments associated with their user ID.
+ * - No public data access is permitted.
  *
  * Denormalization for Authorization:
- * The `agentId` field is denormalized into the `/users/{userId}/customers/{customerId}` documents.
- * This allows the rules to verify ownership of customer data without needing to perform additional `get()` operations.
+ * - The 'Customer' entity includes 'agentId', mirroring the 'userId' from the parent path. This denormalization allows rules to validate customer ownership without additional reads.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Controls access to user profile data.  Users can only read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) Authenticated user creates their own profile.
-     * @allow (get, update, delete) Authenticated user accesses their own profile.
-     * @deny (list) Prevents listing all users.
-     * @deny (create) Unauthenticated user attempts to create a profile.
-     * @deny (get, update, delete) User attempts to access another user's profile.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (get, create, update, delete) if the request is made by the user with matching userId.
+     * @deny (get, create, update, delete) if the request is made by a different user.
+     * @principle Enforces user-ownership for profile data.
      */
     match /users/{userId} {
-      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Helper function to check if the user is the owner of the document.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper function to check if the user is an existing owner of the document.
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isOwner(userId) && exists(resource);
       }
 
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow get: if isOwner(userId);
       allow list: if false;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to customer documents owned by a specific agent.
+     * @description Controls access to customer data. Agents can only manage customers assigned to them.
      * @path /users/{userId}/customers/{customerId}
-     * @allow (create) Agent creates a new customer, with agentId matching their own ID.
-     * @allow (get, list, update, delete) Agent accesses/modifies their own customers.
-     * @deny (create) Agent attempts to create a customer with mismatched agentId.
-     * @deny (get, list, update, delete) User attempts to access/modify customers not owned by them.
-     * @principle Enforces ownership of customer documents by the assigned agent.
+     * @allow (get, create, update, delete) if the request is made by the agent with matching userId and agentId on customer data matches that userId.
+     * @deny (get, create, update, delete) if the request is made by a different agent or the agentId does not match the userId.
+     * @principle Enforces agent-ownership for customer data.
      */
     match /users/{userId}/customers/{customerId} {
-      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Helper function to check if the user is the owner of the customer document.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper function to check if the user is an existing owner of the customer document.
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isOwner(userId) && exists(resource);
       }
 
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.agentId == userId;
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow update: if isExistingOwner(userId) && resource.data.agentId == userId;
-      allow delete: if isExistingOwner(userId) && resource.data.agentId == userId;
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.agentId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.agentId == userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to payment documents associated with a customer.
+     * @description Controls access to payment data. Agents can only manage payments for customers assigned to them.
      * @path /users/{userId}/customers/{customerId}/payments/{paymentId}
-     * @allow (create) Agent creates a payment for their customer.
-     * @allow (get, list, update, delete) Agent manages payments for their customers.
-     * @deny (create) User attempts to create a payment for a customer they don't manage.
-     * @deny (get, list, update, delete) User attempts to access/modify payments for customers not owned by them.
-     * @principle Restricts payment management to the agent assigned to the customer.
+     * @allow (get, create, update, delete) if the request is made by the agent with matching userId.
+     * @deny (get, create, update, delete) if the request is made by a different agent.
+     * @principle Enforces agent-ownership for customer payment data.
      */
     match /users/{userId}/customers/{customerId}/payments/{paymentId} {
-      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Helper function to check if the user is the owner of the customer document.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper function to check if the user is an existing owner of the customer document.
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isOwner(userId) && exists(resource);
       }
 
-      allow create: if isSignedIn() && isOwner(userId);
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }

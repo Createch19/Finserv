@@ -21,8 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Download, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Customer, WithId } from "@/types";
+import { collection, query, where } from "firebase/firestore";
+import type { Customer, User, WithId } from "@/types";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -54,13 +54,25 @@ function downloadCSV(data: any[], filename: string) {
     document.body.removeChild(a);
 }
 
+function getCustomersQuery(firestore: any, user: User | null) {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
+}
+
 
 export function SettingsTabs() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersRef);
+  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   return (
     <Tabs defaultValue="defaults" className="w-full">

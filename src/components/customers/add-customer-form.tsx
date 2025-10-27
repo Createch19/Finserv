@@ -135,7 +135,7 @@ export function AddCustomerForm() {
       payments: [],
     };
     
-    const customerCollection = collection(firestore, `users/${user.uid}/customers`);
+    const customerCollection = collection(firestore, 'customers');
     
     addDoc(customerCollection, newCustomer).then(() => {
         toast({

@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, differenceInDays, startOfDay, isWithinInterval } from "date-fns";
+import { format, isBefore, differenceInDays, startOfDay, isWithinInterval, addMonths } from "date-fns";
 import Link from 'next/link';
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,9 +23,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Payment, WithId } from "@/types";
+import type { Customer, Payment, WithId, User } from "@/types";
 import { useUser, useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
-import { collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
@@ -58,11 +58,23 @@ const getStatusBadgeVariant = (status: EmiStatus) => {
   }
 };
 
+function getCustomersQuery(firestore: any, user: User | null) {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
+}
+
 export function EmiList() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
+  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const [statusFilter, setStatusFilter] = useState<"all" | EmiStatus>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -76,9 +88,9 @@ export function EmiList() {
       .flatMap((customer) => {
         if (!customer.duration) return [];
         const emis: EmiEntry[] = [];
+        const startDate = new Date(customer.startDate);
         for (let i = 0; i < customer.duration; i++) {
-          const dueDate = new Date(customer.startDate);
-          dueDate.setMonth(dueDate.getMonth() + i + 1);
+          const dueDate = addMonths(startDate, i + 1);
           const isPaid = i < (customer.payments?.length || 0);
           emis.push({
             customerName: customer.name,
@@ -130,7 +142,7 @@ export function EmiList() {
       remainingBalance: customer.totalPayable - currentTotalPaid - selectedEmi.emiAmount,
     };
     
-    const customerDocRef = doc(firestore, `users/${user.uid}/customers`, selectedEmi.customerId);
+    const customerDocRef = doc(firestore, `customers`, selectedEmi.customerId);
     
     const newStatus = (customer.payments?.length || 0) + 1 === customer.duration ? 'completed' : 'active';
 

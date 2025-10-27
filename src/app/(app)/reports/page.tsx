@@ -5,16 +5,29 @@ import { PageHeader } from "@/components/page-header";
 import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Customer, WithId } from "@/types";
+import { collection, query, where } from "firebase/firestore";
+import type { Customer, WithId, User } from "@/types";
 import { Loader2 } from "lucide-react";
+
+function getCustomersQuery(firestore: any, user: User | null) {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    // Admins can see all customers, agents only see their own.
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
+}
 
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
+  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   if (isLoading || !customers) {
       return (
@@ -45,7 +58,7 @@ export default function ReportsPage() {
                 <CardHeader>
                     <CardTitle>Profit vs Principal</CardTitle>
                     <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
-                </CardHeader>
+                </Header>
                 <CardContent>
                     <ProfitChart customers={customers} height={300} />
                 </CardContent>
@@ -54,7 +67,7 @@ export default function ReportsPage() {
                 <CardHeader>
                     <CardTitle>Loan Status</CardTitle>
                     <CardDescription>Distribution of active, completed, and overdue loans.</CardDescription>
-                </CardHeader>
+                </Header>
                 <CardContent>
                     <LoanStatusChart customers={customers} height={300} />
                 </CardContent>

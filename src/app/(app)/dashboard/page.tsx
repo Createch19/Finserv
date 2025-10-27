@@ -13,15 +13,28 @@ import { DollarSign, Users, TrendingUp, HandCoins, Loader2 } from "lucide-react"
 import { CollectionChart, ProfitChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Customer, WithId } from "@/types";
+import { collection, query, where } from "firebase/firestore";
+import type { Customer, WithId, User } from "@/types";
+
+function getCustomersQuery(firestore: any, user: User | null) {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    // Admins can see all customers, agents only see their own.
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
+}
 
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
+  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   if (isLoading || !customers) {
       return (
