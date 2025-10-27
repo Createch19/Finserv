@@ -66,7 +66,7 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                         </TableHeader>
                         <TableBody>
                             {customer.payments?.length > 0 ? customer.payments.map(p => (
-                                <TableRow key={p.id}>
+                                <TableRow key={p.paymentId}>
                                     <TableCell>{format(new Date(p.date), 'PPP')}</TableCell>
                                     <TableCell>₹{p.amount.toLocaleString()}</TableCell>
                                     <TableCell className="capitalize">{p.mode}</TableCell>

@@ -123,7 +123,7 @@ export function EmiList() {
     const currentTotalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
 
     const newPayment: Payment = {
-      id: uuidv4(),
+      paymentId: uuidv4(),
       date: new Date().toISOString(),
       amount: selectedEmi.emiAmount,
       mode: 'cash',

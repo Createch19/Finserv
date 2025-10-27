@@ -1,4 +1,5 @@
 
+
 export type User = {
   uid: string;
   email: string;
@@ -7,7 +8,7 @@ export type User = {
 };
 
 export type Payment = {
-  id: string;
+  paymentId: string;
   date: string; // ISO 8601 format
   amount: number;
   mode: 'cash' | 'upi';
