@@ -9,7 +9,7 @@ import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, DocumentSnapshot } from 'firebase/firestore';
 import type { User } from '@/types';
 import { useFirebase } from '@/firebase';
 
@@ -35,29 +35,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth) return;
+    if (!auth || !firestore) {
+      setLoading(false);
+      return;
+    };
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUser(userDoc.data() as User);
-        } else {
-            // This case handles when a default user is created in auth but not yet in Firestore.
-            const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
-            if (defaultUserInfo) {
-                const newUser: User = {
+        try {
+            const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+            const userDoc: DocumentSnapshot = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+                // Combine auth and firestore data for the complete user profile
+                setUser({
                     uid: firebaseUser.uid,
                     email: firebaseUser.email!,
-                    name: defaultUserInfo.name,
-                    role: defaultUserInfo.role as 'admin' | 'agent'
-                };
-                await setDoc(userDocRef, newUser);
-                setUser(newUser);
+                    ...userDoc.data()
+                } as User);
             } else {
-                setUser(null);
+                 // This can happen if the Firestore doc wasn't created yet for a default user
+                const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
+                if (defaultUserInfo) {
+                    const newUser: User = {
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email!,
+                        name: defaultUserInfo.name,
+                        role: defaultUserInfo.role as 'admin' | 'agent'
+                    };
+                    await setDoc(userDocRef, { name: newUser.name, role: newUser.role, email: newUser.email });
+                    setUser(newUser);
+                } else {
+                    console.error("User document not found and not a default user.");
+                    setUser(null);
+                }
             }
+        } catch(error) {
+            console.error("Error fetching user document:", error);
+            setUser(null);
         }
       } else {
         setUser(null);
@@ -69,55 +84,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [auth, firestore]);
 
   const signIn = async (email: string, pass: string) => {
-    if (!auth) {
-      throw new Error('Firebase Auth is not initialized.');
+    if (!auth || !firestore) {
+      throw new Error('Firebase Auth/Firestore is not initialized.');
     }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged will handle setting the user state
     } catch (error: any) {
-      // Check for specific error codes for user not found.
-      // 'auth/user-not-found' is for older SDKs, 'auth/invalid-credential' can be for newer ones.
       if (
         (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
         defaultUsers.hasOwnProperty(email)
       ) {
-        // If it's a default user that doesn't exist, create them.
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
           const firebaseUser = userCredential.user;
           const defaultUserInfo = defaultUsers[email as keyof typeof defaultUsers];
           
-          // Immediately create the Firestore document.
-          const newUser: User = {
-            uid: firebaseUser.uid,
+          const newUser: Omit<User, 'uid'> = {
             email: firebaseUser.email!,
             name: defaultUserInfo.name,
             role: defaultUserInfo.role as 'admin' | 'agent'
           };
           const userDocRef = doc(firestore, 'users', firebaseUser.uid);
           await setDoc(userDocRef, newUser);
-          
-          // Manually set the user in the state since onAuthStateChanged might not fire immediately.
-          setUser(newUser);
+          // onAuthStateChanged will handle setting the user state
           
         } catch (creationError) {
           console.error('Failed to create default user:', creationError);
           setLoading(false);
-          throw creationError; // Re-throw creation error
+          throw creationError;
         }
       } else {
-        // For any other error, re-throw it.
         console.error('Sign in error:', error);
         setLoading(false);
         throw error;
       }
-    } finally {
-        // Loading is set to false by onAuthStateChanged in the happy path
-        if (auth.currentUser) {
-            setLoading(false);
-        }
-    }
+    } 
+    // Loading is set to false by onAuthStateChanged
   };
 
   const signOut = async () => {
