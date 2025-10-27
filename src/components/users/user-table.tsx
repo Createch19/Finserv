@@ -39,8 +39,9 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const { user: authUser } = useUser();
   const firestore = useFirestore();
 
+  // Only admins should be able to query all users
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
+    if (!firestore || !authUser || authUser.role !== 'admin') return null;
     return collection(firestore, 'users');
   }, [firestore, authUser]);
 

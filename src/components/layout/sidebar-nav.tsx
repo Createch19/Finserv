@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from 'next/navigation';
@@ -21,11 +22,12 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
+import { useUser } from '@/firebase';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/users', label: 'Users', icon: UsersRound },
+  { href: '/users', label: 'Users', icon: UsersRound, adminOnly: true },
   { href: '/emis', label: 'EMI Tracker', icon: CalendarClock },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
@@ -34,6 +36,9 @@ const menuItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { user } = useUser();
+
+  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin');
 
   return (
     <>
@@ -47,7 +52,7 @@ export function SidebarNav() {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {menuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <Link href={item.href} passHref>
                 <SidebarMenuButton
