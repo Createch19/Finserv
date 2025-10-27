@@ -6,7 +6,7 @@ import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/repo
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Customer } from "@/types";
+import type { Customer, WithId } from "@/types";
 import { Loader2 } from "lucide-react";
 
 export default function ReportsPage() {
@@ -14,7 +14,7 @@ export default function ReportsPage() {
   const firestore = useFirestore();
 
   const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<Customer>(customersRef);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
 
   if (isLoading || !customers) {
       return (

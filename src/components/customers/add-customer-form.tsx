@@ -116,7 +116,7 @@ export function AddCustomerForm() {
         return;
     }
 
-    const newCustomer: Omit<Customer, 'id'> = {
+    const newCustomer: Customer = {
       name: values.customerName,
       phone: values.phoneNumber,
       address: values.address,

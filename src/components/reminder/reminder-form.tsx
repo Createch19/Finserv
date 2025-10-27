@@ -33,9 +33,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Wand2, MessageSquare, Send, Calendar as CalendarIcon } from "lucide-react";
 import { intelligentEmiReminder, type IntelligentEmiReminderOutput } from "@/ai/flows/intelligent-emi-reminder";
 import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Customer } from "@/types";
+import type { Customer, WithId } from "@/types";
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
@@ -48,8 +48,8 @@ export function ReminderForm() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
-  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersRef);
+  const customersRef = useMemoFirebase(() => (user ? collection(firestore, `users/${user.uid}/customers`) : null), [user, firestore]);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

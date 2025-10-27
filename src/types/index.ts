@@ -1,3 +1,4 @@
+
 export type User = {
   uid: string;
   email: string;
@@ -14,7 +15,6 @@ export type Payment = {
 };
 
 export type Customer = {
-  id: string;
   name: string;
   phone: string;
   address: string;
@@ -32,3 +32,5 @@ export type Customer = {
   agentId: string;
   payments: Payment[];
 };
+
+export type WithId<T> = T & { id: string };

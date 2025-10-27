@@ -22,7 +22,7 @@ import { Download, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Customer } from "@/types";
+import type { Customer, WithId } from "@/types";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -60,7 +60,7 @@ export function SettingsTabs() {
   const firestore = useFirestore();
 
   const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersRef);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersRef);
 
   return (
     <Tabs defaultValue="defaults" className="w-full">

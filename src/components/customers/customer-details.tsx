@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Customer } from "@/types";
+import type { Customer, WithId } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
   }
 };
 
-export function CustomerDetails({ customer }: { customer: Customer }) {
+export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
     const remainingBalance = customer.totalPayable - totalPaid;
 

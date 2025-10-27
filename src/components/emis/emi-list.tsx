@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Payment } from "@/types";
+import type { Customer, Payment, WithId } from "@/types";
 import { useUser, useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
 import { collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
@@ -62,7 +62,7 @@ export function EmiList() {
   const { user } = useUser();
   const firestore = useFirestore();
   const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<Customer>(customersRef);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
 
   const [statusFilter, setStatusFilter] = useState<"all" | EmiStatus>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();

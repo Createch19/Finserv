@@ -3,11 +3,11 @@
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
-import type { Customer } from "@/types"
+import type { Customer, WithId } from "@/types"
 import { format, parseISO } from "date-fns"
 
 // --- Monthly Collection Chart ---
-export function CollectionChart({ customers, height = 250 }: { customers: Customer[], height?: number }) {
+export function CollectionChart({ customers, height = 250 }: { customers: WithId<Customer>[], height?: number }) {
   const monthlyCollectionData = (customers || [])
     .flatMap(c => c.payments || [])
     .reduce((acc, payment) => {
@@ -40,7 +40,7 @@ export function CollectionChart({ customers, height = 250 }: { customers: Custom
 }
 
 // --- Profit Chart ---
-export function ProfitChart({ customers, height = 200 }: { customers: Customer[], height?: number }) {
+export function ProfitChart({ customers, height = 200 }: { customers: WithId<Customer>[], height?: number }) {
     const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
     const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
     const profitChartData = [
@@ -63,7 +63,7 @@ export function ProfitChart({ customers, height = 200 }: { customers: Customer[]
 }
 
 // --- Loan Status Chart ---
-export function LoanStatusChart({ customers, height = 200 }: { customers: Customer[], height?: number }) {
+export function LoanStatusChart({ customers, height = 200 }: { customers: WithId<Customer>[], height?: number }) {
     const loanStatusData = (customers || []).reduce((acc, customer) => {
         acc[customer.status] = (acc[customer.status] || 0) + 1;
         return acc;

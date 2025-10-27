@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { notFound, useParams } from "next/navigation";
 import React from "react";
-import type { Customer } from "@/types";
+import type { Customer, WithId } from "@/types";
 import { useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
-import { useFirestore, useUser } from "@/firebase";
+import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -20,8 +20,8 @@ export default function CustomerDetailPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const customerRef = user ? doc(firestore, `users/${user.uid}/customers`, id) : null;
-  const { data: customer, isLoading, error } = useDoc<Customer>(customerRef);
+  const customerRef = useMemoFirebase(() => (user && id ? doc(firestore, `users/${user.uid}/customers`, id) : null), [firestore, user, id]);
+  const { data: customer, isLoading, error } = useDoc<WithId<Customer>>(customerRef);
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;

@@ -14,14 +14,14 @@ import { CollectionChart, ProfitChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Customer } from "@/types";
+import type { Customer, WithId } from "@/types";
 
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
   const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<Customer>(customersRef);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersRef);
 
   if (isLoading || !customers) {
       return (
