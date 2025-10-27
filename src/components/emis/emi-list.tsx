@@ -4,7 +4,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInterval } from "date-fns";
+import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInterval, parseISO } from "date-fns";
 import Link from 'next/link';
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,6 +43,8 @@ type EmiEntry = {
   status: EmiStatus;
   emiNumber: number;
   isPaid: boolean;
+  paidDate?: Date | null;
+  overdueDays?: number;
 };
 
 const getEmiStatus = (dueDate: Date, isPaid: boolean): EmiStatus => {
@@ -98,17 +100,33 @@ export function EmiList() {
     return customers.map(customer => {
         const emis: EmiEntry[] = [];
         const startDate = new Date(customer.startDate);
+        const today = startOfDay(new Date());
+
         for (let i = 0; i < customer.duration; i++) {
           const dueDate = addMonths(startDate, i + 1);
           const isPaid = i < (customer.payments?.length || 0);
+          const status = getEmiStatus(dueDate, isPaid);
+          
+          let paidDate: Date | null = null;
+          if (isPaid && customer.payments && customer.payments[i]) {
+            paidDate = parseISO(customer.payments[i].date);
+          }
+
+          let overdueDays: number | undefined = undefined;
+          if (status === 'overdue') {
+            overdueDays = differenceInDays(today, startOfDay(dueDate));
+          }
+
           emis.push({
             customerName: customer.name,
             customerId: customer.id,
             emiAmount: customer.monthlyEMI,
             dueDate: dueDate,
-            status: getEmiStatus(dueDate, isPaid),
+            status: status,
             emiNumber: i + 1,
             isPaid,
+            paidDate,
+            overdueDays,
           });
         }
         
@@ -324,7 +342,13 @@ export function EmiList() {
                                             EMI #{emi.emiNumber}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                           Due on {format(emi.dueDate, "PPP")}
+                                           {emi.isPaid && emi.paidDate 
+                                                ? `Paid on ${format(emi.paidDate, "PPP")}`
+                                                : `Due on ${format(emi.dueDate, "PPP")}`
+                                           }
+                                           {emi.status === 'overdue' && emi.overdueDays && (
+                                                <span className="text-destructive"> ({emi.overdueDays} {emi.overdueDays > 1 ? 'days' : 'day'} overdue)</span>
+                                            )}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4 w-full md:w-auto">
