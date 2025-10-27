@@ -57,12 +57,12 @@ const getEmiStatus = (dueDate: Date, isPaid: boolean): EmiStatus => {
 
 const getStatusBadgeVariant = (status: EmiStatus | ReturnType<typeof getOverallLoanStatus>) => {
   switch (status) {
-    case "paid": return "secondary";
+    case "paid": return "success";
     case "due": return "default";
     case "overdue": return "destructive";
     case "upcoming": return "outline";
     case "active": return "default";
-    case "completed": return "secondary";
+    case "completed": return "success";
     default: return "outline";
   }
 };
