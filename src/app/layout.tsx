@@ -1,7 +1,11 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
+import { v4 as uuidv4 } from 'uuid';
+
 
 export const metadata: Metadata = {
   title: 'FINSERV - Local Finance Manager',
@@ -22,10 +26,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        <FirebaseClientProvider>
+            <AuthProvider>
+                {children}
+                <Toaster />
+            </AuthProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

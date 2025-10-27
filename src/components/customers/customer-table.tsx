@@ -3,7 +3,6 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { customers as initialCustomers } from '@/lib/demo-data';
 import {
   Table,
   TableBody,
@@ -26,14 +25,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Eye, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import type { Customer } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-
-// This is a mock global state for demo purposes.
-// In a real app, this would be a proper state management solution (Context, Zustand, etc.)
-// or data would be fetched from a server.
-let globalCustomers = initialCustomers;
+import { useCollection, useFirestore, useUser } from '@/firebase';
+import { collection, deleteDoc, doc } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
   switch (status) {
@@ -51,17 +47,16 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 const ITEMS_PER_PAGE = 10;
 
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
-  const [customers, setCustomers] = useState(globalCustomers);
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    // This effect ensures that if the global state changes (e.g. on another page),
-    // this component reflects those changes.
-    setCustomers(globalCustomers);
-  }, [searchTerm, globalCustomers]);
+  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   const filteredCustomers = useMemo(() => {
+    if (!customers) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
     return customers.filter((customer) => {
       return (
@@ -88,15 +83,31 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     }
   };
 
-  const handleDelete = (customerId: string) => {
-    const updatedCustomers = customers.filter(c => c.id !== customerId);
-    globalCustomers = updatedCustomers; // Update mock global state
-    setCustomers(updatedCustomers);
-    toast({
-      title: "Customer Deleted",
-      description: "The customer has been successfully deleted.",
-    });
+  const handleDelete = async (customerId: string) => {
+    if (!user) return;
+    const docRef = doc(firestore, `users/${user.uid}/customers`, customerId);
+    try {
+      await deleteDoc(docRef);
+      toast({
+        title: "Customer Deleted",
+        description: "The customer has been successfully deleted.",
+      });
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Error deleting customer",
+        description: (error as Error).message,
+      });
+    }
   };
+
+  if (isLoading) {
+      return (
+          <div className="flex h-64 items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+      )
+  }
 
   return (
     <Card>
@@ -165,7 +176,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  No results found.
+                  No customers found.
                 </TableCell>
               </TableRow>
             )}

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -36,7 +37,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { adminUser, agentUser } from "@/lib/demo-data"; // For agent dropdown
+import { useAuth } from "@/hooks/use-auth";
+import { useFirestore, useCollection } from "@/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import type { User, Customer } from "@/types";
 
 const formSchema = z.object({
   customerName: z.string().min(2, "Name must be at least 2 characters."),
@@ -53,12 +57,15 @@ const formSchema = z.object({
   agentId: z.string().min(1, "Please assign an agent."),
 });
 
-const agents = [adminUser, agentUser];
-
 export function AddCustomerForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const agentsRef = collection(firestore, 'users');
+  const { data: agents, isLoading: agentsLoading } = useCollection<User>(agentsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -72,8 +79,8 @@ export function AddCustomerForm() {
       downPayment: 0,
       interestType: "percentage",
       interestValue: 10,
-      duration: 6, // Default duration
-      agentId: "",
+      duration: 6,
+      agentId: user?.uid || "",
       startDate: new Date(),
     },
   });
@@ -84,6 +91,7 @@ export function AddCustomerForm() {
   });
 
   const [financedAmount, setFinancedAmount] = useState(0);
+  const [interestAmount, setInterestAmount] = useState(0);
   const [totalPayable, setTotalPayable] = useState(0);
   const [monthlyEMI, setMonthlyEMI] = useState(0);
 
@@ -106,24 +114,62 @@ export function AddCustomerForm() {
     const emi = numDuration > 0 ? payable / numDuration : 0;
 
     setFinancedAmount(financed);
+    setInterestAmount(totalInterest);
     setTotalPayable(payable);
     setMonthlyEMI(emi);
   }, [totalPrice, downPayment, interestType, interestValue, duration]);
+  
+  useEffect(() => {
+    if (user) {
+        form.setValue('agentId', user.uid);
+    }
+  }, [user, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    console.log("Form Submitted:", { ...values, financedAmount, totalPayable, monthlyEMI });
-    // In a real app, you would save this to Firestore.
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if(!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+        setIsLoading(false);
+        return;
+    }
 
-    toast({
-      title: "Customer Added",
-      description: `${values.customerName} has been successfully added.`,
-    });
-    setIsLoading(false);
-    router.push("/customers");
+    const newCustomer: Omit<Customer, 'id'> = {
+      name: values.customerName,
+      phone: values.phoneNumber,
+      address: values.address,
+      aadhar: values.aadhar,
+      phoneModel: values.phoneModel,
+      totalPrice: values.totalPrice,
+      downPayment: values.downPayment,
+      financedAmount,
+      interestAmount,
+      totalPayable,
+      duration: values.duration,
+      monthlyEMI,
+      startDate: values.startDate.toISOString(),
+      status: 'active',
+      agentId: values.agentId,
+      payments: [],
+    };
+    
+    try {
+        const customerCollection = collection(firestore, `users/${user.uid}/customers`);
+        await addDoc(customerCollection, newCustomer);
+        toast({
+            title: "Customer Added",
+            description: `${values.customerName} has been successfully added.`,
+        });
+        router.push("/customers");
+    } catch (error) {
+        console.error("Error adding customer:", error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not save the customer. Please try again."
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   const interestTypeLabel = form.watch("interestType") === "percentage" ? "Interest (%)" : "Interest (₹)";
@@ -200,10 +246,10 @@ export function AddCustomerForm() {
              <FormField control={form.control} name="agentId" render={({ field }) => (
               <FormItem>
                 <FormLabel>Assigned Agent</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Select an agent" /></SelectTrigger></FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                  <FormControl><SelectTrigger disabled={agentsLoading}><SelectValue placeholder="Select an agent" /></SelectTrigger></FormControl>
                   <SelectContent>
-                    {agents.map(agent => (
+                    {agents?.map(agent => (
                       <SelectItem key={agent.uid} value={agent.uid}>{agent.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -237,12 +283,13 @@ export function AddCustomerForm() {
             <CardContent>
                 <div className="space-y-2 text-sm">
                     <div className="flex justify-between"><span>Financed Amount:</span> <span className="font-medium">₹{financedAmount.toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span>Total Payable (incl. interest):</span> <span className="font-medium">₹{totalPayable.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span>Total Interest:</span> <span className="font-medium">₹{interestAmount.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span>Total Payable:</span> <span className="font-medium">₹{totalPayable.toLocaleString()}</span></div>
                     <div className="flex justify-between text-base font-semibold text-primary"><span>Monthly EMI:</span> <span>₹{monthlyEMI.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
                 </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+              <Button type="submit" size="lg" className="w-full" disabled={isLoading || agentsLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Customer
               </Button>

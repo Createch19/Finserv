@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -30,8 +31,11 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Wand2, MessageSquare, Send, Calendar as CalendarIcon } from "lucide-react";
-import { customers } from "@/lib/demo-data";
 import { intelligentEmiReminder, type IntelligentEmiReminderOutput } from "@/ai/flows/intelligent-emi-reminder";
+import { useAuth } from "@/hooks/use-auth";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Customer } from "@/types";
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
@@ -41,6 +45,11 @@ export function ReminderForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<IntelligentEmiReminderOutput | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,7 +62,7 @@ export function ReminderForm() {
     setIsLoading(true);
     setResult(null);
 
-    const customer = customers.find(c => c.id === values.customerId);
+    const customer = customers?.find(c => c.id === values.customerId);
     if (!customer) {
         toast({ variant: 'destructive', title: 'Error', description: 'Customer not found.' });
         setIsLoading(false);
@@ -61,17 +70,18 @@ export function ReminderForm() {
     }
 
     try {
+        const paymentsMade = customer.payments?.length || 0;
         const nextDueDate = new Date(customer.startDate);
-        nextDueDate.setMonth(nextDueDate.getMonth() + customer.payments.length);
+        nextDueDate.setMonth(nextDueDate.getMonth() + paymentsMade);
 
       const input = {
         customerName: customer.name,
         emiDueDate: nextDueDate.toISOString().split('T')[0],
         emiAmount: customer.monthlyEMI,
-        paymentHistory: `Customer has made ${customer.payments.length} of ${customer.duration} payments. Status is ${customer.status}.`,
+        paymentHistory: `Customer has made ${paymentsMade} of ${customer.duration} payments. Status is ${customer.status}.`,
         customerCommunicationPreferences: 'WhatsApp, SMS',
         loanAmount: customer.totalPrice,
-        outstandingBalance: customer.totalPayable - customer.payments.reduce((sum, p) => sum + p.amount, 0),
+        outstandingBalance: customer.totalPayable - (customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0),
       };
 
       const response = await intelligentEmiReminder(input);
@@ -104,14 +114,14 @@ export function ReminderForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={customersLoading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a customer" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {customers.filter(c => c.status !== 'completed').map((customer) => (
+                        {customers?.filter(c => c.status !== 'completed').map((customer) => (
                           <SelectItem key={customer.id} value={customer.id}>
                             {customer.name}
                           </SelectItem>
@@ -124,7 +134,7 @@ export function ReminderForm() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || customersLoading}>
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

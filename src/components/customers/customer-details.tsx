@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Customer } from "@/types";
@@ -23,7 +24,8 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 };
 
 export function CustomerDetails({ customer }: { customer: Customer }) {
-    const remainingBalance = customer.totalPayable - customer.payments.reduce((acc, p) => acc + p.amount, 0);
+    const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+    const remainingBalance = customer.totalPayable - totalPaid;
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -49,7 +51,7 @@ export function CustomerDetails({ customer }: { customer: Customer }) {
                 <CardHeader>
                     <CardTitle className="font-headline">Payment History</CardTitle>
                     <CardDescription>
-                        {customer.payments.length} of {customer.duration} EMIs paid.
+                        {customer.payments?.length || 0} of {customer.duration} EMIs paid.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -63,7 +65,7 @@ export function CustomerDetails({ customer }: { customer: Customer }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {customer.payments.length > 0 ? customer.payments.map(p => (
+                            {customer.payments?.length > 0 ? customer.payments.map(p => (
                                 <TableRow key={p.id}>
                                     <TableCell>{format(new Date(p.date), 'PPP')}</TableCell>
                                     <TableCell>₹{p.amount.toLocaleString()}</TableCell>

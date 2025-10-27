@@ -1,24 +1,25 @@
+
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
-import { customers } from "@/lib/demo-data"
+import type { Customer } from "@/types"
 import { format, parseISO } from "date-fns"
 
-// --- Monthly Collection Data ---
-const monthlyCollectionData = customers
-  .flatMap(c => c.payments)
-  .reduce((acc, payment) => {
-    const month = format(parseISO(payment.date), "MMM yyyy");
-    acc[month] = (acc[month] || 0) + payment.amount;
-    return acc;
-  }, {} as Record<string, number>);
+// --- Monthly Collection Chart ---
+export function CollectionChart({ customers, height = 250 }: { customers: Customer[], height?: number }) {
+  const monthlyCollectionData = (customers || [])
+    .flatMap(c => c.payments || [])
+    .reduce((acc, payment) => {
+      const month = format(parseISO(payment.date), "MMM yyyy");
+      acc[month] = (acc[month] || 0) + payment.amount;
+      return acc;
+    }, {} as Record<string, number>);
 
-const collectionChartData = Object.entries(monthlyCollectionData)
-  .map(([month, total]) => ({ month, total }))
-  .sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+  const collectionChartData = Object.entries(monthlyCollectionData)
+    .map(([month, total]) => ({ month, total }))
+    .sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
-export function CollectionChart({ height = 250 }: { height?: number }) {
   return (
     <ChartContainer config={{ total: { label: "Collection", color: "hsl(var(--primary))" }}} className="h-[250px] w-full">
       <BarChart accessibilityLayer data={collectionChartData}>
@@ -38,15 +39,14 @@ export function CollectionChart({ height = 250 }: { height?: number }) {
   )
 }
 
-// --- Profit Chart Data ---
-const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
-const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
-const profitChartData = [
-    { name: 'Total Principal Financed', value: totalFinanced, fill: 'hsl(var(--chart-1))' },
-    { name: 'Potential Interest (Profit)', value: totalInterest, fill: 'hsl(var(--chart-2))' },
-]
-
-export function ProfitChart({ height = 200 }: { height?: number }) {
+// --- Profit Chart ---
+export function ProfitChart({ customers, height = 200 }: { customers: Customer[], height?: number }) {
+    const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
+    const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
+    const profitChartData = [
+        { name: 'Total Principal Financed', value: totalFinanced, fill: 'hsl(var(--chart-1))' },
+        { name: 'Potential Interest (Profit)', value: totalInterest, fill: 'hsl(var(--chart-2))' },
+    ]
     return (
         <ChartContainer config={{}} className="h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -62,21 +62,21 @@ export function ProfitChart({ height = 200 }: { height?: number }) {
     )
 }
 
-// --- Loan Status Data ---
-const loanStatusData = customers.reduce((acc, customer) => {
-    acc[customer.status] = (acc[customer.status] || 0) + 1;
-    return acc;
-}, {} as Record<string, number>);
+// --- Loan Status Chart ---
+export function LoanStatusChart({ customers, height = 200 }: { customers: Customer[], height?: number }) {
+    const loanStatusData = (customers || []).reduce((acc, customer) => {
+        acc[customer.status] = (acc[customer.status] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
 
-const loanStatusChartData = Object.entries(loanStatusData).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
+    const loanStatusChartData = Object.entries(loanStatusData).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
 
-const COLORS = {
-    'Active': 'hsl(var(--chart-1))',
-    'Completed': 'hsl(var(--chart-2))',
-    'Overdue': 'hsl(var(--destructive))',
-};
+    const COLORS = {
+        'Active': 'hsl(var(--chart-1))',
+        'Completed': 'hsl(var(--chart-2))',
+        'Overdue': 'hsl(var(--destructive))',
+    };
 
-export function LoanStatusChart({ height = 200 }: { height?: number }) {
     const chartConfig = loanStatusChartData.reduce((acc, {name}) => {
         acc[name] = { label: name, color: COLORS[name as keyof typeof COLORS] };
         return acc;
@@ -96,4 +96,3 @@ export function LoanStatusChart({ height = 200 }: { height?: number }) {
         </ChartContainer>
     )
 }
-

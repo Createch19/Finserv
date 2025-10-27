@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -25,17 +26,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { agentUser, adminUser, customers } from "@/lib/demo-data";
-import { Download, Trash2 } from "lucide-react";
-
-const users = [adminUser, agentUser];
+import { Download, Trash2, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Customer, User } from "@/types";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
-    const headers = Object.keys(data[0]);
+    
+    // Flatten nested payment data
+    const flattenedData = data.map(item => {
+        const { payments, ...rest } = item;
+        return {
+            ...rest,
+            payments: JSON.stringify(payments) // Convert array to JSON string
+        };
+    });
+
+    const headers = Object.keys(flattenedData[0]);
     const csvRows = [
         headers.join(','),
-        ...data.map(row => 
+        ...flattenedData.map(row => 
             headers.map(header => JSON.stringify(row[header])).join(',')
         )
     ];
@@ -52,6 +64,15 @@ function downloadCSV(data: any[], filename: string) {
 
 
 export function SettingsTabs() {
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const usersRef = collection(firestore, 'users');
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersRef);
+
+  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersRef);
+
   return (
     <Tabs defaultValue="agents" className="w-full">
       <TabsList className="grid w-full grid-cols-3">
@@ -68,6 +89,7 @@ export function SettingsTabs() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {usersLoading ? <div className="flex justify-center"><Loader2 className="animate-spin" /></div> : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -78,7 +100,7 @@ export function SettingsTabs() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {users?.map((user) => (
                   <TableRow key={user.uid}>
                     <TableCell>{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -92,6 +114,7 @@ export function SettingsTabs() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
           <CardFooter>
             <Button>Add Agent</Button>
@@ -126,8 +149,8 @@ export function SettingsTabs() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => downloadCSV(customers, 'customers-backup.csv')}>
-                <Download className="mr-2 h-4 w-4" />
+            <Button onClick={() => downloadCSV(customers || [], 'customers-backup.csv')} disabled={customersLoading}>
+                {customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                 Export Customer Data (CSV)
             </Button>
           </CardContent>

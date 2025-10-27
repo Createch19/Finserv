@@ -1,3 +1,6 @@
+
+"use client";
+
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -5,43 +8,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins } from "lucide-react";
-import { customers } from "@/lib/demo-data";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2 } from "lucide-react";
 import { CollectionChart, ProfitChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
-
-// In a real app, these calculations would be done on the server or with database queries.
-const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
-const totalCollected = customers.flatMap(c => c.payments).reduce((acc, p) => acc + p.amount, 0);
-const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
-const profit = totalCollected - (totalFinanced - (totalInterest - customers.flatMap(c => c.payments.filter(p => p.date >= '2024-01-01T00:00:00.000Z')).reduce((acc,p) => acc + p.amount, 0) ));
-
-const activeLoans = customers.filter(c => c.status === 'active' || c.status === 'overdue').length;
-
-const isDueThisWeek = (dateStr: string) => {
-  const due = new Date(dateStr);
-  const today = new Date();
-  const nextWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-  return due >= today && due <= nextWeek;
-}
-
-// A simplified due payments logic
-const dueThisWeekCount = customers.filter(c => {
-    if (c.status !== 'active') return false;
-    const nextDueDate = new Date(c.startDate);
-    nextDueDate.setMonth(nextDueDate.getMonth() + c.payments.length);
-    return isDueThisWeek(nextDueDate.toISOString());
-}).length;
-
-
-const stats = [
-    { title: "Total Financed", value: `₹${(totalFinanced / 1000).toFixed(1)}k`, icon: TrendingUp },
-    { title: "Total Collected", value: `₹${(totalCollected / 1000).toFixed(1)}k`, icon: HandCoins },
-    { title: "Active Loans", value: activeLoans, icon: Users },
-    { title: "Total Profit", value: `₹${(profit / 1000).toFixed(1)}k`, icon: DollarSign },
-];
+import { useAuth } from "@/hooks/use-auth";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Customer } from "@/types";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const { data: customers, isLoading } = useCollection<Customer>(customersRef);
+
+  if (isLoading || !customers) {
+      return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )
+  }
+
+  const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
+  const totalCollected = customers.flatMap(c => c.payments || []).reduce((acc, p) => acc + p.amount, 0);
+  const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
+  const profit = totalInterest; // Simplified for now
+
+  const activeLoans = customers.filter(c => c.status === 'active' || c.status === 'overdue').length;
+
+  const stats = [
+      { title: "Total Financed", value: `₹${(totalFinanced / 1000).toFixed(1)}k`, icon: TrendingUp },
+      { title: "Total Collected", value: `₹${(totalCollected / 1000).toFixed(1)}k`, icon: HandCoins },
+      { title: "Active Loans", value: activeLoans, icon: Users },
+      { title: "Potential Profit", value: `₹${(profit / 1000).toFixed(1)}k`, icon: DollarSign },
+  ];
+
   return (
     <>
       <PageHeader
@@ -59,9 +62,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
+              {/* <p className="text-xs text-muted-foreground">
                 {stat.title === "Total Profit" ? "All time profit" : `+${(Math.random() * 5).toFixed(1)}% from last month`}
-              </p>
+              </p> */}
             </CardContent>
           </Card>
         ))}
@@ -73,7 +76,7 @@ export default function DashboardPage() {
             <CardTitle>Monthly Collection</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <CollectionChart />
+            <CollectionChart customers={customers} />
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
@@ -81,7 +84,7 @@ export default function DashboardPage() {
             <CardTitle>Profit Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProfitChart />
+            <ProfitChart customers={customers} />
           </CardContent>
         </Card>
       </div>
