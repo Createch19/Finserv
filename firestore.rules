@@ -1,7 +1,38 @@
+/**
+ * @fileoverview Firestore Security Rules for FINSERV application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model with role-based access control.
+ * Agents have full control over their assigned customers and payments. Admins (currently unsupported) would have broader access.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles, including role (admin/agent).
+ * - /users/{userId}/customers/{customerId}: Stores customer data owned by a specific agent. The `agentId` field within the customer document is *critical* for authorization independence.
+ * - /users/{userId}/customers/{customerId}/payments/{paymentId}: Stores payment data for a specific customer, accessible only to the owning agent.
+ *
+ * Key Security Decisions:
+ * - No public listing of users.
+ * - Customer documents contain a denormalized `agentId` field to avoid `get()` calls in rules.
+ * - Write access to customer and payment data is restricted to the owning agent.
+ *
+ * Denormalization for Authorization:
+ * The `agentId` field is denormalized onto the Customer documents to allow simple ownership checks without needing to perform additional reads. This is an example of authorization independence
+ *
+ * Structural Segregation:
+ * All Customer and Payment data is stored under a user's (agent's) subcollection.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Secure the /users collection to prevent listing and enforce owner-only read/write access.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (create, get, update, delete) if the user is the owner (userId matches request.auth.uid).
+     * @deny (list) Prevents listing all user documents.
+     * @deny (create, get, update, delete) if the user is not the owner.
+     * @principle Enforces document ownership and prevents unauthorized access to user profiles.
+     */
     match /users/{userId} {
       function isSignedIn() {
         return request.auth != null;
@@ -13,11 +44,18 @@ service cloud.firestore {
 
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isOwner(userId) && resource.data.id == request.resource.data.id;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
+    /**
+     * @description Secure the /customers collection to enforce agent-ownership and prevent unauthorized access to customer data.
+     * @path /databases/{database}/documents/users/{userId}/customers/{customerId}
+     * @allow (create, get, update, delete) if the user (agent) is the owner (userId matches customer.agentId).
+     * @deny (create, get, update, delete) if the user is not the owner.
+     * @principle Enforces document ownership for writes and ensures agents can only manage their assigned customers.
+     */
     match /users/{userId}/customers/{customerId} {
       function isSignedIn() {
         return request.auth != null;
@@ -27,17 +65,25 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid == userId;
       }
 
+      //isExistingOwner checks that the document exists and the current user is the owner
       function isExistingOwner(userId) {
-        return isOwner(userId) && getAfter(resource).data != null;
+        return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.agentId == request.auth.uid;
+      allow update: if isExistingOwner(userId) && resource.data.agentId == request.resource.data.agentId;
       allow delete: if isExistingOwner(userId);
     }
 
+    /**
+     * @description Secure the /payments collection to enforce agent-ownership and prevent unauthorized access to payment data.
+     * @path /databases/{database}/documents/users/{userId}/customers/{customerId}/payments/{paymentId}
+     * @allow (create, get, update, delete) if the user (agent) is the owner (userId matches the parent customer's agentId).
+     * @deny (create, get, update, delete) if the user is not the owner.
+     * @principle Enforces document ownership for writes and ensures agents can only manage payments for their assigned customers.
+     */
     match /users/{userId}/customers/{customerId}/payments/{paymentId} {
       function isSignedIn() {
         return request.auth != null;
@@ -47,8 +93,9 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid == userId;
       }
 
+      //isExistingOwner checks that the document exists and the current user is the owner
       function isExistingOwner(userId) {
-        return isOwner(userId) && getAfter(resource).data != null;
+        return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
