@@ -24,8 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment } from "@/types";
-import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
+import { useUser, useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
 import { collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -60,9 +59,9 @@ const getStatusBadgeVariant = (status: EmiStatus) => {
 };
 
 export function EmiList() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
-  const customersRef = user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
   const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   const [statusFilter, setStatusFilter] = useState<"all" | EmiStatus>("all");

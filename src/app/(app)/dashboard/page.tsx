@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -11,16 +12,15 @@ import {
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2 } from "lucide-react";
 import { CollectionChart, ProfitChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Customer } from "@/types";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
   const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   if (isLoading || !customers) {

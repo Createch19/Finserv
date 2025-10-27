@@ -4,17 +4,16 @@
 import { PageHeader } from "@/components/page-header";
 import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
+import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Customer } from "@/types";
 import { Loader2 } from "lucide-react";
 
 export default function ReportsPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = useMemoFirebase(() => user ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
   const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   if (isLoading || !customers) {
