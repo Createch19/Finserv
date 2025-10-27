@@ -9,9 +9,8 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { notFound, useParams } from "next/navigation";
 import React from "react";
 import type { Customer, WithId } from "@/types";
-import { useDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -38,7 +37,7 @@ export default function CustomerDetailPage() {
 
   return (
     <>
-      <PageHeader title={customer.name} description={`Details for customer ID: ${customer.id}`}>
+      <PageHeader title={customer.name} description={`Details for customer`}>
         <Link href="/customers" passHref>
             <Button variant="outline">
                 <ChevronLeft className="mr-2 h-4 w-4" />
