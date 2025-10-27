@@ -5,6 +5,7 @@ export type User = {
   email: string;
   name: string;
   role: 'admin' | 'agent';
+  password?: string;
 };
 
 export type Payment = {
