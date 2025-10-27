@@ -12,12 +12,25 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Customer } from '@/types';
+import { useToast } from "@/hooks/use-toast";
+
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
   switch (status) {
@@ -35,8 +48,9 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 const ITEMS_PER_PAGE = 10;
 
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
-  const [customers] = useState(initialCustomers);
+  const [customers, setCustomers] = useState(initialCustomers);
   const [currentPage, setCurrentPage] = useState(1);
+  const { toast } = useToast();
 
   const filteredCustomers = useMemo(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -63,6 +77,16 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
+  };
+
+  const handleDelete = (customerId: string) => {
+    // In a real app, this would be an API call to delete the customer from the database.
+    // For this demo, we'll just filter the local state.
+    setCustomers(customers.filter(c => c.id !== customerId));
+    toast({
+      title: "Customer Deleted",
+      description: "The customer has been successfully deleted.",
+    });
   };
 
   return (
@@ -96,13 +120,36 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                       {customer.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
                     <Link href={`/customers/${customer.id}`} passHref>
                       <Button variant="outline" size="sm">
                         <Eye className="mr-2 h-4 w-4" />
-                        View Details
+                        View
                       </Button>
                     </Link>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                           <Trash2 className="mr-2 h-4 w-4" />
+                           Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this
+                            customer's data from our servers.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(customer.id)}>
+                            Continue
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))
