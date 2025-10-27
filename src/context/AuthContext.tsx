@@ -8,6 +8,9 @@ import {
   signOut as firebaseSignOut,
   User as FirebaseUser,
   createUserWithEmailAndPassword,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, DocumentSnapshot } from 'firebase/firestore';
 import type { User } from '@/types';
@@ -18,6 +21,7 @@ type AuthContextType = {
   loading: boolean;
   signIn: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updatePassword: (currentPass: string, newPass: string) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -47,14 +51,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                // Combine auth and firestore data for the complete user profile
                 setUser({
                     uid: firebaseUser.uid,
                     email: firebaseUser.email!,
                     ...userDoc.data()
                 } as User);
             } else {
-                 // This can happen if the Firestore doc wasn't created yet for a default user
                 const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
                 if (defaultUserInfo) {
                     const newUser: User = {
@@ -90,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting the user state
     } catch (error: any) {
       if (
         (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
@@ -108,7 +109,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           };
           const userDocRef = doc(firestore, 'users', firebaseUser.uid);
           await setDoc(userDocRef, newUser);
-          // onAuthStateChanged will handle setting the user state
           
         } catch (creationError) {
           console.error('Failed to create default user:', creationError);
@@ -121,7 +121,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
     } 
-    // Loading is set to false by onAuthStateChanged
   };
 
   const signOut = async () => {
@@ -132,7 +131,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  const value = { user, loading, signIn, signOut };
+  const updatePasswordHandler = async (currentPass: string, newPass: string) => {
+    if (!auth || !auth.currentUser) {
+        throw new Error("User not authenticated.");
+    }
+    const user = auth.currentUser;
+    const credential = EmailAuthProvider.credential(user.email!, currentPass);
+
+    try {
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, newPass);
+    } catch(error: any) {
+        if(error.code === 'auth/wrong-password') {
+            throw new Error("The current password you entered is incorrect.");
+        }
+        throw new Error("An error occurred while changing your password.");
+    }
+  }
+
+  const value = { user, loading, signIn, signOut, updatePassword: updatePasswordHandler };
 
   return (
     <AuthContext.Provider value={value}>
