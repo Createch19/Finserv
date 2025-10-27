@@ -8,7 +8,8 @@ import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInte
 import Link from 'next/link';
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon } from "lucide-react";
+import { Loader2, CalendarIcon, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +84,7 @@ export function EmiList() {
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmi, setSelectedEmi] = useState<EmiEntry | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   const loans = useMemo(() => {
@@ -119,14 +121,16 @@ export function EmiList() {
   }, [customers]);
 
   const filteredLoans = useMemo(() => {
+    const lowercasedFilter = searchTerm.toLowerCase();
     return loans.filter(loan => {
       const statusMatch = loanStatusFilter === 'all' || loan.overallStatus === loanStatusFilter;
       const dateMatch = !dateRange?.from || loan.emis.some(emi => 
         !emi.isPaid && isWithinInterval(emi.dueDate, { start: dateRange.from!, end: dateRange.to || dateRange.from! })
       );
-      return statusMatch && dateMatch;
+      const searchMatch = !searchTerm || loan.name.toLowerCase().includes(lowercasedFilter);
+      return statusMatch && dateMatch && searchMatch;
     });
-  }, [loans, loanStatusFilter, dateRange]);
+  }, [loans, loanStatusFilter, dateRange, searchTerm]);
   
   const handleRecordPayment = async () => {
     if (!selectedEmi || !user || !firestore) return;
@@ -192,7 +196,17 @@ export function EmiList() {
     <>
     <Card>
       <CardContent className="pt-6">
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4 mb-4 items-center flex-wrap">
+             <div className="relative w-full sm:w-auto sm:flex-grow lg:flex-grow-0">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search by name..."
+                    className="w-full rounded-lg bg-background pl-8 sm:w-[200px] lg:w-[250px]"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
             <Select value={loanStatusFilter} onValueChange={(value) => setLoanStatusFilter(value as any)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter by status" />
@@ -242,8 +256,8 @@ export function EmiList() {
               </PopoverContent>
             </Popover>
 
-            {(loanStatusFilter !== 'all' || dateRange) && (
-                <Button variant="ghost" onClick={() => {setLoanStatusFilter('all'); setDateRange(undefined)}}>
+            {(loanStatusFilter !== 'all' || dateRange || searchTerm) && (
+                <Button variant="ghost" onClick={() => {setLoanStatusFilter('all'); setDateRange(undefined); setSearchTerm('')}}>
                     Clear Filters
                 </Button>
             )}
