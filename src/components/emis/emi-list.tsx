@@ -2,13 +2,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, differenceInDays, startOfDay, addMonths } from "date-fns";
+import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInterval } from "date-fns";
 import Link from 'next/link';
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,12 +20,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useUser, useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
 import { collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -47,18 +51,20 @@ const getEmiStatus = (dueDate: Date, isPaid: boolean): EmiStatus => {
   return "upcoming";
 };
 
-const getStatusBadgeVariant = (status: EmiStatus) => {
+const getStatusBadgeVariant = (status: EmiStatus | ReturnType<typeof getOverallLoanStatus>) => {
   switch (status) {
     case "paid": return "secondary";
     case "due": return "default";
     case "overdue": return "destructive";
     case "upcoming": return "outline";
+    case "active": return "default";
+    case "completed": return "secondary";
     default: return "outline";
   }
 };
 
 const getOverallLoanStatus = (emis: EmiEntry[]) => {
-    if (emis.every(e => e.status === 'paid')) return 'completed';
+    if (emis.every(e => e.isPaid)) return 'completed';
     if (emis.some(e => e.status === 'overdue')) return 'overdue';
     return 'active';
 }
@@ -76,6 +82,7 @@ export function EmiList() {
 
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmi, setSelectedEmi] = useState<EmiEntry | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const { toast } = useToast();
 
   const loans = useMemo(() => {
@@ -112,9 +119,14 @@ export function EmiList() {
   }, [customers]);
 
   const filteredLoans = useMemo(() => {
-      if (loanStatusFilter === 'all') return loans;
-      return loans.filter(loan => loan.overallStatus === loanStatusFilter);
-  }, [loans, loanStatusFilter]);
+    return loans.filter(loan => {
+      const statusMatch = loanStatusFilter === 'all' || loan.overallStatus === loanStatusFilter;
+      const dateMatch = !dateRange?.from || loan.emis.some(emi => 
+        !emi.isPaid && isWithinInterval(emi.dueDate, { start: dateRange.from!, end: dateRange.to || dateRange.from! })
+      );
+      return statusMatch && dateMatch;
+    });
+  }, [loans, loanStatusFilter, dateRange]);
   
   const handleRecordPayment = async () => {
     if (!selectedEmi || !user || !firestore) return;
@@ -122,7 +134,7 @@ export function EmiList() {
     const customer = customers?.find(c => c.id === selectedEmi.customerId);
     if (!customer) return;
 
-    if (customer.payments?.length >= selectedEmi.emiNumber) {
+    if ((customer.payments?.length || 0) >= selectedEmi.emiNumber) {
         toast({
             variant: "destructive",
             title: "Payment Already Recorded",
@@ -192,19 +204,85 @@ export function EmiList() {
                     <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
             </Select>
-            {loanStatusFilter !== 'all' && (
-                <Button variant="ghost" onClick={() => setLoanStatusFilter('all')}>
-                    Clear Filter
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={"outline"}
+                  className={cn(
+                    "w-full sm:w-[300px] justify-start text-left font-normal",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                        {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Filter by due date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {(loanStatusFilter !== 'all' || dateRange) && (
+                <Button variant="ghost" onClick={() => {setLoanStatusFilter('all'); setDateRange(undefined)}}>
+                    Clear Filters
                 </Button>
             )}
         </div>
         <Accordion type="single" collapsible className="w-full">
             {filteredLoans.map(loan => (
                 <AccordionItem value={loan.id} key={loan.id}>
-                    <AccordionTrigger className="hover:bg-muted/50 px-4 rounded-md">
+                    <AccordionTrigger className="hover:no-underline hover:bg-muted/50 px-4 rounded-md">
                         <div className="flex flex-col md:flex-row md:items-center justify-between w-full">
                            <div className="flex-1 text-left">
-                             <Link href={`/customers/${loan.id}`} className="font-medium hover:underline">{loan.name}</Link>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                 <Link href={`/customers/${loan.id}`} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>
+                                    {loan.name}
+                                  </Link>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80">
+                                <Card className="border-0 shadow-none">
+                                  <CardHeader className="pb-4">
+                                      <CardTitle>{loan.name}</CardTitle>
+                                      <CardDescription>{loan.phoneModel}</CardDescription>
+                                  </CardHeader>
+                                  <CardContent>
+                                      <div className="space-y-2">
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-sm text-muted-foreground">Status</span>
+                                            <Badge variant={getStatusBadgeVariant(loan.overallStatus)} className="capitalize">
+                                                {loan.overallStatus}
+                                            </Badge>
+                                          </div>
+                                          <div className="space-y-1">
+                                            <span className="text-sm text-muted-foreground">Progress ({loan.paidCount} / {loan.duration} Paid)</span>
+                                            <Progress value={(loan.paidCount / loan.duration) * 100} className="h-2" />
+                                          </div>
+                                      </div>
+                                  </CardContent>
+                                </Card>
+                              </PopoverContent>
+                            </Popover>
                              <p className="text-sm text-muted-foreground">{loan.phoneModel}</p>
                            </div>
                            <div className="flex items-center gap-4 mt-2 md:mt-0">
@@ -271,3 +349,5 @@ export function EmiList() {
     </>
   );
 }
+
+    
