@@ -19,13 +19,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -38,9 +31,9 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
-import { useFirestore, useCollection, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
+import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { addDoc, collection } from "firebase/firestore";
-import type { User, Customer } from "@/types";
+import type { Customer } from "@/types";
 
 const formSchema = z.object({
   customerName: z.string().min(2, "Name must be at least 2 characters."),
@@ -54,7 +47,6 @@ const formSchema = z.object({
   interestValue: z.coerce.number().min(0, "Interest must be a positive number."),
   duration: z.coerce.number().min(1, "Duration must be at least 1 month."),
   startDate: z.date({ required_error: "A start date is required." }),
-  agentId: z.string().min(1, "Please assign an agent."),
 });
 
 export function AddCustomerForm() {
@@ -63,9 +55,6 @@ export function AddCustomerForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const firestore = useFirestore();
-
-  const agentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: agents, isLoading: agentsLoading } = useCollection<User>(agentsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,7 +69,6 @@ export function AddCustomerForm() {
       interestType: "percentage",
       interestValue: 10,
       duration: 6,
-      agentId: user?.uid || "",
       startDate: new Date(),
     },
   });
@@ -119,11 +107,6 @@ export function AddCustomerForm() {
     setMonthlyEMI(emi);
   }, [totalPrice, downPayment, interestType, interestValue, duration]);
   
-  useEffect(() => {
-    if (user) {
-        form.setValue('agentId', user.uid);
-    }
-  }, [user, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -148,7 +131,7 @@ export function AddCustomerForm() {
       monthlyEMI,
       startDate: values.startDate.toISOString(),
       status: 'active',
-      agentId: values.agentId,
+      agentId: user.uid,
       payments: [],
     };
     
@@ -243,20 +226,6 @@ export function AddCustomerForm() {
             <FormField control={form.control} name="duration" render={({ field }) => (
               <FormItem><FormLabel>Duration (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-             <FormField control={form.control} name="agentId" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Assigned Agent</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                  <FormControl><SelectTrigger disabled={agentsLoading}><SelectValue placeholder="Select an agent" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    {agents?.map(agent => (
-                      <SelectItem key={agent.uid} value={agent.uid}>{agent.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
             <FormField control={form.control} name="startDate" render={({ field }) => (
               <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel>
                 <Popover>
@@ -289,7 +258,7 @@ export function AddCustomerForm() {
                 </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" size="lg" className="w-full" disabled={isLoading || agentsLoading}>
+              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Customer
               </Button>
