@@ -18,15 +18,7 @@ import type { Customer, WithId, User } from "@/types";
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
-    
-    const customersCollection = collection(firestore, 'customers');
-    
-    // Admins can see all customers, agents only see their own.
-    if (user.role === 'admin') {
-        return customersCollection;
-    } else {
-        return query(customersCollection, where('agentId', '==', user.uid));
-    }
+    return collection(firestore, 'customers');
 }
 
 export default function DashboardPage() {

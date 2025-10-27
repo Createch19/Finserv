@@ -131,7 +131,6 @@ export function AddCustomerForm() {
       monthlyEMI,
       startDate: values.startDate.toISOString(),
       status: 'active',
-      agentId: user.uid,
       payments: [],
     };
     

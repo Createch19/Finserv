@@ -56,14 +56,7 @@ function downloadCSV(data: any[], filename: string) {
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
-    
-    const customersCollection = collection(firestore, 'customers');
-    
-    if (user.role === 'admin') {
-        return customersCollection;
-    } else {
-        return query(customersCollection, where('agentId', '==', user.uid));
-    }
+    return collection(firestore, 'customers');
 }
 
 

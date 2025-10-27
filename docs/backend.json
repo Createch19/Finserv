@@ -90,10 +90,6 @@
           "description": "The status of the loan (active, completed, overdue).",
           "enum": ["active", "completed", "overdue"]
         },
-        "agentId": {
-          "type": "string",
-          "description": "The UID of the agent who created this customer record."
-        },
         "payments": {
             "type": "array",
             "description": "An array of payments made by the customer.",
@@ -116,8 +112,7 @@
         "duration",
         "monthlyEMI",
         "startDate",
-        "status",
-        "agentId"
+        "status"
       ]
     },
     "Payment": {
@@ -171,7 +166,7 @@
       {
         "path": "/customers/{customerId}",
         "schema": { "$ref": "#/entities/Customer" },
-        "description": "A top-level collection of all customers. The 'agentId' field links a customer to a user with the 'agent' role. Admins can access all customer documents, while agents are restricted to their own."
+        "description": "A top-level collection of all customers. All authenticated users can access customer data."
       }
     ]
   }

@@ -30,7 +30,6 @@ export type Customer = {
   monthlyEMI: number;
   startDate: string; // ISO 8601 format
   status: 'active' | 'completed' | 'overdue';
-  agentId: string;
   payments: Payment[];
 };
 
