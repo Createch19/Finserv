@@ -5,13 +5,20 @@ import { PageHeader } from "@/components/page-header";
 import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 import { Loader2 } from "lucide-react";
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
-    return collection(firestore, 'customers');
+    
+    const customersCollection = collection(firestore, 'customers');
+
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
 }
 
 export default function ReportsPage() {

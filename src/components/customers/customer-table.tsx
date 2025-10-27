@@ -48,7 +48,15 @@ const ITEMS_PER_PAGE = 10;
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
-    return collection(firestore, 'customers');
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    // Admins can see all customers, agents only see their own.
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
 }
 
 

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/form";
 import { Download, Loader2 } from "lucide-react";
 import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -68,7 +69,14 @@ function downloadCSV(data: any[], filename: string) {
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
-    return collection(firestore, 'customers');
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    if (user.role === 'admin') {
+        return customersCollection;
+    } else {
+        return query(customersCollection, where('agentId', '==', user.uid));
+    }
 }
 
 const passwordFormSchema = z.object({

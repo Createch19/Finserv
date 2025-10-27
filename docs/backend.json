@@ -96,6 +96,10 @@
             "items": {
                 "$ref": "#/entities/Payment"
             }
+        },
+        "agentId": {
+            "type": "string",
+            "description": "The UID of the agent who created this customer record."
         }
       },
       "required": [
@@ -112,7 +116,8 @@
         "duration",
         "monthlyEMI",
         "startDate",
-        "status"
+        "status",
+        "agentId"
       ]
     },
     "Payment": {

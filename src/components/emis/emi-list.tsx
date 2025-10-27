@@ -27,7 +27,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useUser, useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
-import { collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,11 @@ const getOverallLoanStatus = (emis: EmiEntry[]) => {
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
-    return collection(firestore, 'customers');
+    const customersCollection = collection(firestore, 'customers');
+    if (user.role === 'admin') {
+        return customersCollection;
+    }
+    return query(customersCollection, where('agentId', '==', user.uid));
 }
 
 export function EmiList() {
