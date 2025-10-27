@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { customers as initialCustomers, generatePayments } from "@/lib/demo-data";
+import { useState, useMemo, useEffect } from "react";
+import { customers as initialCustomers } from "@/lib/demo-data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, differenceInDays, startOfDay, isWithinInterval, parseISO } from "date-fns";
+import { format, isBefore, differenceInDays, startOfDay, isWithinInterval } from "date-fns";
 import Link from 'next/link';
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Filter } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 import {
@@ -34,6 +34,7 @@ type EmiEntry = {
   dueDate: Date;
   status: EmiStatus;
   emiNumber: number;
+  isPaid: boolean;
 };
 
 const getEmiStatus = (dueDate: Date, isPaid: boolean): EmiStatus => {
@@ -54,12 +55,23 @@ const getStatusBadgeVariant = (status: EmiStatus) => {
   }
 };
 
+// This is a mock global state for demo purposes.
+// In a real app, this would be a proper state management solution (Context, Zustand, etc.)
+// or data would be fetched from a server.
+let globalCustomers = initialCustomers;
+
 export function EmiList() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>(globalCustomers);
   const [statusFilter, setStatusFilter] = useState<"all" | EmiStatus>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedEmi, setSelectedEmi] = useState<EmiEntry | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // This effect ensures that if the global state changes (e.g. on another page),
+    // this component reflects those changes.
+    setCustomers(globalCustomers);
+  }, []);
 
   const allEmis = useMemo(() => {
     return customers
@@ -76,6 +88,7 @@ export function EmiList() {
             dueDate: dueDate,
             status: getEmiStatus(dueDate, isPaid),
             emiNumber: i + 1,
+            isPaid,
           });
         }
         return emis;
@@ -94,26 +107,37 @@ export function EmiList() {
   const handleRecordPayment = () => {
     if (!selectedEmi) return;
 
-    setCustomers(prevCustomers => {
-      const newCustomers = prevCustomers.map(c => {
-        if (c.id === selectedEmi.customerId) {
-          const newPayment = {
-            id: `payment-${c.payments.length + 1}`,
-            date: new Date().toISOString(),
-            amount: selectedEmi.emiAmount,
-            mode: 'cash' as const, // Defaulting to cash
-            remainingBalance: c.totalPayable - c.payments.reduce((acc, p) => acc + p.amount, 0) - selectedEmi.emiAmount,
-          };
-          
-          const updatedPayments = [...c.payments, newPayment];
-          const newStatus = updatedPayments.length === c.duration ? 'completed' : c.status;
-
-          return { ...c, payments: updatedPayments, status: newStatus };
+    const newCustomers = customers.map(c => {
+      if (c.id === selectedEmi.customerId) {
+        // Check if payment for this EMI is already recorded
+        if (c.payments.length >= selectedEmi.emiNumber) {
+            toast({
+                variant: "destructive",
+                title: "Payment Already Recorded",
+                description: `EMI #${selectedEmi.emiNumber} has already been paid.`,
+            });
+            return c;
         }
-        return c;
-      });
-      return newCustomers;
+
+        const newPayment = {
+          id: `payment-${c.id}-${c.payments.length + 1}`,
+          date: new Date().toISOString(),
+          amount: selectedEmi.emiAmount,
+          mode: 'cash' as const, // Defaulting to cash
+          remainingBalance: c.totalPayable - c.payments.reduce((acc, p) => acc + p.amount, 0) - selectedEmi.emiAmount,
+        };
+        
+        const updatedPayments = [...c.payments, newPayment];
+        const newStatus = updatedPayments.length === c.duration ? 'completed' : 'active';
+
+        return { ...c, payments: updatedPayments, status: newStatus };
+      }
+      return c;
     });
+
+    // Update the mock global state and local state
+    globalCustomers = newCustomers;
+    setCustomers(newCustomers);
     
     toast({
         title: "Payment Recorded",
@@ -183,7 +207,7 @@ export function EmiList() {
 
         </div>
         <div className="space-y-4">
-          {filteredEmis.map((emi, index) => (
+          {filteredEmis.map((emi) => (
             <div key={`${emi.customerId}-${emi.emiNumber}`} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 rounded-lg border bg-card hover:bg-secondary/50 transition-colors">
               <div className="flex-1 mb-2 md:mb-0">
                 <Link href={`/customers/${emi.customerId}`} className="font-medium hover:underline">{emi.customerName}</Link>
@@ -196,7 +220,7 @@ export function EmiList() {
                 <Badge variant={getStatusBadgeVariant(emi.status)} className="capitalize w-20 justify-center">
                   {emi.status}
                 </Badge>
-                <Button variant="outline" size="sm" onClick={() => setSelectedEmi(emi)} disabled={emi.status === 'paid'}>
+                <Button variant="outline" size="sm" onClick={() => setSelectedEmi(emi)} disabled={emi.isPaid}>
                     Record Payment
                 </Button>
               </div>

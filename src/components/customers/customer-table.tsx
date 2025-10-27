@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { customers as initialCustomers } from '@/lib/demo-data';
 import {
@@ -21,16 +21,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Eye, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { Customer } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 
+// This is a mock global state for demo purposes.
+// In a real app, this would be a proper state management solution (Context, Zustand, etc.)
+// or data would be fetched from a server.
+let globalCustomers = initialCustomers;
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
   switch (status) {
@@ -48,9 +50,15 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 const ITEMS_PER_PAGE = 10;
 
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
-  const [customers, setCustomers] = useState(initialCustomers);
+  const [customers, setCustomers] = useState(globalCustomers);
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // This effect ensures that if the global state changes (e.g. on another page),
+    // this component reflects those changes.
+    setCustomers(globalCustomers);
+  }, [searchTerm, globalCustomers]);
 
   const filteredCustomers = useMemo(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -80,9 +88,9 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   };
 
   const handleDelete = (customerId: string) => {
-    // In a real app, this would be an API call to delete the customer from the database.
-    // For this demo, we'll just filter the local state.
-    setCustomers(customers.filter(c => c.id !== customerId));
+    const updatedCustomers = customers.filter(c => c.id !== customerId);
+    globalCustomers = updatedCustomers; // Update mock global state
+    setCustomers(updatedCustomers);
     toast({
       title: "Customer Deleted",
       description: "The customer has been successfully deleted.",
