@@ -88,17 +88,22 @@ export function AddCustomerForm() {
   const [monthlyEMI, setMonthlyEMI] = useState(0);
 
   useEffect(() => {
-    const financed = Math.max(0, totalPrice - downPayment);
+    const numTotalPrice = Number(totalPrice) || 0;
+    const numDownPayment = Number(downPayment) || 0;
+    const numInterestValue = Number(interestValue) || 0;
+    const numDuration = Number(duration) || 0;
+
+    const financed = Math.max(0, numTotalPrice - numDownPayment);
     let totalInterest = 0;
 
     if (interestType === 'percentage') {
-        totalInterest = (financed * interestValue) / 100;
+        totalInterest = (financed * numInterestValue) / 100;
     } else {
-        totalInterest = interestValue;
+        totalInterest = numInterestValue;
     }
 
     const payable = financed + totalInterest;
-    const emi = duration > 0 ? payable / duration : 0;
+    const emi = numDuration > 0 ? payable / numDuration : 0;
 
     setFinancedAmount(financed);
     setTotalPayable(payable);
