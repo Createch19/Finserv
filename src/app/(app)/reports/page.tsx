@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 import { Loader2 } from "lucide-react";
 
@@ -50,7 +50,7 @@ export default function ReportsPage() {
                 <CardHeader>
                     <CardTitle>Profit vs Principal</CardTitle>
                     <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent>
                     <ProfitChart customers={customers} height={300} />
                 </CardContent>
@@ -59,7 +59,7 @@ export default function ReportsPage() {
                 <CardHeader>
                     <CardTitle>Loan Status</CardTitle>
                     <CardDescription>Distribution of active, completed, and overdue loans.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent>
                     <LoanStatusChart customers={customers} height={300} />
                 </CardContent>
