@@ -27,8 +27,10 @@ function CustomerDataFetcher({ customerId, userId }: { customerId: string, userI
     }
 
     if (error) {
-        console.error(error);
-        return <div className="text-red-500">Error loading customer data.</div>;
+        console.error("Firestore Error:", error);
+        // This could be a permissions error or the document doesn't exist for this user.
+        // We'll treat it as not found.
+        notFound();
     }
 
     if (!customer) {
@@ -60,13 +62,14 @@ export default function CustomerDetailPage() {
   }
   
   if (!user) {
-    // This will redirect to login if not authenticated, handled by the app layout
-    return null;
+    // This case should be handled by the AppLayout, but as a fallback:
+    return null; 
   }
   
   if (!id) {
     return notFound();
   }
 
+  // We have a user and an ID, now we can fetch the data.
   return <CustomerDataFetcher customerId={id} userId={user.uid} />;
 }
