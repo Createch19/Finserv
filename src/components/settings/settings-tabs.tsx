@@ -41,9 +41,12 @@ function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
     
     const flattenedData = data.map(item => {
-        const { payments, ...rest } = item;
+        const { payments, agent, ...rest } = item;
         return {
             ...rest,
+            agentId: agent.uid,
+            agentName: agent.name,
+            agentEmail: agent.email,
             payments: JSON.stringify(payments)
         };
     });
@@ -74,7 +77,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (user.role === 'admin') {
         return customersCollection;
     } else {
-        return query(customersCollection, where('agentId', '==', user.uid));
+        return query(customersCollection, where('agent.uid', '==', user.uid));
     }
 }
 

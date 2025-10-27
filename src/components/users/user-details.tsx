@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { User, WithId } from "@/types";
@@ -11,6 +12,8 @@ const DetailItem = ({ label, value }: { label: string, value: React.ReactNode })
     </div>
 );
 
+// This component is no longer used directly as individual user pages are deprecated.
+// It is kept for potential future use if that functionality is restored.
 export function UserDetails({ user }: { user: WithId<User> }) {
   return (
     <div className="max-w-2xl mx-auto">

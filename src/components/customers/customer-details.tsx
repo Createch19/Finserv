@@ -84,6 +84,15 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Agent Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <DetailItem label="Agent Name" value={customer.agent.name} />
+                    <DetailItem label="Agent Email" value={customer.agent.email} />
+                </CardContent>
+            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline">Contact Info</CardTitle>

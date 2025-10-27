@@ -56,7 +56,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (user.role === 'admin') {
         return customersCollection;
     } else {
-        return query(customersCollection, where('agentId', '==', user.uid));
+        return query(customersCollection, where('agent.uid', '==', user.uid));
     }
 }
 

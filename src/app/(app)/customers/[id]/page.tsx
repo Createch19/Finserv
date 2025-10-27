@@ -28,12 +28,18 @@ function CustomerDataFetcher({ customerId }: { customerId: string }) {
     );
 
     const { data: customer, isLoading: isCustomerLoading } = useDoc<WithId<Customer>>(customerRef);
+    const { user } = useAuth();
 
     if (isCustomerLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
     if (!customer) {
+        notFound();
+    }
+
+    // Agent can only see their own customers
+    if (user?.role === 'agent' && customer.agent.uid !== user.uid) {
         notFound();
     }
     

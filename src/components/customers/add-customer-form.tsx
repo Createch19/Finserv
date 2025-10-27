@@ -132,7 +132,11 @@ export function AddCustomerForm() {
       startDate: values.startDate.toISOString(),
       status: 'active',
       payments: [],
-      agentId: user.uid,
+      agent: {
+        uid: user.uid,
+        name: user.name,
+        email: user.email,
+      },
     };
     
     const customerCollection = collection(firestore, 'customers');

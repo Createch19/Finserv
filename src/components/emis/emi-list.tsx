@@ -77,7 +77,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (user.role === 'admin') {
         return customersCollection;
     }
-    return query(customersCollection, where('agentId', '==', user.uid));
+    return query(customersCollection, where('agent.uid', '==', user.uid));
 }
 
 export function EmiList() {

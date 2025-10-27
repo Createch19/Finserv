@@ -1,9 +1,12 @@
 
 
-export type User = {
+export type Agent = {
   uid: string;
   email: string;
   name: string;
+}
+
+export type User = Agent & {
   role: 'admin' | 'agent';
   password?: string;
 };
@@ -32,7 +35,7 @@ export type Customer = {
   startDate: string; // ISO 8601 format
   status: 'active' | 'completed' | 'overdue';
   payments: Payment[];
-  agentId: string;
+  agent: Agent;
 };
 
 export type WithId<T> = T & { id: string };

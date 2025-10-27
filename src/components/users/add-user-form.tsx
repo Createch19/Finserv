@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -37,6 +38,8 @@ const formSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
+// This component is currently not used, but is kept for future implementation
+// if a proper user creation flow (e.g., via Cloud Functions) is added.
 export function AddUserForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -55,54 +58,12 @@ export function AddUserForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    if (!auth || !firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Firebase not initialized.' });
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-      // Note: This creates the user in a separate auth context.
-      // This is not ideal. A Cloud Function is the standard way to do this.
-      // We are creating a temporary app instance to create the user.
-      const { initializeApp } = await import('firebase/app');
-      const { getAuth: getTempAuth, createUserWithEmailAndPassword: createTempUser } = await import('firebase/auth');
-
-      const tempAppName = `temp-user-creation-${Date.now()}`;
-      const tempApp = initializeApp(auth.app.options, tempAppName);
-      const tempAuth = getTempAuth(tempApp);
-
-      const userCredential = await createTempUser(tempAuth, values.email, values.password);
-      const newUserAuth = userCredential.user;
-
-      const newUserDoc: Omit<User, 'uid' | 'password'> = {
-        name: values.name,
-        email: values.email,
-        role: values.role,
-      };
-
-      await setDoc(doc(firestore, "users", newUserAuth.uid), newUserDoc);
-      
-      toast({
-        title: "User Created",
-        description: `${values.name} has been successfully added as a new ${values.role}.`,
-      });
-      router.push("/users");
-
-    } catch (error: any) {
-      console.error(error);
-      let description = "An unexpected error occurred.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "This email address is already in use by another account.";
-      }
-      toast({
-        variant: "destructive",
-        title: "User Creation Failed",
-        description: description,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    toast({
+        variant: 'destructive',
+        title: 'Not Implemented',
+        description: 'User creation is not supported in this demo.'
+    });
+    setIsLoading(false);
   }
 
   return (

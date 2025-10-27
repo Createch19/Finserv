@@ -2,10 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, ShieldAlert } from "lucide-react";
+import { Search, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UserTable } from "@/components/users/user-table";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,14 +21,7 @@ export default function UsersPage() {
         title="Users"
         description="Manage admin and agent users."
       >
-        {isAdmin && (
-            <Link href="/users/add" passHref>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add User
-            </Button>
-            </Link>
-        )}
+        {/* Add user button can be re-enabled if a user creation flow is implemented */}
       </PageHeader>
       
       {isAdmin ? (

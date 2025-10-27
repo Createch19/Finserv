@@ -50,7 +50,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (user.role === 'admin') {
         return query(customersCollection, where('status', '!=', 'completed'));
     } else {
-        return query(customersCollection, where('agentId', '==', user.uid), where('status', '!=', 'completed'));
+        return query(customersCollection, where('agent.uid', '==', user.uid), where('status', '!=', 'completed'));
     }
 }
 

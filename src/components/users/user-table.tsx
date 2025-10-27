@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -11,42 +10,58 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
-import type { User, WithId } from '@/types';
-import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import type { Customer, User, WithId } from '@/types';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 
 const ITEMS_PER_PAGE = 10;
 
 export function UserTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const { toast } = useToast();
   const { user: authUser } = useAuth();
   const firestore = useFirestore();
 
-  // Only admins should be able to query all users
-  const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser || authUser.role !== 'admin') return null;
-    return collection(firestore, 'users');
+  // Query customers to derive user list
+  const customersQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    // Admins see all customers to build a full user list
+    // Agents only see their own customers, so their user list will just be themselves
+    if (authUser.role === 'admin') {
+        return collection(firestore, 'customers');
+    }
+    return query(collection(firestore, 'customers'), where('agent.uid', '==', authUser.uid));
   }, [firestore, authUser]);
 
-  const { data: users, isLoading } = useCollection<WithId<User>>(usersQuery);
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
+
+  // Derive unique users from the customers list
+  const users = useMemo(() => {
+    if (!customers) return [];
+    const userMap = new Map<string, User>();
+    customers.forEach(customer => {
+        if (customer.agent && !userMap.has(customer.agent.uid)) {
+            userMap.set(customer.agent.uid, {
+                uid: customer.agent.uid,
+                name: customer.agent.name,
+                email: customer.agent.email,
+                // We derive role from the logged in user, or default to agent
+                role: customer.agent.uid === authUser?.uid ? authUser.role : 'agent',
+            });
+        }
+    });
+
+    // If the admin has no customers, they won't appear. Add them manually.
+    if(authUser?.role === 'admin' && !userMap.has(authUser.uid)) {
+        userMap.set(authUser.uid, authUser);
+    }
+    
+    return Array.from(userMap.values());
+  }, [customers, authUser]);
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
@@ -72,28 +87,8 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage + 1);
+      setCurrentPage(currentPage - 1);
     }
-  };
-
-  const handleDelete = (userId: string) => {
-    if (!firestore) return;
-    const docRef = doc(firestore, 'users', userId);
-    
-    // We are not deleting the auth user, just the firestore record.
-    // A more complete solution would involve a cloud function to delete the auth user.
-    deleteDoc(docRef).then(() => {
-      toast({
-        title: "User Deleted",
-        description: "The user record has been successfully deleted.",
-      });
-    }).catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    });
   };
   
   if (isLoading) {
@@ -112,13 +107,13 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">Customers</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentUsers.length > 0 ? (
               currentUsers.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.uid}>
                   <TableCell>
                     <div className="font-medium">{user.name}</div>
                     <div className="text-sm text-muted-foreground">{user.email}</div>
@@ -128,36 +123,8 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
                       {user.role}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Link href={`/users/${user.id}`} passHref>
-                      <Button variant="outline" size="sm">
-                        <Eye className="mr-2 h-4 w-4" />
-                        View
-                      </Button>
-                    </Link>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" disabled={user.id === authUser?.uid}>
-                           <Trash2 className="mr-2 h-4 w-4" />
-                           Delete
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete this
-                            user's record.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(user.id)}>
-                            Continue
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  <TableCell className="text-right">
+                    {customers?.filter(c => c.agent.uid === user.uid).length ?? 0}
                   </TableCell>
                 </TableRow>
               ))
