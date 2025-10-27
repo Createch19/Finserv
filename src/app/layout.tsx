@@ -4,8 +4,6 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
-import { v4 as uuidv4 } from 'uuid';
-
 
 export const metadata: Metadata = {
   title: 'FINSERV - Local Finance Manager',

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -26,24 +27,25 @@ const formSchema = z.object({
 });
 
 export function LoginForm() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, loading } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      password: "",
+      password: "Finserve@123",
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       await signIn(values.email, values.password);
+      // The redirect is handled by the layout component based on auth state
       router.push("/dashboard");
     } catch (error) {
       toast({
@@ -51,9 +53,12 @@ export function LoginForm() {
         title: "Login Failed",
         description: (error as Error).message || "An unexpected error occurred. Please try again.",
       });
-      setIsLoading(false);
+    } finally {
+        setIsSubmitting(false);
     }
   }
+
+  const isLoading = isSubmitting || loading;
 
   return (
     <Card className="w-full">
@@ -115,7 +120,7 @@ export function LoginForm() {
               Sign In
             </Button>
             <p className="text-xs text-center text-muted-foreground">
-              Demo users: `admin@finserv.com` or `agent@finserv.com`. Password can be anything.
+              Demo users: `admin@finserv.com` or `agent@finserv.com`. Password is `Finserve@123`.
             </p>
           </CardFooter>
         </form>
