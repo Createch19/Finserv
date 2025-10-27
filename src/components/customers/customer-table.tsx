@@ -28,7 +28,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import type { Customer } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, deleteDoc, doc } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
@@ -52,7 +52,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null;
   const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   const filteredCustomers = useMemo(() => {
@@ -83,22 +83,22 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     }
   };
 
-  const handleDelete = async (customerId: string) => {
-    if (!user) return;
+  const handleDelete = (customerId: string) => {
+    if (!user || !firestore) return;
     const docRef = doc(firestore, `users/${user.uid}/customers`, customerId);
-    try {
-      await deleteDoc(docRef);
+    
+    deleteDoc(docRef).then(() => {
       toast({
         title: "Customer Deleted",
         description: "The customer has been successfully deleted.",
       });
-    } catch (error) {
-       toast({
-        variant: "destructive",
-        title: "Error deleting customer",
-        description: (error as Error).message,
-      });
-    }
+    }).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   if (isLoading) {
@@ -211,3 +211,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </Card>
   );
 }
+
+    

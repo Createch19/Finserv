@@ -38,8 +38,8 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
-import { useFirestore, useCollection } from "@/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from "@/firebase";
+import { addDoc, collection } from "firebase/firestore";
 import type { User, Customer } from "@/types";
 
 const formSchema = z.object({
@@ -64,7 +64,7 @@ export function AddCustomerForm() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const agentsRef = collection(firestore, 'users');
+  const agentsRef = firestore ? collection(firestore, 'users') : null;
   const { data: agents, isLoading: agentsLoading } = useCollection<User>(agentsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -127,8 +127,8 @@ export function AddCustomerForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    if(!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+    if(!user || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in and connected to the database.' });
         setIsLoading(false);
         return;
     }
@@ -152,24 +152,24 @@ export function AddCustomerForm() {
       payments: [],
     };
     
-    try {
-        const customerCollection = collection(firestore, `users/${user.uid}/customers`);
-        await addDoc(customerCollection, newCustomer);
+    const customerCollection = collection(firestore, `users/${user.uid}/customers`);
+    
+    addDoc(customerCollection, newCustomer).then(() => {
         toast({
             title: "Customer Added",
             description: `${values.customerName} has been successfully added.`,
         });
         router.push("/customers");
-    } catch (error) {
-        console.error("Error adding customer:", error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not save the customer. Please try again."
+    }).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+          path: customerCollection.path,
+          operation: 'create',
+          requestResourceData: newCustomer,
         });
-    } finally {
+        errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
         setIsLoading(false);
-    }
+    });
   }
 
   const interestTypeLabel = form.watch("interestType") === "percentage" ? "Interest (%)" : "Interest (₹)";
@@ -299,3 +299,5 @@ export function AddCustomerForm() {
     </Form>
   );
 }
+
+    

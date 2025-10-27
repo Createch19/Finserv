@@ -25,7 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -62,7 +62,7 @@ const getStatusBadgeVariant = (status: EmiStatus) => {
 export function EmiList() {
   const { user } = useAuth();
   const firestore = useFirestore();
-  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null;
   const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   const [statusFilter, setStatusFilter] = useState<"all" | EmiStatus>("all");
@@ -105,7 +105,7 @@ export function EmiList() {
   }, [allEmis, statusFilter, dateRange]);
   
   const handleRecordPayment = async () => {
-    if (!selectedEmi || !user) return;
+    if (!selectedEmi || !user || !firestore) return;
 
     const customer = customers?.find(c => c.id === selectedEmi.customerId);
     if (!customer) return;
@@ -135,26 +135,26 @@ export function EmiList() {
     
     const newStatus = (customer.payments?.length || 0) + 1 === customer.duration ? 'completed' : 'active';
 
-    try {
-      await updateDoc(customerDocRef, {
-        payments: arrayUnion(newPayment),
-        status: newStatus
-      });
-      
-      toast({
-          title: "Payment Recorded",
-          description: `Payment of ₹${selectedEmi.emiAmount.toLocaleString()} for ${selectedEmi.customerName} has been recorded.`,
-      });
-    } catch (error) {
-       toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to record payment.",
-      });
-      console.error(error);
-    } finally {
+    const updatePayload = {
+      payments: arrayUnion(newPayment),
+      status: newStatus
+    };
+
+    updateDoc(customerDocRef, updatePayload).then(() => {
+        toast({
+            title: "Payment Recorded",
+            description: `Payment of ₹${selectedEmi?.emiAmount.toLocaleString()} for ${selectedEmi?.customerName} has been recorded.`,
+        });
+    }).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+          path: customerDocRef.path,
+          operation: 'update',
+          requestResourceData: updatePayload,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
         setSelectedEmi(null);
-    }
+    });
   };
 
   if (isLoading) {
@@ -270,3 +270,5 @@ export function EmiList() {
     </>
   );
 }
+
+    
