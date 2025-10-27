@@ -27,8 +27,7 @@ function CustomerDataFetcher({ customerId, userId }: { customerId: string, userI
     }
 
     if (!customer) {
-        // If loading is finished and there's no customer, it's a genuine not found case.
-        // This could be due to permissions or the document not existing.
+        // This will be triggered if the document doesn't exist or if rules prevent access.
         notFound();
     }
 
@@ -52,12 +51,11 @@ export default function CustomerDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, isUserLoading } = useUser();
 
-  // The primary change is here: We explicitly wait for BOTH user loading to finish AND the ID to be present.
-  // This prevents rendering the data fetcher with incomplete data.
+  // Wait until we have both the user and the customer ID from the URL.
   const isReadyToFetch = !isUserLoading && user && id;
 
-  if (!isReadyToFetch) {
-    // Show a loading screen until we have everything we need to fetch.
+  if (isUserLoading) {
+    // Show a full-screen loader only while waiting for the user.
     return (
         <div className="flex justify-center items-center h-screen">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -65,7 +63,13 @@ export default function CustomerDetailPage() {
     );
   }
 
-  // At this point, we are guaranteed to have a user and an ID.
-  // It is now safe to render the data fetching component.
-  return <CustomerDataFetcher customerId={id} userId={user.uid} />;
+  // Once the user is loaded, we can decide whether to fetch data or show not found.
+  if (isReadyToFetch) {
+    // We have a user and an ID, so it's safe to render the data fetching component.
+    return <CustomerDataFetcher customerId={id} userId={user.uid} />;
+  }
+
+  // If we're done loading but don't have what we need, the resource isn't accessible.
+  // This can happen if the ID is missing or the user somehow isn't available after loading.
+  return notFound();
 }
