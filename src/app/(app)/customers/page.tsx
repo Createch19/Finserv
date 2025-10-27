@@ -1,3 +1,7 @@
+
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -6,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { CustomerTable } from "@/components/customers/customer-table";
 
 export default function CustomersPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+
   return (
     <>
       <PageHeader
@@ -27,11 +33,13 @@ export default function CustomersPage() {
             type="search"
             placeholder="Search customers by name or phone..."
             className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
-      <CustomerTable />
+      <CustomerTable searchTerm={searchTerm} />
     </>
   );
 }
