@@ -18,19 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Download, Trash2, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Customer, User } from "@/types";
+import type { Customer } from "@/types";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -67,60 +59,15 @@ export function SettingsTabs() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const usersRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: users, isLoading: usersLoading } = useCollection<User>(usersRef);
-
   const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersRef);
 
   return (
-    <Tabs defaultValue="agents" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="agents">Agents</TabsTrigger>
+    <Tabs defaultValue="defaults" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="defaults">Defaults</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
       </TabsList>
-      <TabsContent value="agents">
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage Agents</CardTitle>
-            <CardDescription>
-              Add, edit, or remove agent users from the system.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {usersLoading ? <div className="flex justify-center"><Loader2 className="animate-spin" /></div> : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users?.map((user) => (
-                  <TableRow key={user.uid}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell className="capitalize">{user.role}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" disabled={user.role === 'admin'}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button>Add Agent</Button>
-          </CardFooter>
-        </Card>
-      </TabsContent>
       <TabsContent value="defaults">
         <Card>
           <CardHeader>
