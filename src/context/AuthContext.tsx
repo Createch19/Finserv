@@ -70,28 +70,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, pass: string) => {
     if (!auth) {
-        throw new Error("Firebase Auth is not initialized.");
+      throw new Error('Firebase Auth is not initialized.');
     }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting the user and loading state
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' && defaultUsers[email as keyof typeof defaultUsers]) {
+      // Check for specific error codes for user not found.
+      // 'auth/user-not-found' is for older SDKs, 'auth/invalid-credential' can be for newer ones.
+      if (
+        (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
+        defaultUsers.hasOwnProperty(email)
+      ) {
         // If it's a default user that doesn't exist, create them.
         try {
-          await createUserWithEmailAndPassword(auth, email, pass);
-          // The onAuthStateChanged listener will fire and handle creating the firestore doc and setting the user.
+          const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+          const firebaseUser = userCredential.user;
+          const defaultUserInfo = defaultUsers[email as keyof typeof defaultUsers];
+          
+          // Immediately create the Firestore document.
+          const newUser: User = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email!,
+            name: defaultUserInfo.name,
+            role: defaultUserInfo.role as 'admin' | 'agent'
+          };
+          const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+          await setDoc(userDocRef, newUser);
+          
+          // Manually set the user in the state since onAuthStateChanged might not fire immediately.
+          setUser(newUser);
+          
         } catch (creationError) {
+          console.error('Failed to create default user:', creationError);
           setLoading(false);
-          console.error("Failed to create default user:", creationError);
           throw creationError; // Re-throw creation error
         }
       } else {
+        // For any other error, re-throw it.
+        console.error('Sign in error:', error);
         setLoading(false);
-        console.error("Sign in error:", error);
-        throw error; // Re-throw original sign-in error
+        throw error;
       }
+    } finally {
+        // Loading is set to false by onAuthStateChanged in the happy path
+        if (auth.currentUser) {
+            setLoading(false);
+        }
     }
   };
 
