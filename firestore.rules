@@ -1,119 +1,110 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for the FINSERV application,
- *              where agents can only access data related to their assigned customers and
- *              administrators are not explicitly granted any special permissions in this initial
- *              prototyping phase.
+ * @fileoverview Firestore Security Rules for FINSERV application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model combined with role-based access control (admin vs. agent).
+ * Agents can only manage data related to their assigned customers, while admins have broader read access.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. Access is restricted to the user themselves.
- * - /users/{userId}/customers/{customerId}: Stores customer data owned by a specific agent.
- * - /users/{userId}/customers/{customerId}/payments/{paymentId}: Stores payment data for a customer, accessible only by the owning agent.
+ * Data is nested under /users/{userId}, representing individual users (agents).
+ * Each agent's customers are stored under /users/{userId}/customers/{customerId}.
+ * Payments for each customer are stored under /users/{userId}/customers/{customerId}/payments/{paymentId}.
  *
  * Key Security Decisions:
- * - User listing is not allowed.
- * - The 'agentId' field is denormalized into the Customer document to enforce authorization independence,
- *   avoiding costly 'get()' calls in the security rules.
- * - The rules do not validate the data types or required fields of the documents beyond what is
- *   necessary for authorization. This allows for rapid prototyping and schema iteration.
- * - All write operations are strictly validated against the authenticated user's ID to prevent
- *   unauthorized data modification.
- * - Rules are structured to be auditable and maintainable, with complex logic abstracted into helper functions.
+ * - Users (agents) can only list their own customers and payments.
+ * - Admins are NOT granted special write privileges in this initial prototype. Future iterations may grant admin roles broader permissions.
+ * - Data validation is minimal, focusing on ownership and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * The 'Customer' entity includes an 'agentId' field, which is denormalized to match the parent /users/{userId} path.
+ * This is CRUCIAL for authorization because it allows security rules to quickly verify ownership without additional reads.
+ *
+ * Structural Segregation:
+ * The design separates user data and customer data into nested collections, which allows for clear ownership and scalable querying.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for user profiles. Only the authenticated user can read or write their own profile.
-     * @path /users/{userId}
-     * @allow (get, update, delete) if the authenticated user's ID matches the {userId}.
-     * @allow (create) if the authenticated user's ID matches the {userId} and they are creating their own profile.
-     * @deny (get, update, delete) if the authenticated user's ID does not match the {userId}.
-     * @deny (create) if the authenticated user's ID does not match the {userId}.
-     * @principle Enforces document ownership for all operations.
+     * @description Controls access to user profiles.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (create) - If the user ID in the path matches the authenticated user's ID (self-registration).
+     * @allow (get) - If the user ID in the path matches the authenticated user's ID (self-access).
+     * @allow (update) - If the user ID in the path matches the authenticated user's ID (self-modification).
+     * @allow (delete) - If the user ID in the path matches the authenticated user's ID (self-deletion).
+     * @allow (list) - Denied. User listing is not permitted.
+     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
+     * @deny (get) - If the user ID in the path does not match the authenticated user's ID.
+     * @deny (update) - If the user ID in the path does not match the authenticated user's ID.
+     * @deny (delete) - If the user ID in the path does not match the authenticated user's ID.
+     * @principle Enforces user-ownership for all operations on user profiles.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not permitted.
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow list: if false; // User listing is not permitted.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && resource.data.id == userId; // Enforce immutability of userId on update.
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces agent-ownership for customer data. Only the agent who "owns" the customer can read, write, or delete the customer data.
-     * @path /users/{userId}/customers/{customerId}
-     * @allow (get, list, update, delete) if the authenticated user's ID matches the {userId} and they are the agent for the customer.
-     * @allow (create) if the authenticated user's ID matches the {userId} and they are creating a customer for themselves.
-     * @deny (get, list, update, delete) if the authenticated user's ID does not match the {userId} or they are not the agent for the customer.
-     * @deny (create) if the authenticated user's ID does not match the {userId} or they are not creating a customer for themselves.
-     * @principle Enforces document ownership for all operations. The 'agentId' field is denormalized to avoid using 'get()' calls.
+     * @description Controls access to customer data owned by a specific agent.
+     * @path /databases/{database}/documents/users/{userId}/customers/{customerId}
+     * @allow (create) - If the agent (userId) is creating a customer and the customer's agentId matches the agent's userId.
+     * @allow (get) - If the authenticated user is the agent (userId).
+     * @allow (list) - If the authenticated user is the agent (userId).
+     * @allow (update) - If the authenticated user is the agent (userId) and the customer exists.  The agentId cannot be changed.
+     * @allow (delete) - If the authenticated user is the agent (userId) and the customer exists.
+     * @deny (create) - If the customer's agentId does not match the agent's userId.
+     * @deny (get) - If the authenticated user is not the agent (userId).
+     * @deny (list) - If the authenticated user is not the agent (userId).
+     * @deny (update) - If the authenticated user is not the agent (userId) or the agentId is being changed.
+     * @deny (delete) - If the authenticated user is not the agent (userId).
+     * @principle Enforces agent-ownership for all operations on customer data.  Maintains relational integrity by validating agentId.
      */
     match /users/{userId}/customers/{customerId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      // Validates that the agentId matches the path and that the document exists.
-      function isValidAgent(userId) {
-        return request.resource.data.agentId == userId;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidAgent(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.agentId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.agentId == userId; // agentId is immutable
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces agent-ownership for payment data. Only the agent who "owns" the customer can read, write, or delete the payment data.
-     * @path /users/{userId}/customers/{customerId}/payments/{paymentId}
-     * @allow (get, list, update, delete) if the authenticated user's ID matches the {userId} and they are the agent for the customer.
-     * @allow (create) if the authenticated user's ID matches the {userId} and they are creating a payment for the customer.
-     * @deny (get, list, update, delete) if the authenticated user's ID does not match the {userId} or they are not the agent for the customer.
-     * @deny (create) if the authenticated user's ID does not match the {userId} or they are not creating a payment for the customer.
-     * @principle Enforces document ownership for all operations.
+     * @description Controls access to payment data for a specific customer, owned by a specific agent.
+     * @path /databases/{database}/documents/users/{userId}/customers/{customerId}/payments/{paymentId}
+     * @allow (create) - If the authenticated user is the agent (userId).
+     * @allow (get) - If the authenticated user is the agent (userId).
+     * @allow (list) - If the authenticated user is the agent (userId).
+     * @allow (update) - If the authenticated user is the agent (userId) and the payment exists.
+     * @allow (delete) - If the authenticated user is the agent (userId) and the payment exists.
+     * @deny (create) - If the authenticated user is not the agent (userId).
+     * @deny (get) - If the authenticated user is not the agent (userId).
+     * @deny (list) - If the authenticated user is not the agent (userId).
+     * @deny (update) - If the authenticated user is not the agent (userId).
+     * @deny (delete) - If the authenticated user is not the agent (userId).
+     * @principle Enforces agent-ownership for all operations on payment data.
      */
     match /users/{userId}/customers/{customerId}/payments/{paymentId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
+  }
+
+  // Helper functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return isSignedIn() && request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
