@@ -1,11 +1,29 @@
 "use client";
 
-import { customers } from "@/lib/demo-data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { customers as initialCustomers, generatePayments } from "@/lib/demo-data";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, isAfter, differenceInDays } from "date-fns";
+import { format, isBefore, differenceInDays, startOfDay, isWithinInterval, parseISO } from "date-fns";
 import Link from 'next/link';
 import { Button } from "../ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIcon, Filter } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import type { Customer } from "@/types";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -20,33 +38,11 @@ type EmiEntry = {
 
 const getEmiStatus = (dueDate: Date, isPaid: boolean): EmiStatus => {
   if (isPaid) return "paid";
-  const today = new Date();
-  if (isBefore(dueDate, today)) return "overdue";
-  if (differenceInDays(dueDate, today) <= 7) return "due";
+  const today = startOfDay(new Date());
+  if (isBefore(startOfDay(dueDate), today)) return "overdue";
+  if (differenceInDays(startOfDay(dueDate), today) <= 7) return "due";
   return "upcoming";
 };
-
-const allEmis = customers
-  .flatMap((customer) => {
-    const emis: EmiEntry[] = [];
-    for (let i = 0; i < customer.duration; i++) {
-      const dueDate = new Date(customer.startDate);
-      dueDate.setMonth(dueDate.getMonth() + i);
-      const isPaid = i < customer.payments.length;
-      emis.push({
-        customerName: customer.name,
-        customerId: customer.id,
-        emiAmount: customer.monthlyEMI,
-        dueDate: dueDate,
-        status: getEmiStatus(dueDate, isPaid),
-        emiNumber: i + 1,
-      });
-    }
-    return emis;
-  })
-  .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  
-const activeEmis = allEmis.filter(emi => emi.status !== 'paid');
 
 const getStatusBadgeVariant = (status: EmiStatus) => {
   switch (status) {
@@ -59,14 +55,135 @@ const getStatusBadgeVariant = (status: EmiStatus) => {
 };
 
 export function EmiList() {
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [statusFilter, setStatusFilter] = useState<"all" | EmiStatus>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [selectedEmi, setSelectedEmi] = useState<EmiEntry | null>(null);
+  const { toast } = useToast();
+
+  const allEmis = useMemo(() => {
+    return customers
+      .flatMap((customer) => {
+        const emis: EmiEntry[] = [];
+        for (let i = 0; i < customer.duration; i++) {
+          const dueDate = new Date(customer.startDate);
+          dueDate.setMonth(dueDate.getMonth() + i + 1);
+          const isPaid = i < customer.payments.length;
+          emis.push({
+            customerName: customer.name,
+            customerId: customer.id,
+            emiAmount: customer.monthlyEMI,
+            dueDate: dueDate,
+            status: getEmiStatus(dueDate, isPaid),
+            emiNumber: i + 1,
+          });
+        }
+        return emis;
+      })
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [customers]);
+
+  const filteredEmis = useMemo(() => {
+    return allEmis.filter(emi => {
+      const statusMatch = statusFilter === 'all' || emi.status === statusFilter;
+      const dateMatch = !dateRange || !dateRange.from || isWithinInterval(emi.dueDate, { start: dateRange.from, end: dateRange.to || dateRange.from });
+      return statusMatch && dateMatch;
+    });
+  }, [allEmis, statusFilter, dateRange]);
+  
+  const handleRecordPayment = () => {
+    if (!selectedEmi) return;
+
+    setCustomers(prevCustomers => {
+      const newCustomers = prevCustomers.map(c => {
+        if (c.id === selectedEmi.customerId) {
+          const newPayment = {
+            id: `payment-${c.payments.length + 1}`,
+            date: new Date().toISOString(),
+            amount: selectedEmi.emiAmount,
+            mode: 'cash' as const, // Defaulting to cash
+            remainingBalance: c.totalPayable - c.payments.reduce((acc, p) => acc + p.amount, 0) - selectedEmi.emiAmount,
+          };
+          
+          const updatedPayments = [...c.payments, newPayment];
+          const newStatus = updatedPayments.length === c.duration ? 'completed' : c.status;
+
+          return { ...c, payments: updatedPayments, status: newStatus };
+        }
+        return c;
+      });
+      return newCustomers;
+    });
+    
+    toast({
+        title: "Payment Recorded",
+        description: `Payment of ₹${selectedEmi.emiAmount.toLocaleString()} for ${selectedEmi.customerName} has been recorded.`,
+    });
+
+    setSelectedEmi(null);
+  };
+
   return (
+    <>
     <Card>
       <CardHeader>
-        <CardTitle>Active EMIs</CardTitle>
+        <CardTitle>EMI Tracker</CardTitle>
+        <CardDescription>View, filter, and manage all customer EMIs.</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="due">Due</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+            </Select>
+
+            <Popover>
+                <PopoverTrigger asChild>
+                <Button
+                    variant={"outline"}
+                    className="w-full sm:w-[300px] justify-start text-left font-normal"
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                    dateRange.to ? (
+                        `${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`
+                    ) : (
+                        format(dateRange.from, "LLL dd, y")
+                    )
+                    ) : (
+                    <span>Pick a date range</span>
+                    )}
+                </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                />
+                </PopoverContent>
+            </Popover>
+            
+            {(statusFilter !== 'all' || dateRange) && (
+                <Button variant="ghost" onClick={() => { setStatusFilter('all'); setDateRange(undefined); }}>
+                    Clear Filters
+                </Button>
+            )}
+
+        </div>
         <div className="space-y-4">
-          {activeEmis.map((emi, index) => (
+          {filteredEmis.map((emi, index) => (
             <div key={`${emi.customerId}-${emi.emiNumber}`} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 rounded-lg border bg-card hover:bg-secondary/50 transition-colors">
               <div className="flex-1 mb-2 md:mb-0">
                 <Link href={`/customers/${emi.customerId}`} className="font-medium hover:underline">{emi.customerName}</Link>
@@ -79,19 +196,35 @@ export function EmiList() {
                 <Badge variant={getStatusBadgeVariant(emi.status)} className="capitalize w-20 justify-center">
                   {emi.status}
                 </Badge>
-                <Button variant="outline" size="sm" asChild>
-                    <Link href={`/customers/${emi.customerId}`}>Record Payment</Link>
+                <Button variant="outline" size="sm" onClick={() => setSelectedEmi(emi)} disabled={emi.status === 'paid'}>
+                    Record Payment
                 </Button>
               </div>
             </div>
           ))}
-          {activeEmis.length === 0 && (
+          {filteredEmis.length === 0 && (
              <div className="text-center py-10 text-muted-foreground">
-                <p>No active EMIs found. All payments are up to date!</p>
+                <p>No EMIs match the current filters.</p>
             </div>
           )}
         </div>
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!selectedEmi} onOpenChange={(open) => !open && setSelectedEmi(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+                Are you sure you want to record a payment of <strong>₹{selectedEmi?.emiAmount.toLocaleString()}</strong> for <strong>{selectedEmi?.customerName}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecordPayment}>Confirm</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
