@@ -22,7 +22,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
-import { useUser } from '@/firebase';
+import { useAuth } from '@/hooks/use-auth';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -36,7 +36,7 @@ const menuItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin');
 

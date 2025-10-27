@@ -26,7 +26,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
-import { useUser, useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
+import { useAuth } from "@/hooks/use-auth";
 import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
@@ -80,7 +81,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 }
 
 export function EmiList() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const firestore = useFirestore();
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
@@ -367,5 +368,3 @@ export function EmiList() {
     </>
   );
 }
-
-    

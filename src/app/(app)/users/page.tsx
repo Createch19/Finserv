@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Search, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UserTable } from "@/components/users/user-table";
-import { useUser } from "@/firebase";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin';
 

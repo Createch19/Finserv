@@ -4,7 +4,8 @@
 import { PageHeader } from "@/components/page-header";
 import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 import { Loader2 } from "lucide-react";
@@ -22,7 +23,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 }
 
 export default function ReportsPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);

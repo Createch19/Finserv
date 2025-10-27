@@ -12,7 +12,8 @@ import {
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2 } from "lucide-react";
 import { CollectionChart, ProfitChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
-import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 
@@ -30,7 +31,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 }
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);

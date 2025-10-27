@@ -28,7 +28,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import type { User, WithId } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, useUser, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/hooks/use-auth';
 import { collection, deleteDoc, doc } from 'firebase/firestore';
 
 const ITEMS_PER_PAGE = 10;
@@ -36,7 +37,7 @@ const ITEMS_PER_PAGE = 10;
 export function UserTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
-  const { user: authUser } = useUser();
+  const { user: authUser } = useAuth();
   const firestore = useFirestore();
 
   // Only admins should be able to query all users
@@ -71,7 +72,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      setCurrentPage(currentPage + 1);
     }
   };
 

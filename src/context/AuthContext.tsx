@@ -8,7 +8,7 @@ import {
   signOut as firebaseSignOut,
   User as FirebaseUser,
   createUserWithEmailAndPassword,
-  updatePassword,
+  updatePassword as firebaseUpdatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from 'firebase/auth';
@@ -53,20 +53,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (userDoc.exists()) {
                 setUser({
                     uid: firebaseUser.uid,
-                    email: firebaseUser.email!,
                     ...userDoc.data()
                 } as User);
             } else {
+                // This case handles the very first sign-in for default users
                 const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
                 if (defaultUserInfo) {
-                    const newUser: User = {
-                        uid: firebaseUser.uid,
+                    const newUser: Omit<User, 'uid'> = {
                         email: firebaseUser.email!,
                         name: defaultUserInfo.name,
                         role: defaultUserInfo.role as 'admin' | 'agent'
                     };
-                    await setDoc(userDocRef, { name: newUser.name, role: newUser.role, email: newUser.email });
-                    setUser(newUser);
+                    await setDoc(userDocRef, newUser);
+                    setUser({ uid: firebaseUser.uid, ...newUser });
                 } else {
                     console.error("User document not found and not a default user.");
                     setUser(null);
@@ -92,24 +91,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged will handle setting the user state
     } catch (error: any) {
       if (
         (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
         defaultUsers.hasOwnProperty(email)
       ) {
+        // If it's a default user that doesn't exist, create it.
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-          const firebaseUser = userCredential.user;
-          const defaultUserInfo = defaultUsers[email as keyof typeof defaultUsers];
-          
-          const newUser: Omit<User, 'uid'> = {
-            email: firebaseUser.email!,
-            name: defaultUserInfo.name,
-            role: defaultUserInfo.role as 'admin' | 'agent'
-          };
-          const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-          await setDoc(userDocRef, newUser);
-          
+          await createUserWithEmailAndPassword(auth, email, pass);
+          // onAuthStateChanged will handle creating the firestore doc and setting state
         } catch (creationError) {
           console.error('Failed to create default user:', creationError);
           setLoading(false);
@@ -140,9 +131,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         await reauthenticateWithCredential(user, credential);
-        await updatePassword(user, newPass);
+        await firebaseUpdatePassword(user, newPass);
     } catch(error: any) {
-        if(error.code === 'auth/wrong-password') {
+        console.error("Password update error:", error);
+        if(error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             throw new Error("The current password you entered is incorrect.");
         }
         throw new Error("An error occurred while changing your password.");

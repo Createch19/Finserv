@@ -28,7 +28,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import type { Customer, WithId, User } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, useUser, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/hooks/use-auth';
 import { collection, deleteDoc, doc, query, where } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
@@ -63,7 +64,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [firestore, user]);

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState } from "react";
@@ -32,7 +31,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Download, Loader2 } from "lucide-react";
-import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
@@ -189,7 +188,7 @@ function ChangePasswordForm() {
 
 
 export function SettingsTabs() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);

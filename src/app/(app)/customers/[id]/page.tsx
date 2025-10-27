@@ -10,7 +10,8 @@ import { notFound, useParams } from "next/navigation";
 import React from "react";
 import type { Customer, WithId } from "@/types";
 import { doc } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
+import { useFirestore, useMemoFirebase, useDoc } from "@/firebase";
+import { useAuth } from "@/hooks/use-auth";
 
 function CustomerDataFetcher({ customerId }: { customerId: string }) {
     const firestore = useFirestore();
@@ -54,7 +55,7 @@ function CustomerDataFetcher({ customerId }: { customerId: string }) {
 export default function CustomerDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user, isUserLoading } = useUser();
+  const { user, loading: isUserLoading } = useAuth();
 
   // We must wait for BOTH the user to be loaded AND the ID to be present
   const isReadyToFetch = !isUserLoading && user && id;

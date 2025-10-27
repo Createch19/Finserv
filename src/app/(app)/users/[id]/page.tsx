@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,7 +10,8 @@ import { notFound, useParams } from "next/navigation";
 import React from "react";
 import type { User, WithId } from "@/types";
 import { doc } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
+import { useFirestore, useMemoFirebase, useDoc } from "@/firebase";
+import { useAuth } from "@/hooks/use-auth";
 
 function UserDataFetcher({ userId }: { userId: string }) {
     const firestore = useFirestore();
@@ -52,7 +54,7 @@ function UserDataFetcher({ userId }: { userId: string }) {
 export default function UserDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user: authUser, isUserLoading } = useUser();
+  const { user: authUser, loading: isUserLoading } = useAuth();
 
   const isReadyToFetch = !isUserLoading && authUser && id;
 
