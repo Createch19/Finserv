@@ -141,7 +141,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Link href={`/customers/${customer.id}`} passHref>
+                    <Link href={`/customers/${customer.id}`} passHref onClick={() => console.log('Navigating to customer ID:', customer.id)}>
                       <Button variant="outline" size="sm">
                         <Eye className="mr-2 h-4 w-4" />
                         View
