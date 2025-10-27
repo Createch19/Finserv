@@ -124,7 +124,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {customers?.filter(c => c.agent.uid === user.uid).length ?? 0}
+                    {customers?.filter(c => c.agent?.uid === user.uid).length ?? 0}
                   </TableCell>
                 </TableRow>
               ))
