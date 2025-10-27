@@ -15,11 +15,7 @@ import React, { useState, useEffect } from "react";
 // or data would be fetched from a server.
 let globalCustomers = initialCustomers;
 
-export default function CustomerDetailPage({ params: paramsProp }: { params: { id: string } }) {
-  // `use` is a new React hook that unwraps promises.
-  // In this case, it's used to get the params from Next.js.
-  const params = React.use(Promise.resolve(paramsProp));
-  
+export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   // Use local state to manage the customer, initialized from our mock global state
   const [customers, setCustomers] = useState(globalCustomers);
 
