@@ -19,10 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, Loader2 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
-import type { Customer, User, WithId } from "@/types";
+import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Customer, WithId, User } from "@/types";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -61,7 +60,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 
 
 export function SettingsTabs() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
@@ -99,7 +98,7 @@ export function SettingsTabs() {
             <CardDescription>
               Backup or export your application data.
             </CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent>
             <Button onClick={() => downloadCSV(customers || [], 'customers-backup.csv')} disabled={customersLoading}>
                 {customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
