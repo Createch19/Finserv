@@ -32,6 +32,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
@@ -45,7 +46,8 @@ const formSchema = z.object({
   phoneModel: z.string().min(3, "Phone model is required."),
   totalPrice: z.coerce.number().min(0, "Price must be a positive number."),
   downPayment: z.coerce.number().min(0, "Down payment must be a positive number."),
-  interest: z.coerce.number().min(0, "Interest must be a positive number."),
+  interestType: z.enum(["percentage", "value"]),
+  interestValue: z.coerce.number().min(0, "Interest must be a positive number."),
   duration: z.coerce.number().min(1, "Duration must be at least 1 month."),
   startDate: z.date({ required_error: "A start date is required." }),
   agentId: z.string().min(1, "Please assign an agent."),
@@ -68,16 +70,17 @@ export function AddCustomerForm() {
       phoneModel: "",
       totalPrice: 0,
       downPayment: 0,
-      interest: 10, // Default interest
+      interestType: "percentage",
+      interestValue: 10,
       duration: 6, // Default duration
       agentId: "",
       startDate: new Date(),
     },
   });
 
-  const [totalPrice, downPayment, interest, duration] = useWatch({
+  const [totalPrice, downPayment, interestType, interestValue, duration] = useWatch({
     control: form.control,
-    name: ["totalPrice", "downPayment", "interest", "duration"],
+    name: ["totalPrice", "downPayment", "interestType", "interestValue", "duration"],
   });
 
   const [financedAmount, setFinancedAmount] = useState(0);
@@ -86,14 +89,21 @@ export function AddCustomerForm() {
 
   useEffect(() => {
     const financed = Math.max(0, totalPrice - downPayment);
-    const totalInterest = (financed * interest) / 100;
+    let totalInterest = 0;
+
+    if (interestType === 'percentage') {
+        totalInterest = (financed * interestValue) / 100;
+    } else {
+        totalInterest = interestValue;
+    }
+
     const payable = financed + totalInterest;
     const emi = duration > 0 ? payable / duration : 0;
 
     setFinancedAmount(financed);
     setTotalPayable(payable);
     setMonthlyEMI(emi);
-  }, [totalPrice, downPayment, interest, duration]);
+  }, [totalPrice, downPayment, interestType, interestValue, duration]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -110,6 +120,8 @@ export function AddCustomerForm() {
     setIsLoading(false);
     router.push("/customers");
   }
+
+  const interestTypeLabel = form.watch("interestType") === "percentage" ? "Interest (%)" : "Interest (₹)";
 
   return (
     <Form {...form}>
@@ -144,8 +156,38 @@ export function AddCustomerForm() {
             <FormField control={form.control} name="downPayment" render={({ field }) => (
               <FormItem><FormLabel>Down Payment (₹)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            <FormField control={form.control} name="interest" render={({ field }) => (
-              <FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+             <FormField
+              control={form.control}
+              name="interestType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Interest Type</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="percentage" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Percentage (%)</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="value" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Fixed Value (₹)</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField control={form.control} name="interestValue" render={({ field }) => (
+              <FormItem><FormLabel>{interestTypeLabel}</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="duration" render={({ field }) => (
               <FormItem><FormLabel>Duration (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
