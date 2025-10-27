@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
-import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from "@/firebase";
+import { useFirestore, useCollection, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
 import { addDoc, collection } from "firebase/firestore";
 import type { User, Customer } from "@/types";
 
@@ -64,7 +64,7 @@ export function AddCustomerForm() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const agentsRef = firestore ? collection(firestore, 'users') : null;
+  const agentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
   const { data: agents, isLoading: agentsLoading } = useCollection<User>(agentsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({

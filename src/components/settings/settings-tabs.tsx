@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Download, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Customer, User } from "@/types";
 
@@ -67,10 +67,10 @@ export function SettingsTabs() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const usersRef = collection(firestore, 'users');
+  const usersRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersRef);
 
-  const customersRef = user ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
   const { data: customers, isLoading: customersLoading } = useCollection<Customer>(customersRef);
 
   return (

@@ -28,7 +28,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import type { Customer } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, useUser, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useCollection, useFirestore, useUser, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
 import { collection, deleteDoc, doc } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
@@ -52,7 +52,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const customersRef = user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null;
+  const customersRef = useMemoFirebase(() => user && firestore ? collection(firestore, `users/${user.uid}/customers`) : null, [user, firestore]);
   const { data: customers, isLoading } = useCollection<Customer>(customersRef);
 
   const filteredCustomers = useMemo(() => {
