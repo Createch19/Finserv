@@ -16,13 +16,13 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const customerRef = useMemoFirebase(() => (user && id ? doc(firestore, `users/${user.uid}/customers`, id) : null), [firestore, user, id]);
-  const { data: customer, isLoading, error } = useDoc<WithId<Customer>>(customerRef);
+  const { data: customer, isLoading: isCustomerLoading, error } = useDoc<WithId<Customer>>(customerRef);
 
-  if (isLoading) {
+  if (isUserLoading || isCustomerLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
@@ -31,7 +31,9 @@ export default function CustomerDetailPage() {
     return <div className="text-red-500">Error loading customer data.</div>
   }
   
-  if (!customer) {
+  // After loading, if there's no user or no customer, show 404.
+  // This handles both invalid customer IDs and cases where a user might not be logged in.
+  if (!user || !customer) {
     return notFound();
   }
 

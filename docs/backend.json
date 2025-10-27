@@ -6,11 +6,6 @@
       "type": "object",
       "description": "Represents a user within the FINSERV application, storing their basic profile information and role.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user.",
-          "format": "uuid"
-        },
         "name": {
           "type": "string",
           "description": "The full name of the user."
@@ -26,7 +21,6 @@
         }
       },
       "required": [
-        "id",
         "name",
         "email",
         "role"
@@ -38,11 +32,6 @@
       "type": "object",
       "description": "Represents a financed customer, storing their personal details, loan information, and agent assignment.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the customer.",
-          "format": "uuid"
-        },
         "name": {
           "type": "string",
           "description": "The full name of the customer."
@@ -107,7 +96,6 @@
         }
       },
       "required": [
-        "id",
         "name",
         "phone",
         "address",
