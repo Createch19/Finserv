@@ -30,10 +30,11 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
-import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { Customer } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { errorEmitter, FirestorePermissionError } from "@/firebase";
 
 const formSchema = z.object({
   customerName: z.string().min(2, "Name must be at least 2 characters."),
