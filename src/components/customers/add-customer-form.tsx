@@ -120,7 +120,7 @@ export function AddCustomerForm() {
     const customerId = uuidv4();
     const newCustomerDocRef = doc(firestore, 'customers', customerId);
 
-    const newCustomer: Customer = {
+    const newCustomer = {
       customerId: newCustomerDocRef.id,
       name: values.customerName,
       phone: values.phoneNumber,
@@ -137,11 +137,7 @@ export function AddCustomerForm() {
       startDate: values.startDate.toISOString(),
       status: 'active',
       payments: [],
-      agent: {
-        uid: user.uid,
-        name: user.name,
-        email: user.email,
-      },
+      agentId: user.uid, // Change: sending agentId directly
     };
     
     setDoc(newCustomerDocRef, newCustomer).then(() => {
@@ -275,3 +271,5 @@ export function AddCustomerForm() {
     </Form>
   );
 }
+
+    
