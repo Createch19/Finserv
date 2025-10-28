@@ -129,12 +129,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     });
   };
   
-  const handleCardClick = (customerId: string) => {
-    console.log(`[DEBUG] handleCardClick called with customerId: ${customerId}`);
-    router.push(`/customers/${customerId}`);
-  };
-
-
   if (isLoading) {
       return (
           <div className="flex h-64 items-center justify-center">
@@ -156,67 +150,62 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         {/* Mobile View: Card List */}
         <div className="md:hidden space-y-4">
             {currentCustomers.map(customer => (
-                <Card key={customer.id} onClick={(e) => { 
-                    console.log("[DEBUG] Card clicked. Target: ", e.target);
-                    // Check if the click was on an interactive element inside the card
-                    if ((e.target as HTMLElement).closest('[data-interactive="true"]')) {
-                        console.log("[DEBUG] Click was on an interactive element, stopping navigation.");
-                        return;
-                    }
-                    handleCardClick(customer.id)
-                }} className="cursor-pointer hover:bg-muted/50">
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center">
-                            <Link href={`/customers/${customer.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{customer.name}</Link>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" data-interactive="true" onClick={(e) => e.stopPropagation()}>
-                                        <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" data-interactive="true" onClick={(e) => e.stopPropagation()}>
-                                    <DropdownMenuItem asChild>
-                                        <Link href={`/customers/${customer.id}`}>
-                                            <Eye className="mr-2 h-4 w-4" /> View
-                                        </Link>
-                                    </DropdownMenuItem>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                                <Trash2 className="mr-2 h-4 w-4" /> 
-                                                <span>Delete</span>
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete this
-                                                customer's data from our servers.
-                                            </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(customer.id)}>
-                                                Continue
-                                            </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </CardTitle>
-                        <div className="text-sm text-muted-foreground">{customer.phone}</div>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between">
-                         <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
-                            {customer.status}
-                        </Badge>
-                        <div className="text-right">
-                            <div className="font-medium">{`₹${customer.financedAmount.toLocaleString()}`}</div>
-                            <div className="text-xs text-muted-foreground">{`${customer.duration} months`}</div>
-                        </div>
-                    </CardContent>
+                <Card key={customer.id} className="relative hover:bg-muted/50">
+                    <div className="absolute top-2 right-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/customers/${customer.id}`}>
+                                        <Eye className="mr-2 h-4 w-4" /> View
+                                    </Link>
+                                </DropdownMenuItem>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" /> 
+                                            <span>Delete</span>
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete this
+                                            customer's data from our servers.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(customer.id)}>
+                                            Continue
+                                        </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    <Link href={`/customers/${customer.id}`} className="block cursor-pointer">
+                        <CardHeader>
+                            <CardTitle>{customer.name}</CardTitle>
+                            <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-between">
+                            <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
+                                {customer.status}
+                            </Badge>
+                            <div className="text-right">
+                                <div className="font-medium">{`₹${customer.financedAmount.toLocaleString()}`}</div>
+                                <div className="text-xs text-muted-foreground">{`${customer.duration} months`}</div>
+                            </div>
+                        </CardContent>
+                    </Link>
                 </Card>
             ))}
         </div>
