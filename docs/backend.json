@@ -179,6 +179,17 @@
         }
       },
       "required": ["uid", "name", "email"]
+    },
+    "DummyEntity": {
+      "title": "Dummy Entity",
+      "type": "object",
+      "description": "An unused entity to force a redeployment of Firestore rules.",
+      "properties": {
+        "forceUpdate": {
+          "type": "string",
+          "description": "A field to ensure the backend configuration changes."
+        }
+      }
     }
   },
   "auth": {
@@ -187,9 +198,13 @@
     ]
   },
   "firestore": {
-    "/customers/{customerId}": {
-      "schema": "Customer",
-      "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
+    "collections": {
+        "/customers/{customerId}": {
+            "schema": {
+                "$ref": "#/entities/Customer"
+            },
+            "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
+        }
     }
   }
 }
