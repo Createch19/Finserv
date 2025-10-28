@@ -1,37 +1,72 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces role-based access control for the FINSERV application.
+ * @fileoverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * The security model is based on a role-based access control. Agents have access to all customer data, regardless of who created the customer record.
+ * This ruleset implements a role-based access control (RBAC) system with two roles: 'admin' and 'agent'.
+ * Admins have full access to all customer data, while agents have limited access, primarily to customers associated with them.
  *
  * Data Structure:
- * The primary data is stored in the `/customers` collection.  Each customer document contains customer details and information about assigned agent.
+ * - /customers/{customerId}: Stores customer information. The `customerId` is the document ID. Each customer document
+ *   includes an embedded `agent` object containing the `uid` of the assigned agent.
  *
  * Key Security Decisions:
- * - Agents can read, write, and delete all customer documents.
+ * - Only authenticated users can access the database.
+ * - Admins have full CRUD access to all customer documents.
+ * - Agents can only create customers and can only update/delete customers assigned to them.
+ * - No user listing is allowed.
  *
+ * Denormalization for Authorization:
+ * - The `agent` object is embedded directly within the customer document to avoid costly `get()` operations and enable
+ *   efficient rule evaluation based on the agent's UID. This allows for simple checks like `resource.data.agent.uid == request.auth.uid`.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows agents to create, read, update, and delete customer documents.
-     * @path /customers/{customerId}
-     * @allow (read, write, delete) An agent can read, write, or delete any customer document.
-     * @deny (none) No requests are denied based on the provided requirements.
-     * @principle Grants full access to all agents for customer data management.
+     * @description Secure the /customers/{customerId} collection.
+     * @path /databases/{database}/documents/customers/{customerId}
+     * @allow (create) - An agent can create a new customer and the agent.uid equals request.auth.uid.
+     * @allow (get, list) - Admins can read any customer. Agents can only read customer document.
+     * @allow (update, delete) - Admins can update/delete any customer. Agents can only update/delete customers assigned to them.
+     * @deny (create) - Non-authenticated users cannot create customers. Mismatched agent UID.
+     * @deny (update, delete) - Non-admins and non-agents cannot update/delete customers. Agents cannot update/delete customers not assigned to them.
+     * @principle Enforces role-based access control (RBAC) for customer data.
      */
     match /customers/{customerId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
-    }
+      // Function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
+      // Function to check if the user has the admin role
+      function isAdmin() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
 
-    // Define helper functions
-    function isSignedIn() {
-      return request.auth != null;
+      // Function to check if the user is an agent
+      function isAgent() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
+      }
+
+      // Function to check if the agent is the owner
+      function isOwner(agentUid) {
+        return isSignedIn() && request.auth.uid == agentUid;
+      }
+
+      // Function to check if the agent is the owner and the resource exist
+      function isExistingOwner(agentUid) {
+        return isOwner(agentUid) && resource != null;
+      }
+
+      // Reads rules
+      allow get: if isAdmin() || (isAgent() && resource.data.agent.uid == request.auth.uid);
+      allow list: if isAdmin();
+
+      // Writes rules
+      allow create: if isAgent() && request.resource.data.agent.uid == request.auth.uid;
+      allow update: if isAdmin() || (isAgent() && isExistingOwner(resource.data.agent.uid));
+      allow delete: if isAdmin() || (isAgent() && isExistingOwner(resource.data.agent.uid));
     }
   }
 }
