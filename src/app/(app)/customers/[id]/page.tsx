@@ -38,7 +38,7 @@ function CustomerDataFetcher({ customerId }: { customerId: string }) {
         notFound();
     }
 
-    // Agent can only see their own customers
+    // Admins can see all customers, but agents can only see their own.
     if (user?.role === 'agent' && customer.agent.uid !== user.uid) {
         notFound();
     }
@@ -80,7 +80,7 @@ export default function CustomerDetailPage() {
   
   // This case handles if the user is not logged in or the id is missing after loading is complete
   if (!isUserLoading && (!user || !id)) {
-      return notFound();
+      notFound();
   }
 
   // Fallback loader while waiting for initial conditions to be met
