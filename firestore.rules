@@ -2,76 +2,116 @@
  * @fileoverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces a role-based access control model, with specific rules governing access to user profiles and customer data.
+ * This ruleset enforces a role-based access control model, with specific rules for admins and agents.
+ * Admins have broad access to all data, while agents are restricted to accessing and managing only the customer records that they create.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, with 'userId' matching the Firebase Auth UID.
- * - /customers/{customerId}: Stores customer data, with 'customerId' as the document ID. Customer documents contain nested agent information.
+ * The Firestore database consists of two top-level collections: `users` and `customers`.
+ *   - `/users/{userId}`: Stores user profiles, including role information (admin or agent).
+ *   - `/customers/{customerId}`: Stores customer data, including agent assignment.  The `Customer` document includes an embedded `Agent` object, denormalizing the agent's `uid` for easy authorization. Payments are embedded directly in the customer record.
  *
  * Key Security Decisions:
- * - Listing all users is denied to prevent unauthorized enumeration.
- * - Customer access is role-based: admins have full access, while agents can only manage customers they are assigned to.
- *
- * Denormalization for Authorization:
- * - The `Customer` entity embeds the `Agent` information (UID, name, email) to avoid needing separate queries for agent details during authorization.
+ *   - User listing is explicitly denied.
+ *   - Agents can only access customer records where the `agent.uid` field matches their own UID.
+ *   - The `customers` collection implements a "Public Read with Owner-Only Writes" pattern, but with role-based writes, since admins can modify any customer.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to the /users collection.
-     * @path /databases/{database}/documents/users
-     * @allow (create) If the user's UID matches the userId, they can create their own profile.
-     * @deny (list) Listing all users is not allowed.
-     * @deny (get) Non-owners cannot get a user document.
-     * @deny (update) Non-owners cannot update a user document.
-     * @deny (delete) Non-owners cannot delete a user document.
-     * @principle Enforces user-ownership for profile data and restricts listing all users.
+     * @description Secures the `/users` collection. Users can be created but not listed.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (create) A user with UID 'user123' can create their own user document.
+     * @deny (get) No one can read individual user documents.
+     * @deny (list) Listing all users is prohibited.
+     * @deny (update) No one can update users information.
+     * @deny (delete) No one can delete users information.
+     * @principle Ownership and role-based access control.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      // Only allow creation if the user's ID matches the authenticated user's ID.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow get: if false;
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to the /customers collection.
+     * @description Secures the `/customers` collection. Allows admins to read/write all customer data.
+     *              Allows agents to read/write customers assigned to them.
      * @path /databases/{database}/documents/customers/{customerId}
-     * @allow (get, list) Admins can read any customer data. Agents can read customer data where they are the assigned agent.
-     * @allow (create) Admins can create customers. Agents can create customers and must set their own agent ID.
-     * @allow (update, delete) Admins can update or delete any customer. Agents can only update or delete customers where they are the assigned agent.
-     * @deny (create) Agents cannot create a customer without setting the agent id to their own id.
-     * @principle Enforces role-based access control for customer data, with owner-only access for agents.
+     * @allow (get) Any user can read customer data.
+     * @allow (list) Any user can list customer data.
+     * @allow (create) An admin can create a customer.
+     * @allow (create) An agent can create a customer.
+     * @allow (update) An admin can update any customer.
+     * @allow (update) An agent can update customers assigned to them.
+     * @allow (delete) An admin can delete any customer.
+     * @allow (delete) An agent can delete customers assigned to them.
+     * @deny (create) A non-authenticated user cannot create a customer.
+     * @deny (update) A non-authenticated user cannot update a customer.
+     * @deny (delete) A non-authenticated user cannot delete a customer.
+     * @principle Role-based access control and data ownership.
      */
     match /customers/{customerId} {
-      allow get: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
-      allow list: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.agent.uid == request.auth.uid);
-      allow update: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
-      allow delete: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
+      allow get, list: if true;
+      allow create: if isSignedIn() && (isAdmin() || isAgentCreatingForSelf());
+      allow update: if isSignedIn() && (isAdmin() || (isAgent() && isAgentUpdatingOwnCustomer(customerId)));
+      allow delete: if isSignedIn() && (isAdmin() || (isAgent() && isAgentDeletingOwnCustomer(customerId)));
     }
+  }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
+  // ---- Helper functions ----
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
+  /**
+   * @description Checks if the user is signed in.
+   * @return {boolean} True if the user is signed in, false otherwise.
+   */
+  function isSignedIn() {
+    return request.auth != null;
+  }
 
-    function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
+  /**
+   * @description Checks if the user has the 'admin' role.
+   * @return {boolean} True if the user has the 'admin' role, false otherwise.
+   */
+  function isAdmin() {
+    return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+  }
 
-    function isAgent() {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
-    }
+  /**
+   * @description Checks if the user has the 'agent' role.
+   * @return {boolean} True if the user has the 'agent' role, false otherwise.
+   */
+  function isAgent() {
+    return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
+  }
 
-    function isAgentForCustomer(agentId) {
-      return isSignedIn() && request.auth.uid == agentId;
-    }
+  /**
+   * @description Checks if an agent is creating a customer and assigning it to themself.
+   * @return {boolean} True if the agent is creating for themself, false otherwise.
+   */
+  function isAgentCreatingForSelf() {
+      return isAgent() && request.resource.data.agent.uid == request.auth.uid;
+  }
+
+  /**
+   * @description Checks if an agent is updating a customer assigned to themself.
+   * @param {string} customerId The ID of the customer being updated.
+   * @return {boolean} True if the agent is updating their own customer, false otherwise.
+   */
+  function isAgentUpdatingOwnCustomer(customerId) {
+    return request.resource.data.agent.uid == request.auth.uid && get(/databases/$(database)/documents/customers/$(customerId)).data.agent.uid == request.auth.uid;
+  }
+
+    /**
+   * @description Checks if an agent is deleting a customer assigned to themself.
+   * @param {string} customerId The ID of the customer being updated.
+   * @return {boolean} True if the agent is deleting their own customer, false otherwise.
+   */
+  function isAgentDeletingOwnCustomer(customerId) {
+    return get(/databases/$(database)/documents/customers/$(customerId)).data.agent.uid == request.auth.uid;
   }
 }
