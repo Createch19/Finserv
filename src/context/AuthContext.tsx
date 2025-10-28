@@ -45,8 +45,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
       if (firebaseUser) {
-        setLoading(true);
         try {
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting the user state
+      // onAuthStateChanged will handle setting the user state and final loading state
     } catch (error: any) {
       if (
         (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
@@ -109,15 +109,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // onAuthStateChanged will handle creating the firestore doc and setting state
         } catch (creationError) {
           console.error('Failed to create default user:', creationError);
-          setLoading(false);
+          setLoading(false); // Ensure loading is false on nested error
           throw creationError;
         }
       } else {
         console.error('Sign in error:', error);
-        setLoading(false);
+        setLoading(false); // Ensure loading is false on error
         throw error;
       }
     } 
+    // Do not set loading to false here; onAuthStateChanged is the source of truth.
   };
 
   const signOut = async () => {
