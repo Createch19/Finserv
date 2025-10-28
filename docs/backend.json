@@ -32,6 +32,10 @@
       "type": "object",
       "description": "Represents a financed customer, storing their personal details, loan information, and agent assignment.",
       "properties": {
+        "customerId": {
+          "type": "string",
+          "description": "The unique identifier for the customer, matching the Firestore document ID."
+        },
         "name": {
           "type": "string",
           "description": "The full name of the customer."
@@ -69,7 +73,7 @@
           "description": "The total interest amount for the loan."
         },
         "totalPayable": {
-          "type": "number",
+          "type": "number",_
           "description": "The total amount payable (financed amount + interest)."
         },
         "duration": {
@@ -102,6 +106,7 @@
         }
       },
       "required": [
+        "customerId",
         "name",
         "phone",
         "address",

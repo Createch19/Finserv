@@ -32,7 +32,7 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import type { Customer } from "@/types";
 
 const formSchema = z.object({
@@ -115,8 +115,12 @@ export function AddCustomerForm() {
         setIsLoading(false);
         return;
     }
+    
+    const customerCollectionRef = collection(firestore, 'customers');
+    const newCustomerDocRef = doc(customerCollectionRef);
 
     const newCustomer: Customer = {
+      customerId: newCustomerDocRef.id,
       name: values.customerName,
       phone: values.phoneNumber,
       address: values.address,
@@ -139,9 +143,7 @@ export function AddCustomerForm() {
       },
     };
     
-    const customerCollection = collection(firestore, 'customers');
-    
-    addDoc(customerCollection, newCustomer).then(() => {
+    setDoc(newCustomerDocRef, newCustomer).then(() => {
         toast({
             title: "Customer Added",
             description: `${values.customerName} has been successfully added.`,
@@ -149,7 +151,7 @@ export function AddCustomerForm() {
         router.push("/customers");
     }).catch(serverError => {
         const permissionError = new FirestorePermissionError({
-          path: customerCollection.path,
+          path: newCustomerDocRef.path,
           operation: 'create',
           requestResourceData: newCustomer,
         });

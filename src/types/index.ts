@@ -1,5 +1,4 @@
 
-
 export type Agent = {
   uid: string;
   email: string;
@@ -20,6 +19,7 @@ export type Payment = {
 };
 
 export type Customer = {
+  customerId: string;
   name: string;
   phone: string;
   address: string;
