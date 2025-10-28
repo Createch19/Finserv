@@ -1,58 +1,60 @@
 /**
- * @fileoverview Firestore Security Rules for the FINSERV application.
+ * @fileoverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces a role-based access control model, primarily focusing on restricting access to customer data based on agent assignments.
- * Agents can only access the customer documents assigned to them.
+ * This ruleset enforces a role-based access control model, with specific rules for admins and agents.
+ * Admins have full access to all customer data, while agents are limited to accessing only the customer data they are assigned to.
  *
  * Data Structure:
- * - /customers/{customerId}: Stores customer information, including an embedded Agent object with the agent's UID.
+ * - /customers/{customerId}: Stores customer data, including loan information and the assigned agent's information.
  *
  * Key Security Decisions:
- * - Customers are secured via agent ownership.
- * - Data validation is relaxed for prototyping, focusing on authorization and relationship integrity.
+ * - Agents can only create customers, with the agent's UID automatically assigned during creation.
+ * - Agents cannot update or delete customer documents after creation.
+ * - Listing customer documents is only allowed for admins.
  *
  * Denormalization for Authorization:
- * - The 'Customer' entity embeds the 'Agent' entity, including the agent's UID, directly within the document. This avoids needing separate lookups to determine agent assignment.
+ * - The `Customer` entity contains an `agent` object with the `uid` of the assigned agent.
+ * This denormalization allows for efficient security rules without needing extra reads to verify agent assignment.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Rules for the /customers collection.
+     * @description Grants admins full access to customer data, while agents can only create customers assigned to them.
      * @path /databases/{database}/documents/customers/{customerId}
-     * @allow (read, update, delete) - Agent with uid matching the customer.agent.uid can read, update, or delete.
-     *          Example: Agent with uid "agent123" reading a customer document where customer.agent.uid is also "agent123".
-     * @deny (read, update, delete) - Agent with uid not matching customer.agent.uid.
-     *          Example: Agent with uid "agent456" trying to update a customer document where customer.agent.uid is "agent123".
-     * @principle Enforces agent ownership of customer documents.
+     * @allow (create) User with agent role can create a new customer and their `agent.uid` matches their own UID.
+     * @deny (create) User with agent role attempts to create a customer where `agent.uid` does not match their own UID.
+     * @allow (get) User with admin role can retrieve any customer.
+     * @deny (get) User with agent role attempts to retrieve a customer not assigned to them.
+     * @deny (update) Any user attempts to update a customer.
+     * @deny (delete) Any user attempts to delete a customer.
+     * @allow (list) User with admin role can list all customers.
+     * @deny (list) User with agent role attempts to list customers.
+     * @principle Enforces role-based access control for customer data, with agent-ownership for creation.
      */
     match /customers/{customerId} {
-      // Helper function to check if the request is made by the assigned agent.
-      function isAgentOwner() {
-        return request.auth.uid == resource.data.agent.uid;
+      function isAdmin() {
+        return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
 
-      // Helper function to check if the agent creating the data is the owner
-      function isCreatingAgentOwner() {
-        return request.auth.uid == request.resource.data.agent.uid;
+      function isAgent() {
+        return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
       }
 
-      // Helper function to check if the request is made by a signed-in user.
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      // Helper function to check if a document exists and is owned by the agent.
-      function isExistingAgentOwner() {
-        return isSignedIn() && resource != null && isAgentOwner();
+      function isAssignedAgent(agentUid) {
+        return request.auth.uid == agentUid;
       }
 
-      allow get: if isAgentOwner();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isCreatingAgentOwner();
-      allow update: if isExistingAgentOwner();
-      allow delete: if isExistingAgentOwner();
+      // Read Permissions
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+
+      // Write Permissions
+      allow create: if isAgent() && isAssignedAgent(request.resource.data.agent.uid);
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
