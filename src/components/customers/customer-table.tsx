@@ -24,8 +24,14 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2, MoreVertical } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Customer, WithId, User } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
@@ -66,6 +72,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [firestore, user]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
@@ -101,6 +109,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const handleDelete = (customerId: string) => {
     if (!firestore) return;
     const docRef = doc(firestore, 'customers', customerId);
+    setDeletingId(customerId);
     
     deleteDoc(docRef).then(() => {
       toast({
@@ -113,6 +122,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
           operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
+        setDeletingId(null);
     });
   };
 
@@ -123,106 +134,173 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
           </div>
       )
   }
+  
+  if (filteredCustomers.length === 0) {
+      return (
+          <div className="text-center py-10 text-muted-foreground">
+              <p>No customers found.</p>
+          </div>
+      )
+  }
 
   return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead className="hidden md:table-cell">Phone Model</TableHead>
-              <TableHead className="hidden lg:table-cell">Financed</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentCustomers.length > 0 ? (
-              currentCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="font-medium">{customer.name}</div>
-                    <div className="text-sm text-muted-foreground">{customer.phone}</div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">{customer.phoneModel}</TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    <div>{`₹${customer.financedAmount.toLocaleString()}`}</div>
-                    <div className="text-sm text-muted-foreground">{`${customer.duration} months`}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
-                      {customer.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Link href={`/customers/${customer.id}`} passHref>
-                      <Button variant="outline" size="sm">
-                        <Eye className="mr-2 h-4 w-4" />
-                        View
-                      </Button>
-                    </Link>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                           <Trash2 className="mr-2 h-4 w-4" />
-                           Delete
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete this
-                            customer's data from our servers.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(customer.id)}>
-                            Continue
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No customers found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        <div className="flex items-center justify-between pt-4">
-          <div className="text-sm text-muted-foreground">
-            Showing {filteredCustomers.length > 0 ? startIndex + 1 : 0} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length} customers.
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+    <>
+        {/* Mobile View: Card List */}
+        <div className="md:hidden space-y-4">
+            {currentCustomers.map(customer => (
+                <Card key={customer.id}>
+                    <CardHeader>
+                        <CardTitle className="flex justify-between items-center">
+                            <span>{customer.name}</span>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem asChild>
+                                        <Link href={`/customers/${customer.id}`}>
+                                            <Eye className="mr-2 h-4 w-4" /> View
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
+                                                <span className="text-destructive">Delete</span>
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete this
+                                                customer's data from our servers.
+                                            </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(customer.id)}>
+                                                Continue
+                                            </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </CardTitle>
+                        <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-between">
+                         <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
+                            {customer.status}
+                        </Badge>
+                        <div className="text-right">
+                            <div className="font-medium">{`₹${customer.financedAmount.toLocaleString()}`}</div>
+                            <div className="text-xs text-muted-foreground">{`${customer.duration} months`}</div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
-      </CardContent>
-    </Card>
+        
+        {/* Desktop View: Table */}
+        <div className="hidden md:block">
+            <Card>
+            <CardContent className="p-0">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Phone Model</TableHead>
+                    <TableHead>Financed</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {currentCustomers.map((customer) => (
+                        <TableRow key={customer.id}>
+                        <TableCell>
+                            <div className="font-medium">{customer.name}</div>
+                            <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                        </TableCell>
+                        <TableCell>{customer.phoneModel}</TableCell>
+                        <TableCell>
+                            <div>{`₹${customer.financedAmount.toLocaleString()}`}</div>
+                            <div className="text-sm text-muted-foreground">{`${customer.duration} months`}</div>
+                        </TableCell>
+                        <TableCell>
+                            <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
+                            {customer.status}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                            <Link href={`/customers/${customer.id}`} passHref>
+                            <Button variant="outline" size="sm">
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                            </Button>
+                            </Link>
+                            <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" disabled={deletingId === customer.id}>
+                                    {deletingId === customer.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                    Delete
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete this
+                                    customer's data from our servers.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(customer.id)}>
+                                    Continue
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            </CardContent>
+            </Card>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between pt-4">
+            <div className="text-sm text-muted-foreground">
+                Showing {filteredCustomers.length > 0 ? startIndex + 1 : 0} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length} customers.
+            </div>
+            <div className="flex items-center gap-2">
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+                </Button>
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages || totalPages === 0}
+                >
+                Next
+                <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    </>
   );
 }

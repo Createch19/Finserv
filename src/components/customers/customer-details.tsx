@@ -28,7 +28,7 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const remainingBalance = customer.totalPayable - totalPaid;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
@@ -84,18 +84,9 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-             <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Agent Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <DetailItem label="Agent Name" value={customer.agent.name} />
-                    <DetailItem label="Agent Email" value={customer.agent.email} />
-                </CardContent>
-            </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline">Contact Info</CardTitle>
+                    <CardTitle className="font-headline">Contact & Status</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <DetailItem label="Phone Number" value={customer.phone} />
@@ -109,6 +100,15 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                     <DetailItem label="Remaining Balance" value={
                         <span className="text-lg font-bold text-primary">₹{remainingBalance.toLocaleString()}</span>
                     } />
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Agent Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <DetailItem label="Agent Name" value={customer.agent.name} />
+                    <DetailItem label="Agent Email" value={customer.agent.email} />
                 </CardContent>
             </Card>
         </div>
