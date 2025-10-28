@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -73,6 +74,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const { user } = useAuth();
   const firestore = useFirestore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
 
 
   const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [firestore, user]);
@@ -102,7 +104,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      setCurrentPage(currentPage + 1);
     }
   };
 
@@ -126,6 +128,11 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         setDeletingId(null);
     });
   };
+  
+  const handleCardClick = (customerId: string) => {
+    router.push(`/customers/${customerId}`);
+  };
+
 
   if (isLoading) {
       return (
@@ -148,17 +155,17 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         {/* Mobile View: Card List */}
         <div className="md:hidden space-y-4">
             {currentCustomers.map(customer => (
-                <Card key={customer.id}>
+                <Card key={customer.id} onClick={() => handleCardClick(customer.id)} className="cursor-pointer hover:bg-muted/50">
                     <CardHeader>
                         <CardTitle className="flex justify-between items-center">
-                            <span>{customer.name}</span>
+                            <Link href={`/customers/${customer.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{customer.name}</Link>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                         <MoreVertical className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                     <DropdownMenuItem asChild>
                                         <Link href={`/customers/${customer.id}`}>
                                             <Eye className="mr-2 h-4 w-4" /> View
@@ -166,9 +173,9 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                                     </DropdownMenuItem>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                                <Trash2 className="mr-2 h-4 w-4 text-destructive" /> 
-                                                <span className="text-destructive">Delete</span>
+                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" /> 
+                                                <span>Delete</span>
                                             </DropdownMenuItem>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
@@ -304,3 +311,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
+
+    
