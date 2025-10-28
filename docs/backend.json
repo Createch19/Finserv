@@ -73,7 +73,7 @@
           "description": "The total interest amount for the loan."
         },
         "totalPayable": {
-          "type": "number",_
+          "type": "number",
           "description": "The total amount payable (financed amount + interest)."
         },
         "duration": {
@@ -187,12 +187,9 @@
     ]
   },
   "firestore": {
-    "collections": [
-      {
-        "path": "/customers/{customerId}",
-        "schema": { "$ref": "#/entities/Customer" },
-        "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
-      }
-    ]
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
+    }
   }
 }
