@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { notFound, useParams } from "next/navigation";
-import React, { useEffect } from "react";
+import React from "react";
 import type { Customer, WithId } from "@/types";
 import { doc } from "firebase/firestore";
 import { useFirestore, useMemoFirebase, useDoc } from "@/firebase";
@@ -19,14 +18,10 @@ export default function CustomerDetailPage() {
   const { user, loading: isUserLoading } = useAuth();
   const firestore = useFirestore();
 
-  console.log("[CustomerDetailPage] Rendering. Customer ID from URL:", id);
-
   const customerRef = useMemoFirebase(() => {
       if (firestore && id) {
-          console.log("[CustomerDetailPage] Creating Firestore document reference for path:", `customers/${id}`);
           return doc(firestore, `customers`, id);
       }
-      console.log("[CustomerDetailPage] Firestore not ready or no ID provided. customerRef will be null.");
       return null;
     }, [firestore, id]);
 
@@ -34,18 +29,7 @@ export default function CustomerDetailPage() {
   
   const isLoading = isUserLoading || isCustomerLoading;
 
-  useEffect(() => {
-    console.log("[CustomerDetailPage] State update:", {
-        isUserLoading,
-        isCustomerLoading,
-        overallIsLoading: isLoading,
-        customerData: customer,
-        error,
-    });
-  }, [isUserLoading, isCustomerLoading, isLoading, customer, error]);
-
   if (isLoading) {
-    console.log("[CustomerDetailPage] Displaying loading spinner.");
     return (
         <div className="flex justify-center items-center h-screen">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -54,11 +38,8 @@ export default function CustomerDetailPage() {
   }
   
   if (!user || !customer) {
-    console.error("[CustomerDetailPage] Condition for 404 met. user:", user, "customer:", customer);
     notFound();
   }
-
-  console.log("[CustomerDetailPage] Rendering customer details for:", customer.name);
 
   return (
     <>

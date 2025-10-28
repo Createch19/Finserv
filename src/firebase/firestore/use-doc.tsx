@@ -49,37 +49,29 @@ export function useDoc<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    console.log("[useDoc] useEffect triggered. Received docRef:", memoizedDocRef?.path);
-
     if (!memoizedDocRef) {
-      console.log("[useDoc] No docRef provided, setting state to initial and returning.");
       setData(null);
       setIsLoading(false);
       setError(null);
       return;
     }
 
-    console.log("[useDoc] Starting to fetch document:", memoizedDocRef.path);
     setIsLoading(true);
     setError(null);
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
-        console.log(`[useDoc] onSnapshot fired for ${memoizedDocRef.path}. Snapshot exists:`, snapshot.exists());
         if (snapshot.exists()) {
           const docData = { ...(snapshot.data() as T), id: snapshot.id };
-          console.log("[useDoc] Document data found:", docData);
           setData(docData);
         } else {
-          console.log("[useDoc] Document does not exist in the database.");
           setData(null);
         }
         setError(null);
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        console.error(`[useDoc] onSnapshot listener for ${memoizedDocRef.path} failed with error:`, error);
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,
@@ -95,7 +87,6 @@ export function useDoc<T = any>(
     );
 
     return () => {
-        console.log(`[useDoc] Unsubscribing from snapshot listener for ${memoizedDocRef.path}`);
         unsubscribe();
     }
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
