@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Customer, WithId, User } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useCollection, useFirestore } from '@/firebase';
+import { FirestorePermissionError, errorEmitter } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { collection, deleteDoc, doc, query, where } from 'firebase/firestore';
 
