@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInterval, parseISO } from "date-fns";
 import Link from 'next/link';
-import { Button } from "../ui/button";
+import { Button, buttonVariants } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, CalendarIcon, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ type EmiEntry = {
   status: EmiStatus;
   emiNumber: number;
   isPaid: boolean;
+  isLastPaid: boolean;
   paidDate?: Date | null;
   overdueDays?: number;
 };
@@ -89,7 +90,8 @@ export function EmiList() {
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
-  const [selectedEmi, setSelectedEmi] = useState<EmiEntry | null>(null);
+  const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
+  const [selectedEmiForRevoke, setSelectedEmiForRevoke] = useState<EmiEntry | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
@@ -101,11 +103,13 @@ export function EmiList() {
         const emis: EmiEntry[] = [];
         const startDate = new Date(customer.startDate);
         const today = startOfDay(new Date());
+        const paymentsCount = customer.payments?.length || 0;
 
         for (let i = 0; i < customer.duration; i++) {
           const dueDate = addMonths(startDate, i + 1);
-          const isPaid = i < (customer.payments?.length || 0);
+          const isPaid = i < paymentsCount;
           const status = getEmiStatus(dueDate, isPaid);
+          const isLastPaid = isPaid && i === paymentsCount - 1;
           
           let paidDate: Date | null = null;
           if (isPaid && customer.payments && customer.payments[i]) {
@@ -125,6 +129,7 @@ export function EmiList() {
             status: status,
             emiNumber: i + 1,
             isPaid,
+            isLastPaid,
             paidDate,
             overdueDays,
           });
@@ -156,18 +161,18 @@ export function EmiList() {
   }, [loans, loanStatusFilter, dateRange, searchTerm]);
   
   const handleRecordPayment = async () => {
-    if (!selectedEmi || !user || !firestore) return;
+    if (!selectedEmiForPayment || !user || !firestore) return;
 
-    const customer = customers?.find(c => c.id === selectedEmi.customerId);
+    const customer = customers?.find(c => c.id === selectedEmiForPayment.customerId);
     if (!customer) return;
 
-    if ((customer.payments?.length || 0) >= selectedEmi.emiNumber) {
+    if ((customer.payments?.length || 0) >= selectedEmiForPayment.emiNumber) {
         toast({
             variant: "destructive",
             title: "Payment Already Recorded",
-            description: `EMI #${selectedEmi.emiNumber} has already been paid.`,
+            description: `EMI #${selectedEmiForPayment.emiNumber} has already been paid.`,
         });
-        setSelectedEmi(null);
+        setSelectedEmiForPayment(null);
         return;
     }
 
@@ -176,12 +181,12 @@ export function EmiList() {
     const newPayment: Payment = {
       paymentId: uuidv4(),
       date: new Date().toISOString(),
-      amount: selectedEmi.emiAmount,
+      amount: selectedEmiForPayment.emiAmount,
       mode: 'cash',
-      remainingBalance: customer.totalPayable - currentTotalPaid - selectedEmi.emiAmount,
+      remainingBalance: customer.totalPayable - currentTotalPaid - selectedEmiForPayment.emiAmount,
     };
     
-    const customerDocRef = doc(firestore, `customers`, selectedEmi.customerId);
+    const customerDocRef = doc(firestore, `customers`, selectedEmiForPayment.customerId);
     
     const newStatus = (customer.payments?.length || 0) + 1 === customer.duration ? 'completed' : 'active';
     
@@ -193,7 +198,7 @@ export function EmiList() {
     updateDoc(customerDocRef, updatePayload).then(() => {
         toast({
             title: "Payment Recorded",
-            description: `Payment of ₹${selectedEmi?.emiAmount.toLocaleString()} for ${selectedEmi?.customerName} has been recorded.`,
+            description: `Payment of ₹${selectedEmiForPayment?.emiAmount.toLocaleString()} for ${selectedEmiForPayment?.customerName} has been recorded.`,
         });
     }).catch(serverError => {
         const permissionError = new FirestorePermissionError({
@@ -203,7 +208,42 @@ export function EmiList() {
         });
         errorEmitter.emit('permission-error', permissionError);
     }).finally(() => {
-        setSelectedEmi(null);
+        setSelectedEmiForPayment(null);
+    });
+  };
+
+  const handleRevokePayment = async () => {
+    if (!selectedEmiForRevoke || !firestore) return;
+
+    const customer = customers?.find(c => c.id === selectedEmiForRevoke.customerId);
+    if (!customer || !customer.payments || customer.payments.length === 0) return;
+
+    const lastPayment = customer.payments[customer.payments.length - 1];
+    
+    const customerDocRef = doc(firestore, 'customers', selectedEmiForRevoke.customerId);
+    
+    // If the loan was 'completed', it should become 'active' again.
+    const newStatus = customer.status === 'completed' ? 'active' : customer.status;
+
+    const updatePayload = {
+      payments: arrayRemove(lastPayment),
+      status: newStatus,
+    };
+
+    updateDoc(customerDocRef, updatePayload).then(() => {
+      toast({
+        title: "Payment Revoked",
+        description: `Last payment for ${customer.name} has been successfully revoked.`,
+      });
+    }).catch(serverError => {
+      const permissionError = new FirestorePermissionError({
+        path: customerDocRef.path,
+        operation: 'update',
+        requestResourceData: updatePayload,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
+      setSelectedEmiForRevoke(null);
     });
   };
 
@@ -356,9 +396,17 @@ export function EmiList() {
                                         <Badge variant={getStatusBadgeVariant(emi.status)} className="capitalize w-20 justify-center">
                                         {emi.status}
                                         </Badge>
-                                        <Button variant="outline" size="sm" onClick={() => setSelectedEmi(emi)} disabled={emi.isPaid}>
-                                            Record Payment
-                                        </Button>
+                                        
+                                        {!emi.isPaid && (
+                                          <Button variant="outline" size="sm" onClick={() => setSelectedEmiForPayment(emi)} disabled={emi.isPaid}>
+                                              Record Payment
+                                          </Button>
+                                        )}
+                                        {emi.isLastPaid && (
+                                          <Button variant="destructive" size="sm" onClick={() => setSelectedEmiForRevoke(emi)}>
+                                              Revoke
+                                          </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -375,12 +423,12 @@ export function EmiList() {
       </CardContent>
     </Card>
 
-    <AlertDialog open={!!selectedEmi} onOpenChange={(open) => !open && setSelectedEmi(null)}>
+    <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
             <AlertDialogDescription>
-                Are you sure you want to record a payment of <strong>₹{selectedEmi?.emiAmount.toLocaleString()}</strong> for <strong>{selectedEmi?.customerName}</strong>? This action cannot be undone.
+                Are you sure you want to record a payment of <strong>₹{selectedEmiForPayment?.emiAmount.toLocaleString()}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>? This action cannot be undone.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -389,8 +437,21 @@ export function EmiList() {
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+
+    <AlertDialog open={!!selectedEmiForRevoke} onOpenChange={(open) => !open && setSelectedEmiForRevoke(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Revoke Payment</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to revoke the last payment for <strong>{selectedEmiForRevoke?.customerName}</strong>? This will remove the payment record and update the loan status.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleRevokePayment} className={cn(buttonVariants({ variant: "destructive" }))}>Revoke</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
-
-    
