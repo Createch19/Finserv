@@ -111,16 +111,20 @@ export function AddCustomerForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    if(!user || !firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in and connected to the database.' });
-        setIsLoading(false);
-        return;
+    if (!user || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in and connected to the database.",
+      });
+      setIsLoading(false);
+      return;
     }
-    
-    const customerId = uuidv4();
-    const newCustomerDocRef = doc(firestore, 'customers', customerId);
 
-    const newCustomer: Omit<Customer, 'agent'> = {
+    const customerId = uuidv4();
+    const newCustomerDocRef = doc(firestore, "customers", customerId);
+
+    const newCustomer: Omit<Customer, "agent"> = {
       customerId: customerId,
       name: values.customerName,
       phone: values.phoneNumber,
@@ -135,26 +139,29 @@ export function AddCustomerForm() {
       duration: values.duration,
       monthlyEMI,
       startDate: values.startDate.toISOString(),
-      status: 'active',
+      status: "active",
       payments: [],
     };
-    
-    setDoc(newCustomerDocRef, newCustomer).then(() => {
+
+    setDoc(newCustomerDocRef, newCustomer)
+      .then(() => {
         toast({
-            title: "Customer Added",
-            description: `${values.customerName} has been successfully added.`,
+          title: "Customer Added",
+          description: `${values.customerName} has been successfully added.`,
         });
         router.push("/customers");
-    }).catch(serverError => {
+      })
+      .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
           path: newCustomerDocRef.path,
-          operation: 'create',
+          operation: "create",
           requestResourceData: newCustomer,
         });
-        errorEmitter.emit('permission-error', permissionError);
-    }).finally(() => {
+        errorEmitter.emit("permission-error", permissionError);
+      })
+      .finally(() => {
         setIsLoading(false);
-    });
+      });
   }
 
   const interestTypeLabel = form.watch("interestType") === "percentage" ? "Interest (%)" : "Interest (₹)";
