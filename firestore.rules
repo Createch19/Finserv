@@ -1,65 +1,42 @@
+/**
+ * @fileoverview Firestore Security Rules for FINSERV application.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes ease of access for prototyping and UI development,
+ * while still enforcing role-based access control for write operations.
+ * Specifically, all users can read any data, but only admin and agent roles
+ * can create, update, and delete customer data.
+ *
+ * Data Structure:
+ * - `/customers/{customerId}`: Stores customer data. Each customer document
+ *   includes an 'agent' field containing agent details (UID, name, email).
+ *
+ * Key Security Decisions:
+ * - All users can read all customer documents.
+ * - Only 'admin' and 'agent' users can create, update, and delete customer documents.
+ * - The rules do NOT validate the data schema, allowing for flexible data shapes
+ *   during prototyping.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    /**
-     * @description This ruleset enforces a role-based access control model.
-     *              Admins have full access to all customer data. Agents have create, read, update, and delete permissions for customers assigned to them.
-     *              Unauthenticated users have no access.
-     * @dataStructure The data is organized with a top-level `customers` collection.  Each customer document contains denormalized agent information.
-     * @keySecurityDecisions
-     *              - Listing all users is not allowed.
-     *              - The `customers` collection allows public read access.
-     *              - Write access to `customers` collection is restricted based on user role and ownership.
-     *
-     * @denormalizationForAuthorization
-     *              - Agent information (`uid`, `name`, `email`) is embedded directly within each customer document to avoid needing to query a separate collection for agent details.
-     *              - Customer documents include an `agent` field to associate with the agent UID.
-     * @structuralSegregation N/A
-     */
-
-    // Helper function to check if the user is signed in
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the user is an admin
-    function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Helper function to check if the user is the agent assigned to the customer.
-    function isAgent(agentUid) {
-      return isSignedIn() && request.auth.uid == agentUid;
-    }
-
-    // Helper function to check if the customer exists
-    function customerExists() {
-        return resource != null;
-    }
 
     /**
-     * @description Controls access to the `customers` collection. Admins have full access, while agents can only access customers assigned to them.
-     * @path /customers/{customerId}
-     * @allow (create) - An admin can create a customer.
-     * @allow (create) - An agent can create a customer and assign themselves as the agent.
-     * @deny (create) - An unauthenticated user cannot create a customer.
-     * @deny (create) - An agent cannot create a customer and assign another agent.
-     * @allow (get) - Any signed in user can retrieve customer data.
-     * @allow (list) - Any signed in user can retrieve customer data.
-     * @deny (update) - An unauthenticated user cannot update a customer.
-     * @deny (update) - An agent cannot update a customer assigned to another agent.
-     * @deny (delete) - An unauthenticated user cannot delete a customer.
-     * @deny (delete) - An agent cannot delete a customer assigned to another agent.
-     * @principle Role-based access control and ownership.
+     * @description Allows admins and agents to create, update, and delete customer data. Read access is public.
+     * @path /databases/{database}/documents/customers/{customerId}
+     * @allow (get, list): Any user can read customer data.
+     * @allow (create, update, delete): Only users with 'admin' or 'agent' roles can modify customer data.
+     * @deny All other operations.
+     * @principle Role-based access control for write operations, public read access.
      */
     match /customers/{customerId} {
-      allow get, list: if isSignedIn();
-
-      allow create: if isSignedIn() && (isAdmin() || (isAgent(request.resource.data.agent.uid)));
-
-      allow update: if isSignedIn() && (isAdmin() || (customerExists() && isAgent(resource.data.agent.uid)));
-
-      allow delete: if isSignedIn() && (isAdmin() || (customerExists() && isAgent(resource.data.agent.uid)));
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn() && (request.auth.token.role == 'admin' || request.auth.token.role == 'agent');
     }
+  }
+
+  // Helper function to check if a user is signed in
+  function isSignedIn() {
+    return request.auth != null;
   }
 }
