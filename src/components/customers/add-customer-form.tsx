@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -184,7 +183,7 @@ export function AddCustomerForm() {
               <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="aadhar" render={({ field }) => (
-              <FormItem><FormLabel>Aadhar Number</FormLabel><FormControl><Input placeholder="1234 5678 9012" {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
+              <FormItem><FormLabel>Aadhar Number</FormLabel><FormControl><Input placeholder="1234 5678 9012" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="address" render={({ field }) => (
               <FormItem className="md:col-span-2"><FormLabel>Address</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
