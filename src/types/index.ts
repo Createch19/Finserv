@@ -39,13 +39,3 @@ export type Customer = {
 };
 
 export type WithId<T> = T & { id: string };
-
-    
-
-    
-
-
-
-
-    
-
