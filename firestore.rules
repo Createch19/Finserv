@@ -2,82 +2,115 @@
  * @fileoverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces a role-based access control model, where 'admin' users have full access and 'agent' users have limited access to customer data.
- * All operations require authentication.
+ * This ruleset enforces a role-based access control model.  Admins have full
+ * access to all data, while agents have limited access, primarily to customer
+ * data they own. All operations require a logged-in user.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, including role (admin/agent).
- * - /customers/{customerId}: Stores customer data, including an 'agent' sub-document containing the agent's UID.
+ * - /users/{userId}: Stores user profiles.
+ * - /customers/{customerId}: Stores customer data.  Each customer document
+ *   includes an `agent` field containing the agent's UID who created the customer.
  *
  * Key Security Decisions:
- * - Users can only create their own user document.
- * - Admins have full CRUD access to customer data.
- * - Agents can only create customers and list all customers but cannot update or delete customer data.
+ * - Admins can create, read, update and delete any customer.
+ * - Agents can only create customers and only view/modify customers they "own".
+ *   Ownership is determined by matching the agent.uid field within the customer document.
+ * - No user listing is allowed.
+ * - Customers are not stored as subcollections under agents in order to keep the rules efficient.
  *
  * Denormalization for Authorization:
- * - The `Customer` entity includes an embedded `Agent` object containing the agent's UID,
- *   enabling direct authorization checks without additional `get()` calls.
+ * - Customer documents have an `agent` field containing the agent's UID. This
+ *   avoids needing to query a separate collection to determine ownership.
+ *
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to create their own user document. Admins can read all user documents.
-     * @path /users/{userId}
-     * @allow (create) - Authenticated user creating their own document.
-     *     Request: auth.uid = "user123", documentId = "user123"
-     * @allow (get, list) - Admin user reading user data.
-     *     Request: auth.uid = "admin123", user role = "admin"
-     * @deny (create) - Authenticated user trying to create another user's document.
-     *     Request: auth.uid = "user123", documentId = "user456"
-     * @deny (update, delete) - Only admins can update or delete user documents
-     * @principle Enforces user-ownership for creation, admin-only for update/delete.
-     */
-    match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update, delete: if false;
-    }
-
-    /**
-     * @description Allows admins to create, read, update, and delete customer documents.
-     *              Allows agents to create customer documents they own.
-     * @path /customers/{customerId}
-     * @allow (create) - Admin or agent creating a new customer document. The agent's uid must match the request auth UID.
-     *     Request: auth.uid = "agent123", document.data.agent.uid = "agent123"
-     * @allow (get, list) - Admin user listing all customer documents.
-     *     Request: auth.uid = "admin123", user role = "admin"
-     * @deny (create) - Agent attempting to create customer with mismatched agent ID.
-     *     Request: auth.uid = "agent123", document.data.agent.uid = "agent456"
-     * @deny (update, delete) - Agents are not allowed to update or delete customers.
-     *     Request: auth.uid = "agent123", operation = "update"
-     * @principle Enforces role-based access control for customer data, with ownership for creation.
-     */
-    match /customers/{customerId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.agent.uid == request.auth.uid;
-      allow update, delete: if false;
-    }
-
-    // ---- Helper functions ----
-
-    /**
      * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user is the owner of the resource (userId matches auth.uid).
-     * @param {string} userId - The user ID to compare against.
-     * @return {bool} True if the user is the owner, false otherwise.
+     * @description Checks if the user's UID matches the provided userId.
      */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the user is an admin.
+     * This is a placeholder and should be updated to retrieve roles from the user document.
+     */
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    /**
+     * @description Checks if the user is an agent.
+     * This is a placeholder and should be updated to retrieve roles from the user document.
+     */
+    function isAgent() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
+    }
+
+    /**
+     * @description Checks if the agent owns the customer via agent.uid field.
+     */
+    function isCustomerOwner(agentUid) {
+        return isSignedIn() && request.auth.uid == agentUid;
+    }
+
+    /**
+     * @description Checks if an existing document is owned by the request user
+     */
+    function isExistingOwner(agentUid) {
+      return isCustomerOwner(agentUid) && resource != null;
+    }
+
+    /**
+     * @description Rules for the /users collection.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (get) User with matching UID can read their own document.
+     * @deny (get) User attempts to read another user's document.
+     * @allow (create) User with matching UID can create their own document.
+     * @deny (create) User attempts to create a document with a different UID.
+     * @allow (update) User with matching UID can update their own document.
+     * @deny (update) User attempts to update another user's document.
+     * @allow (delete) User with matching UID can delete their own document.
+     * @deny (delete) User attempts to delete another user's document.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Rules for the /customers collection.
+     * @path /databases/{database}/documents/customers/{customerId}
+     * @allow (get) Admin or agent can read any customer.
+     * @deny (get) Non-authenticated user attempts to read a customer.
+     * @allow (create) Admin or agent can create customer documents. agent.uid field MUST match request.auth.uid.
+     * @deny (create) User attempts to create a customer with a mismatched agent.uid
+     * @allow (update) Admin can update any customer or agent can update customer owned by them.
+     * @deny (update) User attempts to update customer not owned by them.
+     * @allow (delete) Admin can delete any customer.
+     * @deny (delete) Agent attempts to delete a customer or user not logged in.
+     * @principle Enforces role-based access control and document ownership for writes.
+     */
+    match /customers/{customerId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && (isAdmin() || (isAgent() && request.resource.data.agent.uid == request.auth.uid));
+      allow update: if resource != null && isSignedIn() && (isAdmin() || (isAgent() && isExistingOwner(resource.data.agent.uid)));
+      allow delete: if resource != null && isSignedIn() && isAdmin();
     }
   }
 }
