@@ -99,6 +99,9 @@
             "items": {
                 "$ref": "#/entities/Payment"
             }
+        },
+        "agent": {
+            "$ref": "#/entities/Agent"
         }
       },
       "required": [
@@ -116,7 +119,8 @@
         "duration",
         "monthlyEMI",
         "startDate",
-        "status"
+        "status",
+        "agent"
       ]
     },
     "Payment": {
@@ -174,17 +178,6 @@
         }
       },
       "required": ["uid", "name", "email"]
-    },
-    "DummyEntity": {
-      "title": "Dummy Entity",
-      "type": "object",
-      "description": "An unused entity to force a redeployment of Firestore rules.",
-      "properties": {
-        "forceUpdate": {
-          "type": "string",
-          "description": "A field to ensure the backend configuration changes."
-        }
-      }
     }
   },
   "auth": {
@@ -195,13 +188,9 @@
   "firestore": {
     "collections": {
       "customers": {
-        "schema": {
-          "$ref": "#/entities/Customer"
-        },
-        "description": "A top-level collection of all customers. This forces a rules update. Admins can access all customer data, while agents can only access customers they created."
+        "schema": "#/entities/Customer",
+        "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
       }
     }
   }
 }
-
-    
