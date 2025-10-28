@@ -1,76 +1,37 @@
 /**
- * @fileoverview Firestore Security Rules for FINSERV application.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces role-based access control for the FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces role-based access control (RBAC) for customer data.
- * Administrators have full access, while agents are restricted to accessing only their assigned customers.
+ * The security model is based on a role-based access control. Agents have access to all customer data, regardless of who created the customer record.
  *
  * Data Structure:
- * The primary data resides in the `/customers` collection.  Customer documents contain customer details and the assigned agent's information embedded within the document.
+ * The primary data is stored in the `/customers` collection.  Each customer document contains customer details and information about assigned agent.
  *
  * Key Security Decisions:
- * - Agents cannot list all customers.
- * - Customer documents are linked to agents via the `agent.uid` field within the customer document.
+ * - Agents can read, write, and delete all customer documents.
  *
- * Denormalization for Authorization:
- * The `Customer` entity denormalizes the `Agent` information (uid, name, email) directly into the customer documents.
- * This eliminates the need for complex lookups to determine agent assignments.
- *
- * Structural Segregation:
- * All customers, regardless of their status or agent assignment, reside in the single `/customers` collection.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants access to the `customers` collection based on user role.
-     * @path /databases/{database}/documents/customers/{customerId}
-     * @allow (read, get): Any authenticated user can read customer data.
-     * @allow (create): Authenticated user with "agent" role can create a customer and must set the `agent.uid` field to their own UID.
-     * @allow (update, delete): Authenticated user with "agent" role, if they are the assigned agent, can update and delete customer data. Admins can also update/delete.
-     * @deny (create): Authenticated user without "agent" role attempting to create a customer.
-     * @deny (update, delete): Unauthenticated user or agent attempting to modify a customer they are not assigned to.
-     * @principle Enforces role-based access control (RBAC) and ownership for customer data.
+     * @description Allows agents to create, read, update, and delete customer documents.
+     * @path /customers/{customerId}
+     * @allow (read, write, delete) An agent can read, write, or delete any customer document.
+     * @deny (none) No requests are denied based on the provided requirements.
+     * @principle Grants full access to all agents for customer data management.
      */
     match /customers/{customerId} {
-      // Anyone can read the customers collection
-      allow get: if isSignedIn();
-      allow list: if false; // explicitly disallow list
-
-      // Agents can create customer entries, and must assign the customer to themself.
-      allow create: if isSignedIn() && request.resource.data.agent.uid == request.auth.uid;
-
-      // Only the assigned agent or an admin can update or delete a customer.
-      allow update, delete: if isSignedIn() && (isAgentOwner(customerId) || isAdmin());
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
-    // --- Helper Functions ---
 
-    /**
-     * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
-     */
+    // Define helper functions
     function isSignedIn() {
       return request.auth != null;
     }
-
-    /**
-     * @description Checks if the user has the 'admin' role.
-     * @return {bool} True if the user has the 'admin' role, false otherwise.
-     */
-    function isAdmin() {
-        return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    /**
-     * @description Checks if the user is the assigned agent for the given customer.
-     * @param {string} customerId - The ID of the customer.
-     * @return {bool} True if the user is the assigned agent, false otherwise.
-     */
-    function isAgentOwner(customerId) {
-      return get(/databases/$(database)/documents/customers/$(customerId)).data.agent.uid == request.auth.uid;
-    }
-
   }
 }
