@@ -39,49 +39,72 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[DEBUG] AuthProvider useEffect triggered. Waiting for Firebase services...');
     if (!auth || !firestore) {
+      console.log('[DEBUG] Firebase services not yet available.');
       setLoading(false);
       return;
     };
+    console.log('[DEBUG] Firebase services are available. Setting up onAuthStateChanged listener.');
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[DEBUG] onAuthStateChanged triggered.');
       if (firebaseUser) {
+        console.log(`[DEBUG] Firebase user is present. UID: ${firebaseUser.uid}, Email: ${firebaseUser.email}`);
+        setLoading(true); // Set loading while we fetch firestore data
         try {
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+            console.log(`[DEBUG] Attempting to GET document from path: ${userDocRef.path}`);
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                setUser({
+                console.log(`[DEBUG] User document found for UID: ${firebaseUser.uid}. Data:`, userDoc.data());
+                const userData = {
                     uid: firebaseUser.uid,
                     ...userDoc.data()
-                } as User);
+                } as User;
+                setUser(userData);
+                console.log('[DEBUG] User state set with existing document data.');
             } else {
-                // This case handles the very first sign-in for default users
+                console.log(`[DEBUG] User document NOT found for UID: ${firebaseUser.uid}. This is a new user or first login.`);
                 const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
+                
                 if (defaultUserInfo) {
+                    console.log(`[DEBUG] User is a default user. Preparing to create user document.`);
                     const newUser: Omit<User, 'uid'> = {
                         email: firebaseUser.email!,
                         name: defaultUserInfo.name,
                         role: defaultUserInfo.role as 'admin' | 'agent'
                     };
+                    console.log('[DEBUG] Attempting to SET document with data:', newUser);
+                    console.log(`[DEBUG] Target path for SET: ${userDocRef.path}`);
                     await setDoc(userDocRef, newUser);
+                    console.log('[DEBUG] Successfully created user document in Firestore.');
                     setUser({ uid: firebaseUser.uid, ...newUser });
+                    console.log('[DEBUG] User state set after creating new document.');
                 } else {
-                    console.error("User document not found and not a default user.");
+                    console.error("[DEBUG] CRITICAL: User document not found, and user is not a default user. Cannot proceed.");
                     setUser(null);
                 }
             }
         } catch(error) {
-            console.error("Error fetching user document:", error);
+            console.error("[DEBUG] FIRESTORE ERROR during onAuthStateChanged:", error);
             setUser(null);
+        } finally {
+            console.log('[DEBUG] Finished processing onAuthStateChanged. Setting loading to false.');
+            setLoading(false);
         }
       } else {
+        console.log('[DEBUG] No Firebase user is present. Setting user state to null.');
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+        console.log('[DEBUG] Cleaning up onAuthStateChanged listener.');
+        unsubscribe();
+    }
   }, [auth, firestore]);
 
   const signIn = async (email: string, pass: string) => {
