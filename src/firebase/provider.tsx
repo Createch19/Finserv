@@ -99,22 +99,9 @@ export const useFirebaseApp = (): FirebaseApp => {
   return firebaseApp;
 };
 
-type MemoFirebase <T> = T & {__memo?: boolean};
-
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
-  const memoized = useMemo(factory, deps);
-  
-  if(typeof memoized !== 'object' || memoized === null) return memoized;
-  (memoized as MemoFirebase<T>).__memo = true;
-  
-  return memoized;
-}
-
 /**
  * Hook specifically for accessing the authenticated user's state.
  * This is a convenience hook that wraps `useAuth` from the AuthContext.
  * @returns The result of the `useAuth` hook.
  */
-export const useUser = () => {
-    return useAuth();
-};
+export const useUser = useAuth;

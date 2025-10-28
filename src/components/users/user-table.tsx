@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Customer, User, WithId } from '@/types';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { collection, query, where } from 'firebase/firestore';
 
@@ -27,7 +27,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const firestore = useFirestore();
 
   // In this new model, we can query the `users` collection directly.
-  const usersQuery = useMemoFirebase(() => {
+  const usersQuery = useMemo(() => {
     if (!firestore || !authUser || authUser.role !== 'admin') return null;
     return collection(firestore, 'users');
   }, [firestore, authUser]);
@@ -36,7 +36,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
 
   // We still need customers to show the customer count for each user.
-  const customersQuery = useMemoFirebase(() => {
+  const customersQuery = useMemo(() => {
     if (!firestore) return null;
     return collection(firestore, 'customers');
   }, [firestore]);

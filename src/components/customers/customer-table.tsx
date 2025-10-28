@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Customer, WithId, User } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { collection, deleteDoc, doc, query, where } from 'firebase/firestore';
 
@@ -77,7 +77,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const router = useRouter();
 
 
-  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [firestore, user]);
+  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [firestore, user]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const filteredCustomers = useMemo(() => {

@@ -26,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
@@ -86,7 +86,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 export function EmiList() {
   const { user } = useAuth();
   const firestore = useFirestore();
-  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");

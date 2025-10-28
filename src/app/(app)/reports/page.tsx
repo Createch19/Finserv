@@ -1,10 +1,11 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { CollectionChart, ProfitChart, LoanStatusChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
@@ -26,7 +27,7 @@ export default function ReportsPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   if (isLoading || !customers) {

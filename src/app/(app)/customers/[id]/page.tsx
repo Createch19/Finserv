@@ -10,7 +10,7 @@ import { notFound, useParams } from "next/navigation";
 import React from "react";
 import type { Customer, WithId } from "@/types";
 import { doc } from "firebase/firestore";
-import { useFirestore, useMemoFirebase, useDoc } from "@/firebase";
+import { useFirestore, useDoc } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function CustomerDetailPage() {
@@ -24,7 +24,7 @@ export default function CustomerDetailPage() {
 
   console.log("[CustomerDetailPage] Auth state: isUserLoading:", isUserLoading, "user:", user);
 
-  const customerRef = useMemoFirebase(() => {
+  const customerRef = React.useMemo(() => {
       if (firestore && id) {
           console.log("[CustomerDetailPage] Creating customer document reference for ID:", id);
           return doc(firestore, `customers`, id);

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,7 +31,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Download, Loader2 } from "lucide-react";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
@@ -194,7 +194,7 @@ export function SettingsTabs() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const customersQuery = useMemoFirebase(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   return (
