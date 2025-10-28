@@ -35,7 +35,9 @@ export type Customer = {
   startDate: string; // ISO 8601 format
   status: 'active' | 'completed' | 'overdue';
   payments: Payment[];
-  agent: Agent;
+  agent?: Agent;
 };
 
 export type WithId<T> = T & { id: string };
+
+    

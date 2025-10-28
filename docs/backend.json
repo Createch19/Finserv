@@ -53,8 +53,7 @@
           "description": "The Aadhar number of the customer."
         },
         "phoneModel": {
-          "type": "string",
-          "description": "The phone model purchased by the customer."
+          "type": "string",          "description": "The phone model purchased by the customer."
         },
         "totalPrice": {
           "type": "number",
@@ -100,10 +99,6 @@
             "items": {
                 "$ref": "#/entities/Payment"
             }
-        },
-        "agentId": {
-          "type": "string",
-          "description": "The UID of the agent who created the customer."
         }
       },
       "required": [
@@ -121,8 +116,7 @@
         "duration",
         "monthlyEMI",
         "startDate",
-        "status",
-        "agentId"
+        "status"
       ]
     },
     "Payment": {
@@ -209,3 +203,5 @@
     }
   }
 }
+
+    

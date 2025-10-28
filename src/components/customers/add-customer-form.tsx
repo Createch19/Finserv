@@ -32,7 +32,7 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
-import { addDoc, collection, doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import type { Customer } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -120,7 +120,7 @@ export function AddCustomerForm() {
     const customerId = uuidv4();
     const newCustomerDocRef = doc(firestore, 'customers', customerId);
 
-    const newCustomer: Omit<Customer, 'agentId'> & { agent: { uid: string, name: string, email: string | null } } = {
+    const newCustomer: Omit<Customer, 'agent'> = {
       customerId: customerId,
       name: values.customerName,
       phone: values.phoneNumber,
@@ -137,11 +137,6 @@ export function AddCustomerForm() {
       startDate: values.startDate.toISOString(),
       status: 'active',
       payments: [],
-      agent: {
-          uid: user.uid,
-          name: user.name,
-          email: user.email
-      }
     };
     
     setDoc(newCustomerDocRef, newCustomer).then(() => {
@@ -177,7 +172,7 @@ export function AddCustomerForm() {
               <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="aadhar" render={({ field }) => (
-              <FormItem><FormLabel>Aadhar Number</FormLabel><FormControl><Input placeholder="1234 5678 9012" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Aadhar Number</FormLabel><FormControl><Input placeholder="1234 5678 9012" {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="address" render={({ field }) => (
               <FormItem className="md:col-span-2"><FormLabel>Address</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
