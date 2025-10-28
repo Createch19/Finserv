@@ -37,11 +37,6 @@ function CustomerDataFetcher({ customerId }: { customerId: string }) {
     if (!customer) {
         notFound();
     }
-
-    // Admins can see all customers, but agents can only see their own.
-    if (user?.role === 'agent' && customer.agent.uid !== user.uid) {
-        notFound();
-    }
     
     return (
         <>
