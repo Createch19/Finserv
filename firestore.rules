@@ -1,73 +1,77 @@
 /**
- * @fileOverview Firestore Security Rules for FINSERV application.
+ * @fileoverview Firestore Security Rules for FINSERV application.
  *
  * Core Philosophy:
- * This ruleset enforces role-based access control, with admins having full access and agents having restricted access to customer data.
+ * This ruleset enforces a role-based access control model, with specific rules governing access to user profiles and customer data.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles (admins and agents).
- * - /customers/{customerId}: Stores customer information, including the assigned agent.
+ * - /users/{userId}: Stores user profile information, with 'userId' matching the Firebase Auth UID.
+ * - /customers/{customerId}: Stores customer data, with 'customerId' as the document ID. Customer documents contain nested agent information.
  *
  * Key Security Decisions:
- * - Admins can read and write all user and customer data.
- * - Agents can only create customers and read/write customers assigned to them.
- * - Users cannot be listed.
+ * - Listing all users is denied to prevent unauthorized enumeration.
+ * - Customer access is role-based: admins have full access, while agents can only manage customers they are assigned to.
  *
  * Denormalization for Authorization:
- * - Each customer document contains an 'agent' field with the agent's UID. This is used to enforce agent-specific access control.
+ * - The `Customer` entity embeds the `Agent` information (UID, name, email) to avoid needing separate queries for agent details during authorization.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows admins to manage user profiles, and agents to read their own profile.
-     * @path /databases/{database}/documents/users/{userId}
-     * @allow (get, create, update, delete) - Admin can perform all operations.
-     * @allow (get) - Agent can read their own profile.
-     * @deny (create, update, delete) - Agent cannot create, update, or delete other user profiles.
-     * @deny (get, list) - Non-Admin User cannot list all users.
-     * @principle Enforces role-based access control and user ownership.
+     * @description Controls access to the /users collection.
+     * @path /databases/{database}/documents/users
+     * @allow (create) If the user's UID matches the userId, they can create their own profile.
+     * @deny (list) Listing all users is not allowed.
+     * @deny (get) Non-owners cannot get a user document.
+     * @deny (update) Non-owners cannot update a user document.
+     * @deny (delete) Non-owners cannot delete a user document.
+     * @principle Enforces user-ownership for profile data and restricts listing all users.
      */
     match /users/{userId} {
-      function isAdmin() {
-        return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      }
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      allow get: if isAdmin() || isOwner(userId);
-      allow list: if false; // No user listing allowed.
-      allow create: if isAdmin() && request.resource.data.uid == userId;
-      allow update: if isAdmin() && resource.data.uid == userId;
-      allow delete: if isAdmin();
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Allows admins to manage all customers, and agents to manage only their assigned customers.
+     * @description Controls access to the /customers collection.
      * @path /databases/{database}/documents/customers/{customerId}
-     * @allow (get, list, create, update, delete) - Admin can perform all operations.
-     * @allow (create) - Agent can create new customer if agent.uid is correct.
-     * @allow (get, update, delete) - Agent can manage customers assigned to them (agent.uid matches).
-     * @deny (get, list, create, update, delete) - Agent cannot manage customers not assigned to them.
-     * @principle Enforces role-based access control and agent-specific customer ownership.
+     * @allow (get, list) Admins can read any customer data. Agents can read customer data where they are the assigned agent.
+     * @allow (create) Admins can create customers. Agents can create customers and must set their own agent ID.
+     * @allow (update, delete) Admins can update or delete any customer. Agents can only update or delete customers where they are the assigned agent.
+     * @deny (create) Agents cannot create a customer without setting the agent id to their own id.
+     * @principle Enforces role-based access control for customer data, with owner-only access for agents.
      */
     match /customers/{customerId} {
-      function isAdmin() {
-        return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      }
-      function isAgent() {
-        return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
-      }
-      function isAssignedAgent(agentUid) {
-        return request.auth != null && request.auth.uid == agentUid;
-      }
-      function isExistingAssignedAgent(agentUid) {
-        return isAssignedAgent(agentUid) && resource != null;
-      }
-      allow get, list: if isAdmin();
-      allow create: if isAgent() && request.resource.data.agent.uid == request.auth.uid;
-      allow update, delete: if isExistingAssignedAgent(resource.data.agent.uid) || isAdmin();
+      allow get: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
+      allow list: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.agent.uid == request.auth.uid);
+      allow update: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
+      allow delete: if isAdmin() || (isSignedIn() && isAgentForCustomer(resource.data.agent.uid));
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isAgent() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent';
+    }
+
+    function isAgentForCustomer(agentId) {
+      return isSignedIn() && request.auth.uid == agentId;
     }
   }
 }
