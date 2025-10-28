@@ -124,7 +124,7 @@ export function AddCustomerForm() {
     const customerId = uuidv4();
     const newCustomerDocRef = doc(firestore, "customers", customerId);
 
-    const newCustomer: Omit<Customer, "agent"> = {
+    const newCustomer: Omit<Customer, "id"> = {
       customerId: customerId,
       name: values.customerName,
       phone: values.phoneNumber,
