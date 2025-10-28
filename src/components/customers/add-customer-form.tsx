@@ -34,6 +34,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import type { Customer } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 const formSchema = z.object({
   customerName: z.string().min(2, "Name must be at least 2 characters."),
@@ -116,8 +117,8 @@ export function AddCustomerForm() {
         return;
     }
     
-    const customerCollectionRef = collection(firestore, 'customers');
-    const newCustomerDocRef = doc(customerCollectionRef);
+    const customerId = uuidv4();
+    const newCustomerDocRef = doc(firestore, 'customers', customerId);
 
     const newCustomer: Customer = {
       customerId: newCustomerDocRef.id,
