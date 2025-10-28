@@ -6,7 +6,6 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { Auth } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
-import { useAuth as useAuthFromContext } from '@/hooks/use-auth';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -64,6 +63,3 @@ export const useFirebaseApp = (): FirebaseApp => {
   const { firebaseApp } = useFirebase();
   return firebaseApp;
 };
-
-// Re-export useAuth from AuthContext for consistency
-export const useUser = useAuthFromContext;
