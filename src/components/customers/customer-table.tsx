@@ -104,7 +104,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage + 1);
+      setCurrentPage(currentPage - 1);
     }
   };
 
@@ -130,6 +130,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   };
   
   const handleCardClick = (customerId: string) => {
+    console.log(`[DEBUG] handleCardClick called with customerId: ${customerId}`);
     router.push(`/customers/${customerId}`);
   };
 
@@ -155,17 +156,25 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         {/* Mobile View: Card List */}
         <div className="md:hidden space-y-4">
             {currentCustomers.map(customer => (
-                <Card key={customer.id} onClick={() => handleCardClick(customer.id)} className="cursor-pointer hover:bg-muted/50">
+                <Card key={customer.id} onClick={(e) => { 
+                    console.log("[DEBUG] Card clicked. Target: ", e.target);
+                    // Check if the click was on an interactive element inside the card
+                    if ((e.target as HTMLElement).closest('[data-interactive="true"]')) {
+                        console.log("[DEBUG] Click was on an interactive element, stopping navigation.");
+                        return;
+                    }
+                    handleCardClick(customer.id)
+                }} className="cursor-pointer hover:bg-muted/50">
                     <CardHeader>
                         <CardTitle className="flex justify-between items-center">
                             <Link href={`/customers/${customer.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{customer.name}</Link>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" data-interactive="true" onClick={(e) => e.stopPropagation()}>
                                         <MoreVertical className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuContent align="end" data-interactive="true" onClick={(e) => e.stopPropagation()}>
                                     <DropdownMenuItem asChild>
                                         <Link href={`/customers/${customer.id}`}>
                                             <Eye className="mr-2 h-4 w-4" /> View
@@ -311,5 +320,3 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
-
-    
