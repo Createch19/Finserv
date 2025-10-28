@@ -20,36 +20,20 @@ type WithId<T> = T & { id: string };
  * @template T Type of the document data.
  */
 export interface UseDocResult<T> {
-  data: WithId<T> | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  data: WithId<T> | null;
+  isLoading: boolean;
+  error: FirestoreError | Error | null;
 }
 
-/**
- * React hook to subscribe to a single Firestore document in real-time.
- * Handles nullable references.
- * 
- * IMPORTANT! YOU MUST MEMOIZE the inputted docRef or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
- *
- *
- * @template T Optional type for document data. Defaults to any.
- * @param {DocumentReference<DocumentData> | null | undefined} docRef -
- * The Firestore DocumentReference. Waits if null/undefined.
- * @returns {UseDocResult<T>} Object with data, isLoading, error.
- */
 export function useDoc<T = any>(
   docRef: DocumentReference<DocumentData> | null | undefined,
 ): UseDocResult<T> {
-  type StateDataType = WithId<T> | null;
-
-  const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [data, setData] = useState<WithId<T> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    if (!docRef) {
+    if (docRef === null || docRef === undefined) {
       setData(null);
       setIsLoading(false);
       setError(null);
@@ -57,8 +41,7 @@ export function useDoc<T = any>(
     }
 
     setIsLoading(true);
-    setError(null);
-
+    
     const unsubscribe = onSnapshot(
       docRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
@@ -66,30 +49,29 @@ export function useDoc<T = any>(
           const docData = { ...(snapshot.data() as T), id: snapshot.id };
           setData(docData);
         } else {
+          // Document does not exist
           setData(null);
         }
-        setError(null);
         setIsLoading(false);
+        setError(null);
       },
-      (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: docRef.path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+      (err: FirestoreError) => {
+        let contextualError: Error = err;
+        if (err.code === 'permission-denied') {
+          contextualError = new FirestorePermissionError({
+            operation: 'get',
+            path: docRef.path,
+          });
+          errorEmitter.emit('permission-error', contextualError);
+        }
+        setError(contextualError);
+        setIsLoading(false);
+        setData(null);
       }
     );
 
-    return () => {
-        unsubscribe();
-    }
-  }, [docRef]); // Re-run if the docRef changes.
+    return () => unsubscribe();
+  }, [docRef]);
 
   return { data, isLoading, error };
 }

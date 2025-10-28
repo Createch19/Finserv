@@ -16,29 +16,20 @@ import { useAuth } from "@/hooks/use-auth";
 export default function CustomerDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  console.log("[CustomerDetailPage] Rendering with customer ID:", id);
-
 
   const { user, loading: isUserLoading } = useAuth();
   const firestore = useFirestore();
 
-  console.log("[CustomerDetailPage] Auth state: isUserLoading:", isUserLoading, "user:", user);
-
   const customerRef = React.useMemo(() => {
-      if (firestore && id) {
-          console.log("[CustomerDetailPage] Creating customer document reference for ID:", id);
-          return doc(firestore, `customers`, id);
-      }
-      console.log("[CustomerDetailPage] Firestore or ID not available, cannot create customer ref.");
-      return null;
-    }, [firestore, id]);
+    if (firestore && id) {
+      return doc(firestore, `customers`, id);
+    }
+    return null;
+  }, [firestore, id]);
 
-  const { data: customer, isLoading: isCustomerLoading, error } = useDoc<WithId<Customer>>(customerRef);
-  console.log("[CustomerDetailPage] Firestore hook state: isCustomerLoading:", isCustomerLoading, "customer:", customer, "error:", error);
+  const { data: customer, isLoading: isCustomerLoading } = useDoc<WithId<Customer>>(customerRef);
   
   const isLoading = isUserLoading || isCustomerLoading;
-  console.log("[CustomerDetailPage] Overall loading state:", isLoading);
-
 
   if (isLoading) {
     return (
@@ -47,16 +38,12 @@ export default function CustomerDetailPage() {
         </div>
     );
   }
-  
-  console.log("[CustomerDetailPage] Finished loading. Checking conditions for 404.");
 
   if (!user) {
-    console.error("[CustomerDetailPage] 404 Triggered: User object is null or undefined after loading.");
     notFound();
   }
 
   if (!customer) {
-    console.error("[CustomerDetailPage] 404 Triggered: Customer object is null or undefined after loading. The document might not exist or rules are denying access.");
     notFound();
   }
 
