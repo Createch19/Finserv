@@ -53,9 +53,15 @@ export default function CustomerDetailPage() {
     );
   }
   
-  console.log("[CustomerDetailPage] Loading complete. Checking condition for 404.");
-  if (!user || !customer) {
-    console.error("[CustomerDetailPage] Condition for 404 met. user:", user, "customer:", customer);
+  console.log("[CustomerDetailPage] Loading complete. Checking conditions for 404.");
+
+  if (!user) {
+    console.error("[CustomerDetailPage] 404 Triggered: User object is null or undefined after loading.");
+    notFound();
+  }
+
+  if (!customer) {
+    console.error("[CustomerDetailPage] 404 Triggered: Customer object is null or undefined after loading. The document might not exist or rules are denying access.");
     notFound();
   }
 
