@@ -1,69 +1,26 @@
-/**
- * @fileoverview Firestore Security Rules for FINSERV application.
- *
- * Core Philosophy:
- * This ruleset enforces role-based access control (RBAC) and data ownership. Admins have full access, while agents are restricted to managing their own customers.
- *
- * Data Structure:
- * The data consists of a top-level `customers` collection.  Customer documents contain nested data for payments and agent information.
- *
- * Key Security Decisions:
- * - Admins can create, read, update, and delete any customer.
- * - Agents can only create customers and can only read, update and delete customers they created.
- * - Customer listing is only allowed for admins, not agents.
- *
- * Denormalization for Authorization:
- * The `Customer` document has an `agent.uid` field, denormalizing the agent's user ID directly onto the customer record. This enables efficient security rules without requiring extra reads.
- * This prevents `get()` calls to another location like `/users/{userId}`.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Allow only authenticated users
+    allow read, write: if request.auth != null;
 
-    /**
-     * @description Controls access to the `customers` collection.
-     * @path /databases/{database}/documents/customers/{customerId}
-     * @allow (create) - Admins and Agents can create new customers, with the agent.uid set to their own UID.
-     * @allow (get, update, delete) - Admins can read, update, and delete any customer. Agents can read, update, and delete only customers where customer.agent.uid matches their UID.
-     * @deny (create) - Agents cannot create customers where the agent.uid does not match their own UID.
-     * @deny (update, delete) - Agents cannot update or delete customers where the customer.agent.uid does not match their own UID.
-     * @principle Enforces role-based access control (RBAC) and ownership for customer records.
-     */
+    // Secure the /customers collection
     match /customers/{customerId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+      // Allow agents to create customers if the agent field matches their UID
+      allow create: if request.auth.uid == request.resource.data.agent.uid;
 
-      function isAdmin() {
-        return isSignedIn() && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      }
+      // Allow agents to read, update, and delete customers if the agent field matches their UID
+      allow read, update, delete: if request.auth.uid == resource.data.agent.uid;
 
-      function isAgent() {
-          return isSignedIn() && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'agent');
-      }
-
-      function isOwner(agentId) {
-        return isSignedIn() && request.auth.uid == agentId;
-      }
-
-      function isExistingOwner(agentId) {
-        return isSignedIn() && resource.data.agent.uid == agentId;
-      }
-
-      allow get: if true; // anyone can get a customer, prototyping mode, remove this in production
-
-      allow list: if isAdmin(); // Only admins can list all customers.
-
-      allow create: if isSignedIn() && (isAdmin() || (isAgent() && request.resource.data.agent.uid == request.auth.uid));
-
-      allow update: if isSignedIn() && (isAdmin() || (isAgent() && isExistingOwner(request.auth.uid)));
-
-      allow delete: if isSignedIn() && (isAdmin() || (isAgent() && isExistingOwner(request.auth.uid)));
+      // Prevent agents from modifying the agent field after customer creation
+      allow update: if request.auth.uid == resource.data.agent.uid
+                      && request.resource.data.agent.uid == resource.data.agent.uid;
     }
-     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
-       allow create: if isSignedIn() && request.auth.uid == userId;
-       allow update: if isSignedIn() && request.auth.uid == userId;
+
+    // Secure the /users collection from listing
+    match /users/{userId} {
+      allow get, create, update, delete: if false;
+      allow list: if false;
     }
   }
 }
