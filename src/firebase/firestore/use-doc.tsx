@@ -1,3 +1,4 @@
+
 'use client';
     
 import { useState, useEffect } from 'react';
@@ -48,30 +49,37 @@ export function useDoc<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    console.log("[useDoc] useEffect triggered. Received docRef:", memoizedDocRef?.path);
+
     if (!memoizedDocRef) {
+      console.log("[useDoc] No docRef provided, setting state to initial and returning.");
       setData(null);
       setIsLoading(false);
       setError(null);
       return;
     }
 
+    console.log("[useDoc] Starting to fetch document:", memoizedDocRef.path);
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
+        console.log(`[useDoc] onSnapshot fired for ${memoizedDocRef.path}. Snapshot exists:`, snapshot.exists());
         if (snapshot.exists()) {
-          setData({ ...(snapshot.data() as T), id: snapshot.id });
+          const docData = { ...(snapshot.data() as T), id: snapshot.id };
+          console.log("[useDoc] Document data found:", docData);
+          setData(docData);
         } else {
-          // Document does not exist
+          console.log("[useDoc] Document does not exist in the database.");
           setData(null);
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setError(null);
         setIsLoading(false);
       },
       (error: FirestoreError) => {
+        console.error(`[useDoc] onSnapshot listener for ${memoizedDocRef.path} failed with error:`, error);
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,
@@ -86,7 +94,10 @@ export function useDoc<T = any>(
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+        console.log(`[useDoc] Unsubscribing from snapshot listener for ${memoizedDocRef.path}`);
+        unsubscribe();
+    }
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
 
   return { data, isLoading, error };
