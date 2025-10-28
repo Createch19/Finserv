@@ -148,7 +148,6 @@ export function AddCustomerForm() {
       }
     };
 
-
     setDoc(newCustomerDocRef, newCustomer)
       .then(() => {
         toast({
@@ -283,3 +282,5 @@ export function AddCustomerForm() {
     </Form>
   );
 }
+
+    
