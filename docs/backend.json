@@ -198,13 +198,11 @@
     ]
   },
   "firestore": {
-    "collections": {
-        "/customers/{customerId}": {
-            "schema": {
-                "$ref": "#/entities/Customer"
-            },
-            "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
-        }
+    "/customers/{customerId}": {
+      "schema": {
+        "$ref": "#/entities/Customer"
+      },
+      "description": "A top-level collection of all customers. This forces a rules update. Admins can access all customer data, while agents can only access customers they created."
     }
   }
 }
