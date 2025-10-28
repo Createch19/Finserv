@@ -53,21 +53,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             if (userDoc.exists()) {
                 const userData = {
-                    uid: firebaseUser.uid,
-                    ...userDoc.data()
+                    ...userDoc.data(),
+                    uid: firebaseUser.uid, // Ensure UID is always present
                 } as User;
                 setUser(userData);
             } else {
                 const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
                 
                 if (defaultUserInfo) {
-                    const newUser: Omit<User, 'uid'> = {
+                    const newUser: User = {
+                        uid: firebaseUser.uid,
                         email: firebaseUser.email!,
                         name: defaultUserInfo.name,
                         role: defaultUserInfo.role as 'admin' | 'agent'
                     };
                     await setDoc(userDocRef, newUser);
-                    setUser({ uid: firebaseUser.uid, ...newUser });
+                    setUser(newUser);
                 } else {
                     console.error("CRITICAL: User document not found, and user is not a default user. Cannot proceed.");
                     setUser(null);
@@ -118,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
     } 
-    // Do not set loading to false here; onAuthStateChanged is the source of truth.
+    // Do not set loading to false here; onAuthStateChanged is the source of truth for the user object.
   };
 
   const signOut = async () => {

@@ -6,6 +6,10 @@
       "type": "object",
       "description": "Represents a user within the FINSERV application, storing their basic profile information and role.",
       "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier for the user, matching the Firebase Auth UID."
+        },
         "name": {
           "type": "string",
           "description": "The full name of the user."
@@ -22,6 +26,7 @@
         }
       },
       "required": [
+        "uid",
         "name",
         "email",
         "role"
@@ -187,6 +192,10 @@
   },
   "firestore": {
     "collections": {
+      "users": {
+        "schema": "#/entities/User",
+        "description": "A top-level collection of all application users (admins and agents)."
+      },
       "customers": {
         "schema": "#/entities/Customer",
         "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."

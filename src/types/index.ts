@@ -6,6 +6,7 @@ export type Agent = {
 }
 
 export type User = Agent & {
+  uid: string;
   role: 'admin' | 'agent';
   password?: string;
 };

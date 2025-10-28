@@ -26,42 +26,32 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const { user: authUser } = useAuth();
   const firestore = useFirestore();
 
-  // Query customers to derive user list
-  const customersQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    // Admins see all customers to build a full user list
-    // Agents only see their own customers, so their user list will just be themselves
-    if (authUser.role === 'admin') {
-        return collection(firestore, 'customers');
-    }
-    return query(collection(firestore, 'customers'), where('agent.uid', '==', authUser.uid));
+  // In this new model, we can query the `users` collection directly.
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser || authUser.role !== 'admin') return null;
+    return collection(firestore, 'users');
   }, [firestore, authUser]);
 
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
+  // We only fetch users if the logged-in user is an admin.
+  const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
 
-  // Derive unique users from the customers list
+  // We still need customers to show the customer count for each user.
+  const customersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'customers');
+  }, [firestore]);
+  
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  
+  const isLoading = usersLoading || customersLoading;
+
   const users = useMemo(() => {
-    if (!customers) return [];
-    const userMap = new Map<string, User>();
-    customers.forEach(customer => {
-        if (customer.agent && !userMap.has(customer.agent.uid)) {
-            userMap.set(customer.agent.uid, {
-                uid: customer.agent.uid,
-                name: customer.agent.name,
-                email: customer.agent.email,
-                // We derive role from the logged in user, or default to agent
-                role: customer.agent.uid === authUser?.uid ? authUser.role : 'agent',
-            });
-        }
-    });
+     if (authUser?.role !== 'admin') {
+         return authUser ? [authUser] : [];
+     }
+     return usersData || [];
+  }, [authUser, usersData]);
 
-    // If the admin has no customers, they won't appear. Add them manually.
-    if(authUser?.role === 'admin' && !userMap.has(authUser.uid)) {
-        userMap.set(authUser.uid, authUser);
-    }
-    
-    return Array.from(userMap.values());
-  }, [customers, authUser]);
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
@@ -107,7 +97,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead className="text-right">Customers</TableHead>
+              <TableHead className="text-right">Customers Managed</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
