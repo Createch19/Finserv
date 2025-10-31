@@ -1,0 +1,38 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthed() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users can read and update their own user document.
+    match /users/{userId} {
+      allow read, update: if isAuthed() && request.auth.uid == userId;
+      // Admins can read all user docs
+      allow list: if isAdmin();
+    }
+
+    // Customer rules
+    match /customers/{customerId} {
+      // Admins can read/write any customer
+      // Agents can read/write their own customers
+      allow read, write: if isAdmin() || (isAuthed() && resource.data.agent.uid == request.auth.uid);
+      
+      // Admins can list all customers
+      // Agents can list customers they are assigned to (the query on the client enforces this)
+      allow list: if isAuthed();
+    }
+
+    // Only admins can read or write expenses.
+    match /expenses/{expenseId} {
+        allow read, write: if isAdmin();
+    }
+  }
+}

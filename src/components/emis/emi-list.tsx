@@ -496,5 +496,3 @@ export function EmiList() {
     </>
   );
 }
-
-    

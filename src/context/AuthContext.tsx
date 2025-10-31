@@ -77,12 +77,10 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
                     await setDoc(userDocRef, newUser);
                     setUser(newUser);
                 } else {
-                    console.error("[AuthProvider] CRITICAL: User document not found, and user is not a default user.");
                     setUser(null);
                 }
             }
         } catch(error) {
-            console.error("[AuthProvider] FIRESTORE ERROR during onAuthStateChanged:", error);
             setUser(null);
         } finally {
             setLoading(false);
