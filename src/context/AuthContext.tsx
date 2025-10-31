@@ -40,37 +40,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!auth || !firestore) {
-      console.log('[AuthProvider] Firebase not initialized, setting loading to false.');
       setLoading(false);
       return;
     };
 
-    console.log('[AuthProvider] Subscribing to onAuthStateChanged.');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('[AuthProvider] onAuthStateChanged triggered.');
       setLoading(true);
 
       if (firebaseUser) {
-        console.log('[AuthProvider] Firebase user found:', firebaseUser.uid);
         try {
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-            console.log('[AuthProvider] Fetching user doc...');
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                console.log('[AuthProvider] User doc exists.');
                 const userData = {
                     ...userDoc.data(),
                     uid: firebaseUser.uid,
                 } as User;
                 setUser(userData);
-                console.log('[AuthProvider] User state set with existing doc:', userData);
             } else {
-                console.log('[AuthProvider] User doc does NOT exist, checking default users.');
                 const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
                 
                 if (defaultUserInfo) {
-                    console.log('[AuthProvider] Default user found, creating new doc.');
                     const newUser: User = {
                         uid: firebaseUser.uid,
                         email: firebaseUser.email!,
@@ -79,7 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     };
                     await setDoc(userDocRef, newUser);
                     setUser(newUser);
-                    console.log('[AuthProvider] User state set with NEW doc:', newUser);
                 } else {
                     console.error("[AuthProvider] CRITICAL: User document not found, and user is not a default user.");
                     setUser(null);
@@ -89,18 +79,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error("[AuthProvider] FIRESTORE ERROR during onAuthStateChanged:", error);
             setUser(null);
         } finally {
-            console.log('[AuthProvider] Setting loading to false in finally block.');
             setLoading(false);
         }
       } else {
-        console.log('[AuthProvider] No Firebase user. Setting user to null and loading to false.');
         setUser(null);
         setLoading(false);
       }
     });
 
     return () => {
-        console.log('[AuthProvider] Unsubscribing from onAuthStateChanged.');
         unsubscribe();
     }
   }, [auth, firestore]);
@@ -162,8 +149,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = { user, loading, signIn, signOut, updatePassword: updatePasswordHandler };
   
-  console.log('[AuthProvider] Rendering with state:', { user: value.user?.email, loading: value.loading });
-
   return (
     <AuthContext.Provider value={value}>
         {children}

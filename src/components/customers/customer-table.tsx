@@ -68,9 +68,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
 
 
   const customersQuery = useMemo(() => {
-    console.log('[CustomerTable] Recalculating customersQuery. User:', user?.email, 'User loading:', userLoading);
     if (!firestore || !user) {
-        console.log('[CustomerTable] Firestore or user not available, returning null for query.');
         return null;
     }
     
@@ -78,20 +76,16 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     
     // Admins can see all customers, agents only see their own.
     if (user.role === 'admin') {
-        console.log('[CustomerTable] User is admin, querying all customers.');
         return query(customersCollection, orderBy('name', 'asc'));
     } else {
-        console.log(`[CustomerTable] User is agent, querying customers for agent UID: ${user.uid}`);
         return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
     }
   }, [firestore, user]);
+
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const isLoading = userLoading || customersLoading;
   
-  console.log('[CustomerTable] Render. States:', { userLoading, customersLoading, combinedIsLoading: isLoading, customerCount: customers?.length });
-
-
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -142,7 +136,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   };
   
   if (isLoading) {
-      console.log('[CustomerTable] Rendering loader because isLoading is true.');
       return (
           <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -151,7 +144,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   }
   
   if (!isLoading && filteredCustomers.length === 0) {
-      console.log('[CustomerTable] Rendering "No customers found".');
       return (
           <div className="text-center py-10 text-muted-foreground">
               <p>No customers found.</p>
@@ -159,7 +151,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       )
   }
   
-  console.log('[CustomerTable] Rendering table/cards.');
   return (
     <>
         {/* Mobile View: Card List */}
