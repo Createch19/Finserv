@@ -101,7 +101,7 @@ export function EditCustomerForm({ customer }: { customer: WithId<Customer> }) {
     setFinancedAmount(financed);
     setInterestAmount(totalInterest);
     setTotalPayable(payable);
-    setMonthlyEMI(emi);
+    setMonthlyEMI(parseFloat(emi.toFixed(2)));
   }, [totalPrice, downPayment, interestType, interestValue, duration]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -263,5 +263,3 @@ export function EditCustomerForm({ customer }: { customer: WithId<Customer> }) {
     </Form>
   );
 }
-
-    
