@@ -81,11 +81,17 @@ export function EmiList() {
   const { user, loading: userLoading } = useAuth();
   const firestore = useFirestore();
   const customersQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    console.log('[EmiList] Recalculating customersQuery. User:', user?.email, 'User loading:', userLoading);
+    if (!firestore || !user) {
+        console.log('[EmiList] Firestore or user not available, returning null for query.');
+        return null;
+    }
     const customersCollection = collection(firestore, 'customers');
     if (user.role === 'admin') {
+        console.log('[EmiList] User is admin, querying all customers.');
         return query(customersCollection, orderBy('name', 'asc'));
     }
+    console.log(`[EmiList] User is agent, querying customers for agent UID: ${user.uid}`);
     return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
   }, [user, firestore]);
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
@@ -98,7 +104,8 @@ export function EmiList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  const isLoading = userLoading || (customersLoading && customers === null);
+  const isLoading = userLoading || customersLoading;
+  console.log('[EmiList] Render. States:', { userLoading, customersLoading, combinedIsLoading: isLoading, customerCount: customers?.length });
 
   const loans = useMemo(() => {
     if (!customers) return [];
@@ -257,6 +264,7 @@ export function EmiList() {
   };
 
   if (isLoading) {
+      console.log('[EmiList] Rendering loader because isLoading is true.');
       return (
           <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin" />

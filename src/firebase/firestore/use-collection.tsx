@@ -34,7 +34,11 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    const queryPath = query ? (query as any)._query?.path.canonicalString() || (query as CollectionReference).path : "null";
+    console.log(`[useCollection] useEffect triggered for path: ${queryPath}`);
+
     if (query === null || query === undefined) {
+      console.log('[useCollection] Query is null/undefined. Setting data to null and loading to false.');
       setData(null);
       // When no query is provided, it's not "loading" in the sense of an active fetch.
       // Set to false so UI can show "no data" or wait for a valid query.
@@ -43,11 +47,13 @@ export function useCollection<T = any>(
       return;
     }
 
+    console.log('[useCollection] Query is valid. Setting loading to true and subscribing to snapshot.');
     setIsLoading(true);
 
     const unsubscribe = onSnapshot(
       query,
       (snapshot: QuerySnapshot<DocumentData>) => {
+        console.log(`[useCollection] Snapshot received for path: ${queryPath}. Doc count: ${snapshot.docs.length}`);
         const results: WithId<T>[] = snapshot.docs.map((doc) => ({
           ...(doc.data() as T),
           id: doc.id,
@@ -55,8 +61,10 @@ export function useCollection<T = any>(
         setData(results);
         setIsLoading(false);
         setError(null);
+        console.log('[useCollection] Data set, loading is false.');
       },
       (err: FirestoreError) => {
+        console.error(`[useCollection] Snapshot error for path: ${queryPath}`, err);
         let contextualError: Error = err;
         if (err.code === 'permission-denied') {
           const path =
@@ -72,10 +80,14 @@ export function useCollection<T = any>(
         setError(contextualError);
         setIsLoading(false);
         setData(null);
+        console.log('[useCollection] Error occurred, loading is false.');
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      console.log(`[useCollection] Unsubscribing from snapshot for path: ${queryPath}`);
+      unsubscribe();
+    }
   }, [query]);
 
   return { data, isLoading, error };
