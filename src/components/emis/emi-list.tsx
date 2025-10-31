@@ -75,21 +75,19 @@ const getOverallLoanStatus = (emis: EmiEntry[]) => {
     return 'active';
 }
 
-function getCustomersQuery(firestore: any, user: User | null) {
+const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+export function EmiList() {
+  const { user } = useAuth();
+  const firestore = useFirestore();
+  const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
     const customersCollection = collection(firestore, 'customers');
     if (user.role === 'admin') {
         return query(customersCollection, orderBy('name', 'asc'));
     }
     return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
-}
-
-const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
-
-export function EmiList() {
-  const { user } = useAuth();
-  const firestore = useFirestore();
-  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
+  }, [user, firestore]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");

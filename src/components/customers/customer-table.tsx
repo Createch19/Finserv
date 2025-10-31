@@ -55,19 +55,6 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 
 const ITEMS_PER_PAGE = 10;
 
-function getCustomersQuery(firestore: any, user: User | null) {
-    if (!firestore || !user) return null;
-    
-    const customersCollection = collection(firestore, 'customers');
-    
-    // Admins can see all customers, agents only see their own.
-    if (user.role === 'admin') {
-        return query(customersCollection, orderBy('name', 'asc'));
-    } else {
-        return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
-    }
-}
-
 const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 
@@ -80,7 +67,18 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const router = useRouter();
 
 
-  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [firestore, user]);
+  const customersQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    
+    const customersCollection = collection(firestore, 'customers');
+    
+    // Admins can see all customers, agents only see their own.
+    if (user.role === 'admin') {
+        return query(customersCollection, orderBy('name', 'asc'));
+    } else {
+        return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
+    }
+  }, [firestore, user]);
   const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const filteredCustomers = useMemo(() => {
