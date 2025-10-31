@@ -3,7 +3,7 @@
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
-import type { Customer, WithId } from "@/types"
+import type { Customer, Expense, WithId } from "@/types"
 import { format, parseISO } from "date-fns"
 
 // --- Monthly Collection Chart ---
@@ -43,13 +43,20 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
 }
 
 // --- Profit Chart ---
-export function ProfitChart({ customers, height = 200 }: { customers: WithId<Customer>[], height?: number }) {
+export function ProfitChart({ customers, expenses, isAdmin, height = 200 }: { customers: WithId<Customer>[], expenses?: WithId<Expense>[], isAdmin?: boolean, height?: number }) {
     const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
     const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
+    const totalExpenses = isAdmin ? (expenses || []).reduce((acc, e) => acc + e.amount, 0) : 0;
+
     const profitChartData = [
         { name: 'Total Principal Financed', value: totalFinanced, fill: 'hsl(var(--chart-1))' },
         { name: 'Potential Interest (Profit)', value: totalInterest, fill: 'hsl(var(--chart-2))' },
-    ]
+    ];
+
+    if (isAdmin) {
+        profitChartData.push({ name: 'Total Expenses', value: totalExpenses, fill: 'hsl(var(--destructive))' });
+    }
+
     return (
         <ChartContainer config={{}} className="h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">

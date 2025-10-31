@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
-import type { Customer, WithId, User } from "@/types";
+import type { Customer, Expense, WithId, User } from "@/types";
 import { Loader2 } from "lucide-react";
 
 function getCustomersQuery(firestore: any, user: User | null) {
@@ -23,12 +23,22 @@ function getCustomersQuery(firestore: any, user: User | null) {
     }
 }
 
+function getExpensesQuery(firestore: any, user: User | null) {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'expenses');
+}
+
 export default function ReportsPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  
+  const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
+  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+
+  const isLoading = customersLoading || expensesLoading;
 
   if (isLoading || !customers) {
       return (
@@ -61,7 +71,7 @@ export default function ReportsPage() {
                     <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ProfitChart customers={customers} height={300} />
+                    <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin'} height={300} />
                 </CardContent>
             </Card>
             <Card>

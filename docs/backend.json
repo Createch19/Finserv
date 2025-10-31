@@ -183,6 +183,41 @@
         }
       },
       "required": ["uid", "name", "email"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "type": "object",
+      "description": "Represents a business expense.",
+      "properties": {
+        "expenseId": {
+          "type": "string",
+          "description": "The unique identifier for the expense."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the expense was incurred.",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string",
+          "description": "A description of the expense."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the expense."
+        },
+        "adminId": {
+          "type": "string",
+          "description": "The UID of the admin who created the expense."
+        }
+      },
+      "required": [
+        "expenseId",
+        "date",
+        "notes",
+        "amount",
+        "adminId"
+      ]
     }
   },
   "auth": {
@@ -199,6 +234,10 @@
       "customers": {
         "schema": "#/entities/Customer",
         "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
+      },
+      "expenses": {
+        "schema": "#/entities/Expense",
+        "description": "A top-level collection of all business expenses. Only accessible by admins."
       }
     }
   }

@@ -39,4 +39,12 @@ export type Customer = {
   agent: Agent;
 };
 
+export type Expense = {
+  expenseId: string;
+  date: string; // ISO 8601 format
+  notes: string;
+  amount: number;
+  adminId: string;
+};
+
 export type WithId<T> = T & { id: string };

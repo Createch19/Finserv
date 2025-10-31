@@ -4,15 +4,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthed() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
     // Users can read and update their own user document.
     match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if isAuthed() && request.auth.uid == userId;
+      // Admins can read all user docs
+      allow list: if isAdmin();
     }
 
     // Authenticated users can perform all operations on customers.
     // This allows both admins and agents to manage customer data.
     match /customers/{customerId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthed();
+    }
+
+    // Only admins can read or write expenses.
+    match /expenses/{expenseId} {
+        allow read, write: if isAdmin();
     }
   }
 }

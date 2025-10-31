@@ -19,7 +19,7 @@ import {
   LineChart,
   Settings,
   Bot,
-  UsersRound,
+  Receipt,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -27,8 +27,8 @@ import { useAuth } from '@/hooks/use-auth';
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
-  // { href: '/users', label: 'Users', icon: UsersRound, adminOnly: true },
   { href: '/emis', label: 'EMI Tracker', icon: CalendarClock },
+  { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
   { href: '/settings', label: 'Settings', icon: Settings },

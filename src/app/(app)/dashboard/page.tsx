@@ -9,13 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2 } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt } from "lucide-react";
 import { CollectionChart, ProfitChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
-import type { Customer, WithId, User } from "@/types";
+import type { Customer, WithId, User, Expense } from "@/types";
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
@@ -30,12 +30,22 @@ function getCustomersQuery(firestore: any, user: User | null) {
     }
 }
 
+function getExpensesQuery(firestore: any, user: User | null) {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'expenses');
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+
+  const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
+  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+  
+  const isLoading = customersLoading || expensesLoading;
 
   if (isLoading || !customers) {
       return (
@@ -48,7 +58,8 @@ export default function DashboardPage() {
   const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
   const totalCollected = customers.flatMap(c => c.payments || []).reduce((acc, p) => acc + p.amount, 0);
   const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
-  const profit = totalInterest; // Simplified for now
+  const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
+  const profit = totalInterest - totalExpenses;
 
   const activeLoans = customers.filter(c => c.status === 'active' || c.status === 'overdue').length;
 
@@ -67,8 +78,12 @@ export default function DashboardPage() {
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
       { title: "Total Collected", value: formatValue(totalCollected), icon: HandCoins },
       { title: "Active Loans", value: activeLoans, icon: Users },
-      { title: "Potential Profit", value: formatValue(profit), icon: DollarSign },
+      { title: user?.role === 'admin' ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
+
+  if (user?.role === 'admin') {
+      stats.splice(3, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
+  }
 
   return (
     <>
@@ -76,7 +91,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
       />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -87,9 +102,6 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              {/* <p className="text-xs text-muted-foreground">
-                {stat.title === "Total Profit" ? "All time profit" : `+${(Math.random() * 5).toFixed(1)}% from last month`}
-              </p> */}
             </CardContent>
           </Card>
         ))}
@@ -109,7 +121,7 @@ export default function DashboardPage() {
             <CardTitle>Profit Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProfitChart customers={customers} />
+            <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin'}/>
           </CardContent>
         </Card>
       </div>
