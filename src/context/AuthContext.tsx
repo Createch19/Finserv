@@ -11,10 +11,11 @@ import {
   updatePassword as firebaseUpdatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  Auth,
+  Firestore,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, DocumentSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, DocumentSnapshot, collection } from 'firebase/firestore';
 import type { User } from '@/types';
-import { useFirebase } from '@/firebase';
 
 type AuthContextType = {
   user: User | null;
@@ -33,8 +34,13 @@ const defaultUsers = {
     'agent@finserv.com': { name: 'Agent User', role: 'agent' }
 };
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const { auth, firestore } = useFirebase();
+interface AuthProviderProps {
+  children: ReactNode;
+  auth: Auth;
+  firestore: Firestore;
+}
+
+export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 

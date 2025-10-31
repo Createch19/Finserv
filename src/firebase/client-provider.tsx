@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
@@ -8,6 +9,10 @@ interface FirebaseClientProviderProps {
   children: ReactNode;
 }
 
+/**
+ * @deprecated This component is deprecated and will be removed. 
+ * Please use AppProvider in `app/app-provider.tsx` at the root layout instead.
+ */
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const firebaseServices = useMemo(() => {
     // Initialize Firebase on the client side, once per component mount.
@@ -16,9 +21,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
 
   return (
     <FirebaseProvider
-      firebaseApp={firebaseServices.firebaseApp}
-      auth={firebaseServices.auth}
-      firestore={firebaseServices.firestore}
+      {...firebaseServices}
     >
       {children}
     </FirebaseProvider>
