@@ -125,7 +125,7 @@ export function AddCustomerForm() {
     const customerId = uuidv4();
     const newCustomerDocRef = doc(firestore, "customers", customerId);
     
-    const finalMonthlyEMI = parseFloat(monthlyEMI.toFixed(2));
+    const finalMonthlyEMI = Math.round(monthlyEMI);
 
     const newCustomer: Customer = {
       customerId: customerId,
@@ -268,10 +268,10 @@ export function AddCustomerForm() {
             <CardHeader><CardTitle className="font-headline">Summary</CardTitle></CardHeader>
             <CardContent>
                 <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span>Financed Amount:</span> <span className="font-medium">₹{financedAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span></div>
-                    <div className="flex justify-between"><span>Total Interest:</span> <span className="font-medium">₹{interestAmount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span></div>
-                    <div className="flex justify-between"><span>Total Payable:</span> <span className="font-medium">₹{totalPayable.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span></div>
-                    <div className="flex justify-between text-base font-semibold text-primary"><span>Monthly EMI:</span> <span>₹{monthlyEMI.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</span></div>
+                    <div className="flex justify-between"><span>Financed Amount:</span> <span className="font-medium">₹{financedAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                    <div className="flex justify-between"><span>Total Interest:</span> <span className="font-medium">₹{interestAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                    <div className="flex justify-between"><span>Total Payable:</span> <span className="font-medium">₹{totalPayable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                    <div className="flex justify-between text-base font-semibold text-primary"><span>Monthly EMI:</span> <span>₹{monthlyEMI.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                 </div>
             </CardContent>
             <CardFooter>
@@ -285,5 +285,3 @@ export function AddCustomerForm() {
     </Form>
   );
 }
-
-    

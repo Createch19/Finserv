@@ -26,7 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2, MoreVertical } from 'lucide-react';
+import { Eye, ChevronLeft, ChevronRight, Trash2, Loader2, MoreVertical, Pencil } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -68,7 +68,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     }
 }
 
-const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
@@ -165,6 +165,11 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                                 <DropdownMenuItem asChild>
                                     <Link href={`/customers/${customer.id}`}>
                                         <Eye className="mr-2 h-4 w-4" /> View
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/customers/${customer.id}/edit`}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit
                                     </Link>
                                 </DropdownMenuItem>
                                 <AlertDialog>
@@ -312,5 +317,3 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
-
-    

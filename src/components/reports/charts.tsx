@@ -32,7 +32,10 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
           tickFormatter={(value) => value.slice(0, 3)}
         />
         <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip
+            cursor={false}
+            content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString(undefined, {maximumFractionDigits: 0})}`} />}
+         />
         <Bar dataKey="total" fill="var(--color-total)" radius={4} />
       </BarChart>
     </ChartContainer>
@@ -54,7 +57,10 @@ export function ProfitChart({ customers, height = 200 }: { customers: WithId<Cus
                     <CartesianGrid horizontal={false} />
                     <YAxis type="category" dataKey="name" tick={false} axisLine={false} />
                     <XAxis type="number" hide />
-                    <ChartTooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
+                    <ChartTooltip 
+                        cursor={{fill: 'hsl(var(--muted))'}} 
+                        content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString(undefined, {maximumFractionDigits: 0})}`}/>} 
+                    />
                     <Bar dataKey="value" radius={5} />
                 </BarChart>
             </ResponsiveContainer>

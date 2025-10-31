@@ -26,7 +26,7 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
     const remainingBalance = customer.totalPayable - totalPaid;
-    const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+    const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
@@ -116,5 +116,3 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     </div>
   );
 }
-
-    

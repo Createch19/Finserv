@@ -83,7 +83,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     return query(customersCollection, where('agent.uid', '==', user.uid));
 }
 
-const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 export function EmiList() {
   const { user } = useAuth();
@@ -457,5 +457,3 @@ export function EmiList() {
     </>
   );
 }
-
-    

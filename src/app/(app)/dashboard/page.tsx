@@ -53,16 +53,14 @@ export default function DashboardPage() {
   const activeLoans = customers.filter(c => c.status === 'active' || c.status === 'overdue').length;
 
   const formatValue = (value: number) => {
-    if (value >= 10000000) {
-      return `₹${(value / 10000000).toFixed(2)}Cr`;
+    const roundedValue = Math.round(value);
+    if (roundedValue >= 10000000) {
+      return `₹${(roundedValue / 10000000).toFixed(2)}Cr`;
     }
-    if (value >= 100000) {
-      return `₹${(value / 100000).toFixed(2)}L`;
+    if (roundedValue >= 100000) {
+      return `₹${(roundedValue / 100000).toFixed(2)}L`;
     }
-    if (value >= 1000) {
-      return `₹${(value / 1000).toFixed(1)}k`;
-    }
-    return `₹${value.toFixed(0)}`;
+    return `₹${roundedValue.toLocaleString('en-IN')}`;
   };
 
   const stats = [
@@ -118,5 +116,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
