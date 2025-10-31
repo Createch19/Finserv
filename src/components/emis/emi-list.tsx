@@ -32,6 +32,7 @@ import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where, orde
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
+import { Label } from "../ui/label";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -93,6 +94,7 @@ export function EmiList() {
 
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [selectedEmiForRevoke, setSelectedEmiForRevoke] = useState<EmiEntry | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -167,7 +169,7 @@ export function EmiList() {
   }, [loans, loanStatusFilter, dateRange, searchTerm]);
   
   const handleRecordPayment = async () => {
-    if (!selectedEmiForPayment || !user || !firestore) return;
+    if (!selectedEmiForPayment || !user || !firestore || !paymentDate) return;
 
     const customer = customers?.find(c => c.id === selectedEmiForPayment.customerId);
     if (!customer) return;
@@ -186,7 +188,7 @@ export function EmiList() {
 
     const newPayment: Payment = {
       paymentId: uuidv4(),
-      date: new Date().toISOString(),
+      date: paymentDate.toISOString(),
       amount: selectedEmiForPayment.emiAmount,
       mode: 'cash',
       remainingBalance: customer.totalPayable - currentTotalPaid - selectedEmiForPayment.emiAmount,
@@ -215,6 +217,7 @@ export function EmiList() {
         errorEmitter.emit('permission-error', permissionError);
     }).finally(() => {
         setSelectedEmiForPayment(null);
+        setPaymentDate(new Date());
     });
   };
 
@@ -432,14 +435,43 @@ export function EmiList() {
     <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-            <AlertDialogDescription>
-                Are you sure you want to record a payment of <strong>₹{formatCurrency(selectedEmiForPayment?.emiAmount || 0)}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>? This action cannot be undone.
-            </AlertDialogDescription>
+              <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
+              <AlertDialogDescription>
+                  Record a payment of <strong>₹{formatCurrency(selectedEmiForPayment?.emiAmount || 0)}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>.
+              </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="payment-date" className="text-right">
+                        Payment Date
+                    </Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "col-span-3 justify-start text-left font-normal",
+                                !paymentDate && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {paymentDate ? format(paymentDate, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={paymentDate}
+                                onSelect={setPaymentDate}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </div>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRecordPayment}>Confirm</AlertDialogAction>
+            <AlertDialogAction onClick={handleRecordPayment}>Confirm Payment</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
