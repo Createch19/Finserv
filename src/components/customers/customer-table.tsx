@@ -61,7 +61,7 @@ const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
-  const { user, loading: userLoading } = useAuth();
+  const { user } = useAuth();
   const firestore = useFirestore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
@@ -79,9 +79,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
     }
   }, [firestore, user]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
-  const isLoading = userLoading || customersLoading;
-
+  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
+  
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -316,5 +315,3 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
-
-    

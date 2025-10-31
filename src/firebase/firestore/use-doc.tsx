@@ -35,7 +35,8 @@ export function useDoc<T = any>(
   useEffect(() => {
     if (docRef === null || docRef === undefined) {
       setData(null);
-      setIsLoading(false);
+      // Keep loading true until a valid ref is provided, which often depends on auth state.
+      setIsLoading(true);
       setError(null);
       return;
     }
