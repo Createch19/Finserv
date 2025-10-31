@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CustomerDetails } from "@/components/customers/customer-details";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2, Pencil } from "lucide-react";
 import { notFound, useParams } from "next/navigation";
 import React from "react";
 import type { Customer, WithId } from "@/types";
@@ -40,10 +40,12 @@ export default function CustomerDetailPage() {
   }
 
   if (!user) {
+    // This case should be handled by the layout, but as a fallback:
     notFound();
   }
 
   if (!customer) {
+    console.error("[CustomerDetailPage] 404 Triggered: Customer object is null or undefined after loading. The document might not exist or rules are denying access.");
     notFound();
   }
 
@@ -51,12 +53,20 @@ export default function CustomerDetailPage() {
   return (
     <>
       <PageHeader title={customer.name} description={`Details for customer`}>
-        <Link href="/customers" passHref>
-          <Button variant="outline">
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Back to Customers
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+            <Link href="/customers" passHref>
+              <Button variant="outline">
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Back to Customers
+              </Button>
+            </Link>
+            <Link href={`/customers/${id}/edit`} passHref>
+              <Button>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Customer
+              </Button>
+            </Link>
+        </div>
       </PageHeader>
       <CustomerDetails customer={customer} />
     </>
