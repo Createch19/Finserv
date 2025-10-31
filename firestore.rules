@@ -19,10 +19,15 @@ service cloud.firestore {
       allow list: if isAdmin();
     }
 
-    // Authenticated users can perform all operations on customers.
-    // This allows both admins and agents to manage customer data.
+    // Customer rules
     match /customers/{customerId} {
-      allow read, write: if isAuthed();
+      // Admins can read/write any customer
+      // Agents can read/write their own customers
+      allow read, write: if isAdmin() || (isAuthed() && resource.data.agent.uid == request.auth.uid);
+      
+      // Admins can list all customers
+      // Agents can list customers where their uid matches the agent.uid field
+      allow list: if isAdmin() || (isAuthed() && request.query.where.agent.uid == request.auth.uid);
     }
 
     // Only admins can read or write expenses.
