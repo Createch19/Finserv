@@ -109,3 +109,49 @@ export function LoanStatusChart({ customers, height = 200 }: { customers: WithId
         </ChartContainer>
     )
 }
+
+// --- Interest Rate Chart ---
+export function InterestRateChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
+  const monthlyInterestRateData = (customers || [])
+    .reduce((acc, customer) => {
+      const month = format(parseISO(customer.startDate), "MMM yyyy");
+      if (!acc[month]) {
+        acc[month] = { totalInterestRate: 0, count: 0 };
+      }
+      const interestRate = (customer.interestAmount / customer.financedAmount) * 100;
+      acc[month].totalInterestRate += interestRate;
+      acc[month].count += 1;
+      return acc;
+    }, {} as Record<string, { totalInterestRate: number, count: number }>);
+
+  const interestRateChartData = Object.entries(monthlyInterestRateData)
+    .map(([month, { totalInterestRate, count }]) => ({
+      month,
+      averageRate: totalInterestRate / count,
+    }))
+    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+  return (
+    <ChartContainer config={{ averageRate: { label: "Avg. Interest Rate", color: "hsl(var(--chart-2))" } }} className={`h-[${height}px] w-full`}>
+      <BarChart accessibilityLayer data={interestRateChartData}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          tickFormatter={(value) => value.slice(0, 3)}
+        />
+        <YAxis
+          dataKey="averageRate"
+          tickFormatter={(value) => `${value.toFixed(1)}%`}
+        />
+        <ChartTooltip
+          cursor={false}
+          content={<ChartTooltipContent formatter={(value) => `${Number(value).toFixed(2)}%`} />}
+        />
+        <Bar dataKey="averageRate" fill="var(--color-averageRate)" radius={4} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
