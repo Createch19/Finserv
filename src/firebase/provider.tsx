@@ -34,10 +34,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     auth,
   }), [firebaseApp, firestore, auth]);
 
-  if (!firebaseApp || !firestore || !auth) {
-    return <>{children}</>;
-  }
-
   return (
     <FirebaseContext.Provider value={contextValue}>
       <FirebaseErrorListener />
