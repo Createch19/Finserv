@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -208,7 +209,7 @@ export function EditCustomerForm({ customer }: { customer: WithId<Customer> }) {
               <FormItem><FormLabel>Phone Model</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="totalPrice" render={({ field }) => (
-              <FormItem><FormLabel>Total Price (₹)</FormLabel><FormControl><Input type="number" {...field} disabled={financialsDisabled} /></FormControl><FormMessage /></FormMessage>
+              <FormItem><FormLabel>Total Price (₹)</FormLabel><FormControl><Input type="number" {...field} disabled={financialsDisabled} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="downPayment" render={({ field }) => (
               <FormItem><FormLabel>Down Payment (₹)</FormLabel><FormControl><Input type="number" {...field} disabled={financialsDisabled} /></FormControl><FormMessage /></FormItem>
@@ -261,3 +262,5 @@ export function EditCustomerForm({ customer }: { customer: WithId<Customer> }) {
     </Form>
   );
 }
+
+    
