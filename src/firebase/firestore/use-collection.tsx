@@ -36,8 +36,9 @@ export function useCollection<T = any>(
   useEffect(() => {
     if (query === null || query === undefined) {
       setData(null);
-      // Keep loading true until a valid query is provided, which often depends on auth state.
-      setIsLoading(true); 
+      // When no query is provided, it's not "loading" in the sense of an active fetch.
+      // Set to false so UI can show "no data" or wait for a valid query.
+      setIsLoading(false); 
       setError(null);
       return;
     }

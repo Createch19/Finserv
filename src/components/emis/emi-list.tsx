@@ -78,7 +78,7 @@ const getOverallLoanStatus = (emis: EmiEntry[]) => {
 const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 export function EmiList() {
-  const { user } = useAuth();
+  const { user, loading: userLoading } = useAuth();
   const firestore = useFirestore();
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -88,7 +88,7 @@ export function EmiList() {
     }
     return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
   }, [user, firestore]);
-  const { data: customers, isLoading } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
@@ -97,6 +97,8 @@ export function EmiList() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+
+  const isLoading = userLoading || (customersLoading && customers === null);
 
   const loans = useMemo(() => {
     if (!customers) return [];
@@ -363,7 +365,7 @@ export function EmiList() {
                                             <Progress value={(loan.paidCount / loan.duration) * 100} className="h-2" />
                                           </div>
                                       </div>
-                                  </CardContent>
+                                  </CardContent>.
                                 </Card>
                               </PopoverContent>
                             </Popover>
