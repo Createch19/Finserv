@@ -38,7 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore } from '@/firebase';
 import { FirestorePermissionError, errorEmitter } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
   switch (status) {
@@ -62,9 +62,9 @@ function getCustomersQuery(firestore: any, user: User | null) {
     
     // Admins can see all customers, agents only see their own.
     if (user.role === 'admin') {
-        return customersCollection;
+        return query(customersCollection, orderBy('name', 'asc'));
     } else {
-        return query(customersCollection, where('agent.uid', '==', user.uid));
+        return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
     }
 }
 

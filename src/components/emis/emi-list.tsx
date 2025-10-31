@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where, orderBy } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -78,9 +78,9 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     const customersCollection = collection(firestore, 'customers');
     if (user.role === 'admin') {
-        return customersCollection;
+        return query(customersCollection, orderBy('name', 'asc'));
     }
-    return query(customersCollection, where('agent.uid', '==', user.uid));
+    return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
 }
 
 const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -146,7 +146,11 @@ export function EmiList() {
             paidCount,
             overallStatus
         };
-    }).sort((a,b) => (a.overallStatus === 'overdue' ? -1 : 1)); // Bring overdue to top
+    }).sort((a,b) => {
+        if (a.overallStatus === 'overdue' && b.overallStatus !== 'overdue') return -1;
+        if (a.overallStatus !== 'overdue' && b.overallStatus === 'overdue') return 1;
+        return a.name.localeCompare(b.name);
+    });
 
   }, [customers]);
 
