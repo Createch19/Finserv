@@ -26,6 +26,7 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
 export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
     const remainingBalance = customer.totalPayable - totalPaid;
+    const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
 
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
@@ -36,12 +37,12 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <DetailItem label="Phone Model" value={customer.phoneModel} />
-                    <DetailItem label="Total Price" value={`₹${customer.totalPrice.toLocaleString()}`} />
-                    <DetailItem label="Down Payment" value={`₹${customer.downPayment.toLocaleString()}`} />
-                    <DetailItem label="Financed Amount" value={`₹${customer.financedAmount.toLocaleString()}`} />
-                    <DetailItem label="Interest" value={`₹${customer.interestAmount.toLocaleString()}`} />
-                    <DetailItem label="Total Payable" value={`₹${customer.totalPayable.toLocaleString()}`} />
-                    <DetailItem label="Monthly EMI" value={`₹${customer.monthlyEMI.toLocaleString()}`} />
+                    <DetailItem label="Total Price" value={formatCurrency(customer.totalPrice)} />
+                    <DetailItem label="Down Payment" value={formatCurrency(customer.downPayment)} />
+                    <DetailItem label="Financed Amount" value={formatCurrency(customer.financedAmount)} />
+                    <DetailItem label="Interest" value={formatCurrency(customer.interestAmount)} />
+                    <DetailItem label="Total Payable" value={formatCurrency(customer.totalPayable)} />
+                    <DetailItem label="Monthly EMI" value={formatCurrency(customer.monthlyEMI)} />
                     <DetailItem label="Duration" value={`${customer.duration} months`} />
                     <DetailItem label="Start Date" value={format(new Date(customer.startDate), 'PPP')} />
                 </CardContent>
@@ -68,9 +69,9 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                             {customer.payments?.length > 0 ? customer.payments.map((p, index) => (
                                 <TableRow key={index}>
                                     <TableCell>{format(new Date(p.date), 'PPP')}</TableCell>
-                                    <TableCell>₹{p.amount.toLocaleString()}</TableCell>
+                                    <TableCell>{formatCurrency(p.amount)}</TableCell>
                                     <TableCell className="capitalize">{p.mode}</TableCell>
-                                    <TableCell className="text-right">₹{p.remainingBalance.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(p.remainingBalance)}</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
@@ -98,7 +99,7 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                         </Badge>}
                     />
                     <DetailItem label="Remaining Balance" value={
-                        <span className="text-lg font-bold text-primary">₹{remainingBalance.toLocaleString()}</span>
+                        <span className="text-lg font-bold text-primary">{formatCurrency(remainingBalance)}</span>
                     } />
                 </CardContent>
             </Card>
@@ -115,3 +116,5 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     </div>
   );
 }
+
+    

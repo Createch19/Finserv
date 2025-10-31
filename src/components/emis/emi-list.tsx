@@ -83,6 +83,8 @@ function getCustomersQuery(firestore: any, user: User | null) {
     return query(customersCollection, where('agent.uid', '==', user.uid));
 }
 
+const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+
 export function EmiList() {
   const { user } = useAuth();
   const firestore = useFirestore();
@@ -198,7 +200,7 @@ export function EmiList() {
     updateDoc(customerDocRef, updatePayload).then(() => {
         toast({
             title: "Payment Recorded",
-            description: `Payment of ₹${selectedEmiForPayment?.emiAmount.toLocaleString()} for ${selectedEmiForPayment?.customerName} has been recorded.`,
+            description: `Payment of ₹${formatCurrency(selectedEmiForPayment?.emiAmount)} for ${selectedEmiForPayment?.customerName} has been recorded.`,
         });
     }).catch(serverError => {
         const permissionError = new FirestorePermissionError({
@@ -392,7 +394,7 @@ export function EmiList() {
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4 w-full md:w-auto">
-                                        <span className="font-semibold">₹{emi.emiAmount.toLocaleString()}</span>
+                                        <span className="font-semibold">₹{formatCurrency(emi.emiAmount)}</span>
                                         <Badge variant={getStatusBadgeVariant(emi.status)} className="capitalize w-20 justify-center">
                                         {emi.status}
                                         </Badge>
@@ -428,7 +430,7 @@ export function EmiList() {
             <AlertDialogHeader>
             <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
             <AlertDialogDescription>
-                Are you sure you want to record a payment of <strong>₹{selectedEmiForPayment?.emiAmount.toLocaleString()}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>? This action cannot be undone.
+                Are you sure you want to record a payment of <strong>₹{formatCurrency(selectedEmiForPayment?.emiAmount || 0)}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>? This action cannot be undone.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -455,3 +457,5 @@ export function EmiList() {
     </>
   );
 }
+
+    

@@ -68,6 +68,8 @@ function getCustomersQuery(firestore: any, user: User | null) {
     }
 }
 
+const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+
 
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -202,7 +204,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                                 {customer.status}
                             </Badge>
                             <div className="text-right">
-                                <div className="font-medium">{`₹${customer.financedAmount.toLocaleString()}`}</div>
+                                <div className="font-medium">{formatCurrency(customer.financedAmount)}</div>
                                 <div className="text-xs text-muted-foreground">{`${customer.duration} months`}</div>
                             </div>
                         </CardContent>
@@ -234,7 +236,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                         </TableCell>
                         <TableCell>{customer.phoneModel}</TableCell>
                         <TableCell>
-                            <div>{`₹${customer.financedAmount.toLocaleString()}`}</div>
+                            <div>{formatCurrency(customer.financedAmount)}</div>
                             <div className="text-sm text-muted-foreground">{`${customer.duration} months`}</div>
                         </TableCell>
                         <TableCell>
@@ -310,3 +312,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
+
+    

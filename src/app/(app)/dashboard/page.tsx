@@ -52,11 +52,24 @@ export default function DashboardPage() {
 
   const activeLoans = customers.filter(c => c.status === 'active' || c.status === 'overdue').length;
 
+  const formatValue = (value: number) => {
+    if (value >= 10000000) {
+      return `₹${(value / 10000000).toFixed(2)}Cr`;
+    }
+    if (value >= 100000) {
+      return `₹${(value / 100000).toFixed(2)}L`;
+    }
+    if (value >= 1000) {
+      return `₹${(value / 1000).toFixed(1)}k`;
+    }
+    return `₹${value.toFixed(0)}`;
+  };
+
   const stats = [
-      { title: "Total Financed", value: `₹${(totalFinanced / 1000).toFixed(1)}k`, icon: TrendingUp },
-      { title: "Total Collected", value: `₹${(totalCollected / 1000).toFixed(1)}k`, icon: HandCoins },
+      { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
+      { title: "Total Collected", value: formatValue(totalCollected), icon: HandCoins },
       { title: "Active Loans", value: activeLoans, icon: Users },
-      { title: "Potential Profit", value: `₹${(profit / 1000).toFixed(1)}k`, icon: DollarSign },
+      { title: "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
 
   return (
@@ -105,3 +118,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
