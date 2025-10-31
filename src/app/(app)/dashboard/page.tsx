@@ -26,7 +26,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (user.role === 'admin') {
         return customersCollection;
     } else {
-        return query(customersCollection, where('agentId', '==', user.uid));
+        return query(customersCollection, where('agent.uid', '==', user.uid));
     }
 }
 
@@ -113,7 +113,7 @@ export default function DashboardPage() {
             <CardTitle>Monthly Collection</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <CollectionChart customers={customers} />
+            <CollectionChart customers={customers} height={250} />
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
