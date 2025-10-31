@@ -90,6 +90,7 @@ export function EmiList() {
     }
     return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
   }, [user, firestore]);
+
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
@@ -495,3 +496,5 @@ export function EmiList() {
     </>
   );
 }
+
+    

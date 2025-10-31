@@ -143,7 +143,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       )
   }
   
-  if (!isLoading && filteredCustomers.length === 0) {
+  if (!isLoading && (!currentCustomers || currentCustomers.length === 0)) {
       return (
           <div className="text-center py-10 text-muted-foreground">
               <p>No customers found.</p>
@@ -320,3 +320,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
+
+    
