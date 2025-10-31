@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
-import { CollectionChart, ProfitChart, LoanStatusChart, InterestRateChart } from "@/components/reports/charts";
+import { CollectionChart, ProfitChart, LoanStatusChart, InterestRateChart, CollectionCountChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -55,15 +55,26 @@ export default function ReportsPage() {
         description="Visualize your business performance with insightful charts."
       />
       <div className="grid gap-6">
-        <Card>
-            <CardHeader>
-                <CardTitle>Monthly Collection Trend</CardTitle>
-                <CardDescription>Total EMI amount collected each month.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <CollectionChart customers={customers} height={350} />
-            </CardContent>
-        </Card>
+        <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Monthly Collection Trend</CardTitle>
+                    <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <CollectionChart customers={customers} height={350} />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Monthly EMI Collection Count</CardTitle>
+                    <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <CollectionCountChart customers={customers} height={350} />
+                </CardContent>
+            </Card>
+        </div>
         <Card>
             <CardHeader>
                 <CardTitle>Monthly Interest Rate</CardTitle>

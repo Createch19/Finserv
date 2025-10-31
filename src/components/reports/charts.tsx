@@ -4,7 +4,7 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import type { Customer, Expense, WithId } from "@/types"
-import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isAfter, isBefore } from "date-fns"
+import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore } from "date-fns"
 
 // --- Monthly Collection Chart ---
 export function CollectionChart({ customers, height = 250 }: { customers: WithId<Customer>[], height?: number }) {
@@ -68,6 +68,67 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
     </ChartContainer>
   )
 }
+
+// --- Monthly Collection Count Chart ---
+export function CollectionCountChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
+  const monthlyData = (customers || []).reduce((acc, customer) => {
+    const startDate = parseISO(customer.startDate);
+    const endDate = addMonths(startDate, customer.duration);
+
+    // Calculate expected collection counts
+    const loanMonths = eachMonthOfInterval({ start: startDate, end: endDate });
+    loanMonths.forEach((monthDate, index) => {
+      if (index > 0) {
+        const monthKey = format(monthDate, "MMM yyyy");
+        acc[monthKey] = acc[monthKey] || { expected: 0, actual: 0 };
+        acc[monthKey].expected += 1;
+      }
+    });
+
+    // Calculate actual collection counts
+    (customer.payments || []).forEach(payment => {
+      const monthKey = format(parseISO(payment.date), "MMM yyyy");
+      acc[monthKey] = acc[monthKey] || { expected: 0, actual: 0 };
+      acc[monthKey].actual += 1;
+    });
+
+    return acc;
+  }, {} as Record<string, { expected: number; actual: number }>);
+
+  const collectionChartData = Object.entries(monthlyData)
+    .map(([month, totals]) => ({ month, ...totals }))
+    .sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+    .filter(d => isBefore(new Date(d.month), endOfMonth(new Date())));
+
+  const chartConfig = {
+    actual: { label: "Actual Count", color: "hsl(var(--chart-1))" },
+    expected: { label: "Expected Count", color: "hsl(var(--chart-2))" },
+  };
+
+  return (
+    <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+      <BarChart accessibilityLayer data={collectionChartData}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          tickFormatter={(value) => value.slice(0, 3)}
+        />
+        <YAxis tickFormatter={(value) => String(value)} />
+        <ChartTooltip
+            cursor={false}
+            content={<ChartTooltipContent formatter={(value, name) => `${value} EMIs`} />}
+         />
+        <ChartLegend />
+        <Bar dataKey="actual" fill="var(--color-actual)" radius={4} />
+        <Bar dataKey="expected" fill="var(--color-expected)" radius={4} />
+      </BarChart>
+    </ChartContainer>
+  )
+}
+
 
 // --- Profit Chart ---
 export function ProfitChart({ customers, expenses, isAdmin, height = 200 }: { customers: WithId<Customer>[], expenses?: WithId<Expense>[], isAdmin?: boolean, height?: number }) {
