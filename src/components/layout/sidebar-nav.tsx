@@ -28,7 +28,7 @@ import { useAuth } from '@/hooks/use-auth';
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/approvals', label: 'Approvals', icon: ShieldCheck, adminOnly: true },
+  { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
   { href: '/emis', label: 'EMI Tracker', icon: CalendarClock },
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },

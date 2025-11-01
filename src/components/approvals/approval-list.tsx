@@ -38,11 +38,16 @@ export function ApprovalList() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const pendingCustomersQuery = useMemo(() => {
-    if (!firestore || user?.role !== "admin") return null;
-    return query(
+    if (!firestore || !user) return null;
+    const baseQuery = query(
       collection(firestore, "customers"),
       where("status", "==", "pending")
     );
+    if (user.role === 'admin') {
+        return baseQuery;
+    }
+    // Agents see only their own pending submissions
+    return query(baseQuery, where("agent.uid", "==", user.uid));
   }, [firestore, user]);
 
   const {
@@ -124,18 +129,20 @@ export function ApprovalList() {
                 <TableCell>{customer.agent.name}</TableCell>
                 <TableCell>{format(new Date(customer.startDate), 'dd MMM yyyy')}</TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    onClick={() => handleApprove(customer.id)}
-                    disabled={approvingId === customer.id}
-                  >
-                    {approvingId === customer.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                    )}
-                    Approve
-                  </Button>
+                  {user?.role === 'admin' && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(customer.id)}
+                      disabled={approvingId === customer.id}
+                    >
+                      {approvingId === customer.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                      )}
+                      Approve
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
