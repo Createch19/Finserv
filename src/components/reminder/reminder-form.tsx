@@ -45,7 +45,13 @@ function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
     // Fetch all active, non-completed customers for both admins and agents.
-    return query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
+    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
+
+    if (user.role === 'agent') {
+      q = query(q, where('agent.uid', '==', user.uid));
+    }
+
+    return q;
 }
 
 export function ReminderForm() {

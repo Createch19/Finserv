@@ -85,8 +85,11 @@ export function EmiList() {
     if (!firestore || !user) {
         return null;
     }
-    // Fetch all approved customers for both admins and agents.
-    return query(collection(firestore, 'customers'), where('status', '!=', 'pending'), orderBy('name', 'asc'));
+    let q = query(collection(firestore, 'customers'), where('status', '!=', 'pending'));
+    if (user.role === 'agent') {
+        q = query(q, where('agent.uid', '==', user.uid));
+    }
+    return query(q, orderBy('name', 'asc'));
   }, [user, firestore]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);

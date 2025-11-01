@@ -73,8 +73,13 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return null;
     }
     
-    // Fetch all customers for both admins and agents, excluding 'pending'.
-    return query(collection(firestore, 'customers'), where('status', '!=', 'pending'), orderBy('name', 'asc'));
+    let q = query(collection(firestore, 'customers'), where('status', '!=', 'pending'));
+
+    if (user.role === 'agent') {
+      q = query(q, where('agent.uid', '==', user.uid));
+    }
+    
+    return query(q, orderBy('name', 'asc'));
   }, [firestore, user]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
