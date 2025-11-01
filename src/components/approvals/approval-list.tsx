@@ -1,19 +1,15 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
-import { useCollection, useFirestore } from "@/firebase";
-import { collection, query, where, doc, updateDoc } from "firebase/firestore";
-import type { Customer, WithId, User } from "@/types";
+import { useState } from "react";
+import { useFirestore } from "@/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import type { Customer, WithId } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, CheckCircle } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -28,29 +24,19 @@ import { useToast } from "@/hooks/use-toast";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
 import Link from "next/link";
 import { format } from "date-fns";
+import type { UseCollectionResult } from "@/firebase/firestore/use-collection";
 
 const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
-export function ApprovalList() {
+interface ApprovalListProps extends UseCollectionResult<Customer> {
+    pendingCustomers: WithId<Customer>[] | null;
+}
+
+export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalListProps) {
   const { user } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [approvingId, setApprovingId] = useState<string | null>(null);
-
-  const pendingCustomersQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    // Admins and Agents both see all pending submissions
-    return query(
-      collection(firestore, "customers"),
-      where("status", "==", "pending")
-    );
-  }, [firestore, user]);
-
-  const {
-    data: pendingCustomers,
-    isLoading,
-    error,
-  } = useCollection<WithId<Customer>>(pendingCustomersQuery);
 
   const handleApprove = async (customerId: string) => {
     if (!firestore) return;
@@ -101,7 +87,7 @@ export function ApprovalList() {
 
   return (
     <Card>
-      <CardContent>
+      <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
