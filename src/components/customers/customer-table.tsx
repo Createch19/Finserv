@@ -73,13 +73,10 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return null;
     }
     
-    // Admins fetch all customers, agents fetch only their own.
+    // Admins and Agents fetch all customers.
     // We will filter out 'pending' customers on the client-side.
-    if (user.role === 'admin') {
-      return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
-    } else {
-      return query(collection(firestore, 'customers'), where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
-    }
+    return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    
   }, [firestore, user]);
 
   const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);

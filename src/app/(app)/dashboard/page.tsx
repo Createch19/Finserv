@@ -22,13 +22,9 @@ import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    // Admins fetch all customers, agents fetch only their own.
+    // Admins and Agents fetch all customers.
     // We will filter out 'pending' customers on the client-side.
-    if (user.role === 'admin') {
-        return collection(firestore, 'customers');
-    } else {
-        return query(collection(firestore, 'customers'), where('agent.uid', '==', user.uid));
-    }
+    return collection(firestore, 'customers');
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {

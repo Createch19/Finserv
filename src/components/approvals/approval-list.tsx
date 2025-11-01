@@ -39,15 +39,11 @@ export function ApprovalList() {
 
   const pendingCustomersQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    const baseQuery = query(
+    // Admins and Agents both see all pending submissions
+    return query(
       collection(firestore, "customers"),
       where("status", "==", "pending")
     );
-    if (user.role === 'admin') {
-        return baseQuery;
-    }
-    // Agents see only their own pending submissions
-    return query(baseQuery, where("agent.uid", "==", user.uid));
   }, [firestore, user]);
 
   const {
