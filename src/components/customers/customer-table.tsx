@@ -73,17 +73,19 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return null;
     }
     
-    let q = query(collection(firestore, 'customers'), where('status', '!=', 'pending'));
-
-    if (user.role === 'agent') {
-      q = query(q, where('agent.uid', '==', user.uid));
-    }
+    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'completed', 'overdue']));
     
     return query(q, orderBy('name', 'asc'));
   }, [firestore, user]);
 
-  const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
   
+  const customers = useMemo(() => {
+    if (!customersData) return [];
+    if (user?.role === 'admin') return customersData;
+    return customersData.filter(c => c.agent.uid === user?.uid);
+  }, [customersData, user]);
+
   const isLoading = userLoading || (customersLoading && !error);
   
   const filteredCustomers = useMemo(() => {

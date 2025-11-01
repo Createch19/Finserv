@@ -85,15 +85,18 @@ export function EmiList() {
     if (!firestore || !user) {
         return null;
     }
-    let q = query(collection(firestore, 'customers'), where('status', '!=', 'pending'));
-    if (user.role === 'agent') {
-        q = query(q, where('agent.uid', '==', user.uid));
-    }
+    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'completed', 'overdue']));
     return query(q, orderBy('name', 'asc'));
   }, [user, firestore]);
 
-  const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
   
+  const customers = useMemo(() => {
+    if (!customersData) return [];
+    if (user?.role === 'admin') return customersData;
+    return customersData.filter(c => c.agent.uid === user?.uid);
+  }, [customersData, user]);
+
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());

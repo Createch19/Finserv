@@ -22,10 +22,7 @@ import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    let q = query(collection(firestore, 'customers'), where('status', '!=', 'pending'));
-    if (user.role === 'agent') {
-        q = query(q, where('agent.uid', '==', user.uid));
-    }
+    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue', 'completed']));
     return q;
 }
 
@@ -39,10 +36,16 @@ export default function DashboardPage() {
   const firestore = useFirestore();
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+  
+  const customers = useMemo(() => {
+    if (!customersData) return [];
+    if (user?.role === 'admin') return customersData;
+    return customersData.filter(c => c.agent.uid === user?.uid);
+  }, [customersData, user]);
   
   const isLoading = customersLoading || expensesLoading;
 
