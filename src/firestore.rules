@@ -21,12 +21,12 @@ service cloud.firestore {
 
     // Customer rules
     match /customers/{customerId} {
-      // Admins can perform any operation.
+      // Admins can read any customer.
       // Agents can read customers they are assigned to.
       allow read: if isAdmin() || (isAuthed() && resource.data.agent.uid == request.auth.uid);
       
-      // Agents can create customers for themselves.
-      // Agents can update customers they are assigned to.
+      // Admins can write to any customer.
+      // Agents can create/update customers where they are the agent.
       allow write: if isAdmin() || (isAuthed() && request.resource.data.agent.uid == request.auth.uid);
       
       // Admins and Agents can list customers. The query on the client enforces who sees what.
