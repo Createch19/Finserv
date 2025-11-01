@@ -17,6 +17,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
@@ -50,8 +51,15 @@ export default function DashboardPage() {
       )
   }
 
+  const today = new Date();
+  const startOfCurrentMonth = startOfMonth(today);
+  const endOfCurrentMonth = endOfMonth(today);
+
   const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
-  const totalCollected = customers.flatMap(c => c.payments || []).reduce((acc, p) => acc + p.amount, 0);
+  const monthlyCollected = customers
+    .flatMap(c => c.payments || [])
+    .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
+    .reduce((acc, p) => acc + p.amount, 0);
   const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
   const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
   const profit = totalInterest - totalExpenses;
@@ -71,7 +79,7 @@ export default function DashboardPage() {
 
   const stats = [
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
-      { title: "Total Collected", value: formatValue(totalCollected), icon: HandCoins },
+      { title: "Monthly Collection", value: formatValue(monthlyCollected), icon: HandCoins },
       { title: "Active Loans", value: activeLoans, icon: Users },
       { title: user?.role === 'admin' ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
