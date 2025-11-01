@@ -8,9 +8,10 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt } from "lucide-react";
-import { CollectionChart, ProfitChart } from "@/components/reports/charts";
+import { CollectionChart, ProfitChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -101,18 +102,29 @@ export default function DashboardPage() {
         ))}
       </div>
       <Separator className="my-6 md:my-8" />
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
+       <div className="grid gap-4 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Monthly Collection</CardTitle>
+             <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <CollectionChart customers={customers} height={250} />
           </CardContent>
         </Card>
-        <Card className="lg:col-span-3">
+        <Card>
+            <CardHeader>
+                <CardTitle>Monthly EMI Collection Count</CardTitle>
+                <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <CollectionCountChart customers={customers} height={250} />
+            </CardContent>
+        </Card>
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Profit Analysis</CardTitle>
+             <CardDescription>Comparison of interest earned against the principal amount collected and expenses.</CardDescription>
           </CardHeader>
           <CardContent>
             <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin'}/>
