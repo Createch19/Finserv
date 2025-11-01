@@ -160,6 +160,7 @@ export function EmiList() {
   }, [customers]);
 
   const filteredLoans = useMemo(() => {
+    if (!loans) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
     return loans.filter(loan => {
       const statusMatch = loanStatusFilter === 'all' || loan.overallStatus === loanStatusFilter;

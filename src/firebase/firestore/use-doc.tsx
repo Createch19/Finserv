@@ -72,7 +72,8 @@ export function useDoc<T = any>(
     );
 
     return () => unsubscribe();
-  }, [docRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(docRef)]);
 
   return { data, isLoading, error };
 }
