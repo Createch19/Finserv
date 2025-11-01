@@ -80,19 +80,31 @@ const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { ma
 export function EmiList() {
   const { user, loading: userLoading } = useAuth();
   const firestore = useFirestore();
+  
+  console.error('[EmiList] Render Start. User Loading:', userLoading, 'User:', user ? {uid: user.uid, role: user.role} : null);
+
   const customersQuery = useMemo(() => {
+    console.error('[EmiList] useMemo for query executing. Firestore:', !!firestore, 'User:', user ? {uid: user.uid, role: user.role} : null);
     if (!firestore || !user) {
+        console.error('[EmiList] Query is null because firestore or user is missing.');
         return null;
     }
     const customersCollection = collection(firestore, 'customers');
+    let q;
     if (user.role === 'admin') {
-        return query(customersCollection, orderBy('name', 'asc'));
+        q = query(customersCollection, orderBy('name', 'asc'));
+        console.error('[EmiList] Created ADMIN query.');
+    } else {
+        q = query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
+        console.error('[EmiList] Created AGENT query for agent.uid:', user.uid);
     }
-    return query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
+    return q;
   }, [user, firestore]);
 
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
+  console.error('[EmiList] useCollection returned. Customers Loading:', customersLoading, 'Customers Data:', customers);
+
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
@@ -101,7 +113,8 @@ export function EmiList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  const isLoading = userLoading || customersLoading;
+  const isLoading = userLoading || (customersLoading && customers === null);
+  console.error('[EmiList] Combined isLoading state:', isLoading);
 
   const loans = useMemo(() => {
     if (!customers) return [];
@@ -261,6 +274,7 @@ export function EmiList() {
   };
 
   if (isLoading) {
+      console.error('[EmiList] Rendering loading spinner.');
       return (
           <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin" />

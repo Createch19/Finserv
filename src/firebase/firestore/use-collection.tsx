@@ -34,18 +34,26 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    const queryId = query ? JSON.stringify(query) : 'null';
+    console.error(`[useCollection] useEffect triggered. Query ID: ${queryId}`);
+
     if (query === null || query === undefined) {
+      console.error('[useCollection] Query is null/undefined. Resetting state.');
       setData(null);
-      setIsLoading(false); 
+      setIsLoading(false); // Important: if no query, we are not loading.
       setError(null);
       return;
     }
 
+    console.error('[useCollection] Setting up new snapshot listener.');
     setIsLoading(true);
+    setError(null);
+    setData(null);
 
     const unsubscribe = onSnapshot(
       query,
       (snapshot: QuerySnapshot<DocumentData>) => {
+        console.error(`[useCollection] Snapshot received. Docs found: ${snapshot.docs.length}`);
         const results: WithId<T>[] = snapshot.docs.map((doc) => ({
           ...(doc.data() as T),
           id: doc.id,
@@ -55,6 +63,7 @@ export function useCollection<T = any>(
         setError(null);
       },
       (err: FirestoreError) => {
+        console.error('[useCollection] Snapshot error:', err);
         let contextualError: Error = err;
         if (err.code === 'permission-denied') {
           const path =
@@ -74,6 +83,7 @@ export function useCollection<T = any>(
     );
 
     return () => {
+      console.error('[useCollection] Unsubscribing from snapshot listener.');
       unsubscribe();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
