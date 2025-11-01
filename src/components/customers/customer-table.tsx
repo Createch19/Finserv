@@ -71,15 +71,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return null;
     }
     
-    const customersCollection = collection(firestore, 'customers');
-    
-    let q;
-    if (user.role === 'admin') {
-        q = query(customersCollection, orderBy('name', 'asc'));
-    } else {
-        q = query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
-    }
-    return q;
+    // Fetch all customers for both admins and agents.
+    return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
   }, [firestore, user]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);

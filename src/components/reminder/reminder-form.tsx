@@ -44,14 +44,8 @@ const formSchema = z.object({
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    const customersCollection = collection(firestore, 'customers');
-    
-    // Admins can see all customers, agents only see their own.
-    if (user.role === 'admin') {
-        return query(customersCollection, where('status', '!=', 'completed'));
-    } else {
-        return query(customersCollection, where('agent.uid', '==', user.uid), where('status', '!=', 'completed'));
-    }
+    // Fetch all active customers for both admins and agents.
+    return query(collection(firestore, 'customers'), where('status', '!=', 'completed'));
 }
 
 export function ReminderForm() {
