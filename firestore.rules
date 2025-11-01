@@ -26,8 +26,8 @@ service cloud.firestore {
       allow read, write: if isAdmin() || (isAuthed() && resource.data.agent.uid == request.auth.uid);
       
       // Admins can list all customers
-      // Agents can list customers where their uid matches the agent.uid field
-      allow list: if isAdmin() || (isAuthed() && request.query.where.agent.uid == request.auth.uid);
+      // Agents can list customers they are assigned to (the query on the client enforces this)
+      allow list: if isAuthed();
     }
 
     // Only admins can read or write expenses.

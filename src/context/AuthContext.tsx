@@ -45,20 +45,17 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.error('[AuthContext] useEffect triggered. Auth/Firestore initialized:', !!auth, !!firestore);
     if (!auth || !firestore) {
       setLoading(false);
       return;
     };
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.error('[AuthContext] onAuthStateChanged triggered. Firebase User:', firebaseUser?.email);
       setLoading(true);
 
       if (firebaseUser) {
         try {
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-            console.error('[AuthContext] Fetching user doc:', userDocRef.path);
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
@@ -66,10 +63,8 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
                     ...userDoc.data(),
                     uid: firebaseUser.uid,
                 } as User;
-                console.error('[AuthContext] User doc exists. Setting user:', userData);
                 setUser(userData);
             } else {
-                console.error('[AuthContext] User doc does not exist. Checking for default user.');
                 const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
                 
                 if (defaultUserInfo) {
@@ -79,30 +74,24 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
                         name: defaultUserInfo.name,
                         role: defaultUserInfo.role as 'admin' | 'agent'
                     };
-                    console.error('[AuthContext] Found default user. Creating doc:', newUser);
                     await setDoc(userDocRef, newUser);
                     setUser(newUser);
                 } else {
-                    console.error('[AuthContext] No default user found. Setting user to null.');
                     setUser(null);
                 }
             }
         } catch(error) {
-            console.error('[AuthContext] Error fetching/creating user doc:', error);
             setUser(null);
         } finally {
-            console.error('[AuthContext] Finished auth check. Setting loading to false.');
             setLoading(false);
         }
       } else {
-        console.error('[AuthContext] No firebase user. Setting user to null and loading to false.');
         setUser(null);
         setLoading(false);
       }
     });
 
     return () => {
-        console.error('[AuthContext] Unsubscribing from onAuthStateChanged.');
         unsubscribe();
     }
   }, [auth, firestore]);
@@ -111,22 +100,18 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
     if (!auth || !firestore) {
       throw new Error('Firebase Auth/Firestore is not initialized.');
     }
-    console.error('[AuthContext] signIn called for email:', email);
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       // onAuthStateChanged will handle the rest.
     } catch (error: any) {
-      console.error('[AuthContext] signIn error:', error.code);
       if (
         (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
         defaultUsers.hasOwnProperty(email)
       ) {
         try {
-          console.error('[AuthContext] User not found, attempting to create default user.');
           await createUserWithEmailAndPassword(auth, email, pass);
         } catch (creationError) {
-          console.error('[AuthContext] Failed to create default user:', creationError);
           throw creationError;
         }
       } else {
@@ -134,7 +119,6 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
       }
     } finally {
         // We let onAuthStateChanged handle the final loading state
-        console.error('[AuthContext] signIn finished.');
     }
   };
 

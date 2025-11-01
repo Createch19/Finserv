@@ -66,12 +66,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
-  console.error('[CustomerTable] Render Start. User Loading:', userLoading, 'User:', user ? {uid: user.uid, role: user.role} : null);
-
   const customersQuery = useMemo(() => {
-    console.error('[CustomerTable] useMemo for query executing. Firestore:', !!firestore, 'User:', user ? {uid: user.uid, role: user.role} : null);
     if (!firestore || !user) {
-        console.error('[CustomerTable] Query is null because firestore or user is missing.');
         return null;
     }
     
@@ -80,22 +76,16 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     let q;
     if (user.role === 'admin') {
         q = query(customersCollection, orderBy('name', 'asc'));
-        console.error('[CustomerTable] Created ADMIN query.');
     } else {
         q = query(customersCollection, where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
-        console.error('[CustomerTable] Created AGENT query for agent.uid:', user.uid);
     }
     return q;
   }, [firestore, user]);
 
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
   
-  console.error('[CustomerTable] useCollection returned. Customers Loading:', customersLoading, 'Customers Data:', customers);
-
-  const isLoading = userLoading || (customersLoading && customers === null);
+  const isLoading = userLoading || (customersLoading && !error);
   
-  console.error('[CustomerTable] Combined isLoading state:', isLoading);
-
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -146,7 +136,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   };
   
   if (isLoading) {
-      console.error('[CustomerTable] Rendering loading spinner.');
       return (
           <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -155,7 +144,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   }
   
   if (!customers || customers.length === 0) {
-      console.error('[CustomerTable] Rendering "No customers found" message.');
       return (
           <div className="text-center py-10 text-muted-foreground">
               <p>No customers found.</p>
@@ -163,7 +151,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       )
   }
   
-  console.error('[CustomerTable] Rendering customer table/list.');
   return (
     <>
         {/* Mobile View: Card List */}
