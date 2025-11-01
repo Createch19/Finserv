@@ -81,21 +81,26 @@ export function EmiList() {
   const { user, loading: userLoading } = useAuth();
   const firestore = useFirestore();
 
-  const customersQuery = useMemo(() => {
+   const customersQuery = useMemo(() => {
     if (!firestore || !user) {
         return null;
     }
-    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'completed', 'overdue']));
-    return query(q, orderBy('name', 'asc'));
+    // Admins fetch all customers, agents fetch only their own.
+    // We will filter out 'pending' customers on the client-side.
+    if (user.role === 'admin') {
+      return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    } else {
+      return query(collection(firestore, 'customers'), where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
+    }
   }, [user, firestore]);
 
   const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
   
   const customers = useMemo(() => {
     if (!customersData) return [];
-    if (user?.role === 'admin') return customersData;
-    return customersData.filter(c => c.agent.uid === user?.uid);
-  }, [customersData, user]);
+    // Filter out pending customers on the client.
+    return customersData.filter(c => c.status !== 'pending');
+  }, [customersData]);
 
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
@@ -501,3 +506,5 @@ export function EmiList() {
     </>
   );
 }
+
+    

@@ -14,8 +14,13 @@ import { Loader2 } from "lucide-react";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue', 'completed']));
-    return q;
+    // Admins fetch all customers, agents fetch only their own.
+    // We will filter out 'pending' customers on the client-side.
+    if (user.role === 'admin') {
+        return collection(firestore, 'customers');
+    } else {
+        return query(collection(firestore, 'customers'), where('agent.uid', '==', user.uid));
+    }
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
@@ -35,9 +40,9 @@ export default function ReportsPage() {
 
   const customers = useMemo(() => {
     if (!customersData) return [];
-    if (user?.role === 'admin') return customersData;
-    return customersData.filter(c => c.agent.uid === user?.uid);
-  }, [customersData, user]);
+    // Filter out pending customers on the client.
+    return customersData.filter(c => c.status !== 'pending');
+  }, [customersData]);
 
   const isLoading = customersLoading || expensesLoading;
 
@@ -109,3 +114,5 @@ export default function ReportsPage() {
     </>
   );
 }
+
+    

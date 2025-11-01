@@ -73,18 +73,23 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return null;
     }
     
-    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'completed', 'overdue']));
-    
-    return query(q, orderBy('name', 'asc'));
+    // Admins fetch all customers, agents fetch only their own.
+    // We will filter out 'pending' customers on the client-side.
+    if (user.role === 'admin') {
+      return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    } else {
+      return query(collection(firestore, 'customers'), where('agent.uid', '==', user.uid), orderBy('name', 'asc'));
+    }
   }, [firestore, user]);
 
   const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
   
   const customers = useMemo(() => {
     if (!customersData) return [];
-    if (user?.role === 'admin') return customersData;
-    return customersData.filter(c => c.agent.uid === user?.uid);
-  }, [customersData, user]);
+    // Filter out pending customers on the client.
+    // This correctly handles old documents that don't have a status field.
+    return customersData.filter(c => c.status !== 'pending');
+  }, [customersData]);
 
   const isLoading = userLoading || (customersLoading && !error);
   
@@ -213,7 +218,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                         </CardHeader>
                         <CardContent className="flex items-center justify-between">
                             <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
-                                {customer.status}
+                                {customer.status || 'Active'}
                             </Badge>
                             <div className="text-right">
                                 <div className="font-medium">{formatCurrency(customer.financedAmount)}</div>
@@ -253,7 +258,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                         </TableCell>
                         <TableCell>
                             <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
-                            {customer.status}
+                            {customer.status || 'Active'}
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
@@ -326,3 +331,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </>
   );
 }
+
+    
