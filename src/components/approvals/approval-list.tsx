@@ -150,18 +150,35 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
                 <TableCell className="text-right space-x-2">
                   {user?.role === 'admin' && (
                     <>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApprove(customer.id)}
-                        disabled={approvingId === customer.id || deletingId === customer.id}
-                      >
-                        {approvingId === customer.id ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                        )}
-                        Approve
-                      </Button>
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                disabled={approvingId === customer.id || deletingId === customer.id}
+                              >
+                                {approvingId === customer.id ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Approve
+                              </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  This will approve the customer and move them to the active list. This action can be managed later.
+                              </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleApprove(customer.id)}>
+                                  Confirm
+                              </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
 
                       <AlertDialog>
                           <AlertDialogTrigger asChild>
