@@ -106,8 +106,9 @@ export function ApprovalList() {
           <TableHeader>
             <TableRow>
               <TableHead>Customer Name</TableHead>
-              <TableHead>Financed Amount</TableHead>
-              <TableHead>Submitted By</TableHead>
+              <TableHead>Down Payment</TableHead>
+              <TableHead>Interest</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Date Submitted</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -121,8 +122,9 @@ export function ApprovalList() {
                   </Link>
                    <div className="text-sm text-muted-foreground">{customer.phone}</div>
                 </TableCell>
-                <TableCell>{formatCurrency(customer.financedAmount)}</TableCell>
-                <TableCell>{customer.agent.name}</TableCell>
+                <TableCell>{formatCurrency(customer.downPayment)}</TableCell>
+                <TableCell>{formatCurrency(customer.interestAmount)}</TableCell>
+                <TableCell>{customer.duration} months</TableCell>
                 <TableCell>{format(new Date(customer.startDate), 'dd MMM yyyy')}</TableCell>
                 <TableCell className="text-right">
                   {user?.role === 'admin' && (
