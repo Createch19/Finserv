@@ -16,12 +16,14 @@ export default function ApprovalsPage() {
   const firestore = useFirestore();
 
   const pendingCustomersQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
+    // Both admins and agents can see all pending approvals.
+    // The button to approve is controlled by role.
     return query(
       collection(firestore, "customers"),
       where("status", "==", "pending")
     );
-  }, [firestore, user]);
+  }, [firestore]);
 
   const {
     data: pendingCustomers,
@@ -72,7 +74,7 @@ export default function ApprovalsPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.count}</div>
+                        <div className="text-2xl font-bold text-primary">{stats.count}</div>
                     </CardContent>
                 </Card>
                  <Card>
@@ -81,7 +83,7 @@ export default function ApprovalsPage() {
                         <Banknote className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatValue(stats.totalFinanced)}</div>
+                        <div className="text-2xl font-bold text-primary">{formatValue(stats.totalFinanced)}</div>
                     </CardContent>
                 </Card>
             </div>
