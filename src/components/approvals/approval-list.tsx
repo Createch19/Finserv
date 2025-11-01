@@ -3,10 +3,10 @@
 
 import { useState } from "react";
 import { useFirestore } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import type { Customer, WithId } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -19,6 +19,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
@@ -37,6 +47,7 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
   const firestore = useFirestore();
   const { toast } = useToast();
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleApprove = async (customerId: string) => {
     if (!firestore) return;
@@ -59,6 +70,27 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
     } finally {
       setApprovingId(null);
     }
+  };
+
+  const handleDelete = (customerId: string) => {
+    if (!firestore) return;
+    const docRef = doc(firestore, 'customers', customerId);
+    setDeletingId(customerId);
+    
+    deleteDoc(docRef).then(() => {
+      toast({
+        title: "Request Deleted",
+        description: "The approval request has been successfully deleted.",
+      });
+    }).catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
+        setDeletingId(null);
+    });
   };
 
   if (isLoading) {
@@ -114,20 +146,44 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
                 <TableCell>{formatCurrency(customer.interestAmount)}</TableCell>
                 <TableCell>{customer.duration} months</TableCell>
                 <TableCell>{format(new Date(customer.startDate), 'dd MMM yyyy')}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right space-x-2">
                   {user?.role === 'admin' && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleApprove(customer.id)}
-                      disabled={approvingId === customer.id}
-                    >
-                      {approvingId === customer.id ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                      )}
-                      Approve
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(customer.id)}
+                        disabled={approvingId === customer.id || deletingId === customer.id}
+                      >
+                        {approvingId === customer.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Approve
+                      </Button>
+
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm" disabled={deletingId === customer.id || approvingId === customer.id}>
+                                  {deletingId === customer.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete this approval request.
+                              </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(customer.id)}>
+                                  Continue
+                              </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                    </>
                   )}
                 </TableCell>
               </TableRow>
