@@ -107,6 +107,7 @@ export function ApprovalList() {
             <TableRow>
               <TableHead>Customer Name</TableHead>
               <TableHead>Down Payment</TableHead>
+              <TableHead>Financed Amount</TableHead>
               <TableHead>Interest</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Date Submitted</TableHead>
@@ -123,6 +124,7 @@ export function ApprovalList() {
                    <div className="text-sm text-muted-foreground">{customer.phone}</div>
                 </TableCell>
                 <TableCell>{formatCurrency(customer.downPayment)}</TableCell>
+                <TableCell>{formatCurrency(customer.financedAmount)}</TableCell>
                 <TableCell>{formatCurrency(customer.interestAmount)}</TableCell>
                 <TableCell>{customer.duration} months</TableCell>
                 <TableCell>{format(new Date(customer.startDate), 'dd MMM yyyy')}</TableCell>
