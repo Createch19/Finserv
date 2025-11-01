@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt } from "lucide-react";
-import { CollectionChart, ProfitChart, CollectionCountChart } from "@/components/reports/charts";
+import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -128,15 +128,6 @@ export default function DashboardPage() {
             <CardContent>
                 <CollectionCountChart customers={customers} height={250} />
             </CardContent>
-        </Card>
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Profit Analysis</CardTitle>
-             <CardDescription>Comparison of interest earned against the principal amount collected and expenses.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin'}/>
-          </CardContent>
         </Card>
       </div>
     </>
