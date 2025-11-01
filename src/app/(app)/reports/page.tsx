@@ -14,8 +14,8 @@ import { Loader2 } from "lucide-react";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    // Fetch all customers for both admins and agents.
-    return collection(firestore, 'customers');
+    // Fetch all approved customers for both admins and agents.
+    return query(collection(firestore, 'customers'), where('status', '!=', 'pending'));
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {

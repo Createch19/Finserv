@@ -142,7 +142,7 @@ export function AddCustomerForm() {
       duration: values.duration,
       monthlyEMI: finalMonthlyEMI,
       startDate: values.startDate.toISOString(),
-      status: "active",
+      status: "pending",
       payments: [],
       agent: {
           uid: user.uid,
@@ -154,8 +154,8 @@ export function AddCustomerForm() {
     setDoc(newCustomerDocRef, newCustomer)
       .then(() => {
         toast({
-          title: "Customer Added",
-          description: `${values.customerName} has been successfully added.`,
+          title: "Submission Successful",
+          description: `${values.customerName} has been submitted for approval.`,
         });
         router.push("/customers");
       })
@@ -277,7 +277,7 @@ export function AddCustomerForm() {
             <CardFooter>
               <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Customer
+                Submit for Approval
               </Button>
             </CardFooter>
         </Card>

@@ -48,6 +48,8 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
       return 'secondary';
     case 'overdue':
       return 'destructive';
+    case 'pending':
+        return 'outline';
     default:
       return 'outline';
   }
@@ -71,8 +73,8 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
         return null;
     }
     
-    // Fetch all customers for both admins and agents.
-    return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    // Fetch all customers for both admins and agents, excluding 'pending'.
+    return query(collection(firestore, 'customers'), where('status', '!=', 'pending'), orderBy('name', 'asc'));
   }, [firestore, user]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
@@ -139,7 +141,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   if (!customers || customers.length === 0) {
       return (
           <div className="text-center py-10 text-muted-foreground">
-              <p>No customers found.</p>
+              <p>No approved customers found.</p>
           </div>
       )
   }

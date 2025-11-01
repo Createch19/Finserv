@@ -19,6 +19,7 @@ const getStatusBadgeVariant = (status: Customer['status']) => {
     case 'active': return 'default';
     case 'completed': return 'secondary';
     case 'overdue': return 'destructive';
+    case 'pending': return 'outline'
     default: return 'outline';
   }
 };

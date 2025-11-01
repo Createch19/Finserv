@@ -85,8 +85,8 @@ export function EmiList() {
     if (!firestore || !user) {
         return null;
     }
-    // Fetch all customers for both admins and agents.
-    return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    // Fetch all approved customers for both admins and agents.
+    return query(collection(firestore, 'customers'), where('status', '!=', 'pending'), orderBy('name', 'asc'));
   }, [user, firestore]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);

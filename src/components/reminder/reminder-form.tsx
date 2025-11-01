@@ -44,8 +44,8 @@ const formSchema = z.object({
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    // Fetch all active customers for both admins and agents.
-    return query(collection(firestore, 'customers'), where('status', '!=', 'completed'));
+    // Fetch all active, non-completed customers for both admins and agents.
+    return query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
 }
 
 export function ReminderForm() {

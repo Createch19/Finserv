@@ -34,7 +34,7 @@ export type Customer = {
   duration: number; // in months
   monthlyEMI: number;
   startDate: string; // ISO 8601 format
-  status: 'active' | 'completed' | 'overdue';
+  status: 'pending' | 'active' | 'completed' | 'overdue';
   payments: Payment[];
   agent: Agent;
 };
