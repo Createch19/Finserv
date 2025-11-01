@@ -84,7 +84,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
 
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
-  const isLoading = userLoading || customersLoading;
+  const isLoading = userLoading || (customersLoading && customersQuery !== null);
   
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
@@ -143,7 +143,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       )
   }
   
-  if (!isLoading && (!currentCustomers || currentCustomers.length === 0)) {
+  if (!currentCustomers || currentCustomers.length === 0) {
       return (
           <div className="text-center py-10 text-muted-foreground">
               <p>No customers found.</p>
