@@ -1,14 +1,15 @@
 
+
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInterval, parseISO } from "date-fns";
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon, Search } from "lucide-react";
+import { Loader2, CalendarIcon, Search, MoreHorizontal, CircleDollarSign, Hash, CalendarDays, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -20,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
@@ -33,6 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
+import { Separator } from "../ui/separator";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -69,13 +70,23 @@ const getStatusBadgeVariant = (status: EmiStatus | ReturnType<typeof getOverallL
   }
 };
 
+const getStatusIcon = (status: EmiStatus) => {
+    switch (status) {
+        case "paid": return <CheckCircle2 className="text-green-500" />;
+        case "overdue": return <XCircle className="text-destructive" />;
+        case "due": return <Clock className="text-primary" />;
+        case "upcoming": return <CalendarDays className="text-muted-foreground" />;
+    }
+}
+
 const getOverallLoanStatus = (emis: EmiEntry[]) => {
     if (emis.every(e => e.isPaid)) return 'completed';
     if (emis.some(e => e.status === 'overdue')) return 'overdue';
     return 'active';
 }
 
-const formatCurrency = (amount: number) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
+const formatCurrency = (amount: number) => amount.toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
+
 
 export function EmiList() {
   const { user, loading: userLoading } = useAuth();
@@ -85,8 +96,6 @@ export function EmiList() {
     if (!firestore || !user) {
         return null;
     }
-    // Admins and Agents fetch all customers.
-    // We will filter out 'pending' customers on the client-side.
     return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
   }, [user, firestore]);
 
@@ -172,7 +181,7 @@ export function EmiList() {
       const dateMatch = !dateRange?.from || loan.emis.some(emi => 
         !emi.isPaid && isWithinInterval(emi.dueDate, { start: dateRange.from!, end: dateRange.to || dateRange.from! })
       );
-      const searchMatch = !searchTerm || loan.name.toLowerCase().includes(lowercasedFilter);
+      const searchMatch = !searchTerm || loan.name.toLowerCase().includes(lowercasedFilter) || loan.phoneModel.toLowerCase().includes(lowercasedFilter);
       return statusMatch && dateMatch && searchMatch;
     });
   }, [loans, loanStatusFilter, dateRange, searchTerm]);
@@ -215,7 +224,7 @@ export function EmiList() {
     updateDoc(customerDocRef, updatePayload).then(() => {
         toast({
             title: "Payment Recorded",
-            description: `Payment of ₹${formatCurrency(selectedEmiForPayment?.emiAmount)} for ${selectedEmiForPayment?.customerName} has been recorded.`,
+            description: `Payment of ${formatCurrency(selectedEmiForPayment?.emiAmount)} for ${selectedEmiForPayment?.customerName} has been recorded.`,
         });
     }).catch(serverError => {
         const permissionError = new FirestorePermissionError({
@@ -275,14 +284,13 @@ export function EmiList() {
 
   return (
     <>
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex flex-col sm:flex-row gap-4 mb-4 items-center flex-wrap">
+    <div className="sticky top-14 md:top-0 bg-background/95 backdrop-blur-sm z-10 -mx-4 sm:mx-0 px-4 sm:px-0 py-4 border-b">
+        <div className="flex flex-col sm:flex-row gap-2 items-center flex-wrap">
              <div className="relative w-full sm:w-auto sm:flex-grow lg:flex-grow-0">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="search"
-                    placeholder="Search by name..."
+                    placeholder="Search by name or model..."
                     className="w-full rounded-lg bg-background pl-8 sm:w-[200px] lg:w-[250px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -343,110 +351,81 @@ export function EmiList() {
                 </Button>
             )}
         </div>
-        <Accordion type="single" collapsible className="w-full">
-            {filteredLoans.map(loan => (
-                <AccordionItem value={loan.id} key={loan.id}>
-                    <AccordionTrigger className="hover:no-underline hover:bg-muted/50 px-4 rounded-md">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between w-full">
-                           <div className="flex-1 text-left">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                 <Link href={`/customers/${loan.id}`} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>
-                                    {loan.name}
-                                  </Link>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-80">
-                                <Card className="border-0 shadow-none">
-                                  <CardHeader className="pb-4">
-                                      <CardTitle>{loan.name}</CardTitle>
-                                      <CardDescription>{loan.phoneModel}</CardDescription>
-                                  </CardHeader>
-                                  <CardContent>
-                                      <div className="space-y-2">
-                                          <div className="flex justify-between items-center">
-                                            <span className="text-sm text-muted-foreground">Status</span>
-                                            <Badge variant={getStatusBadgeVariant(loan.overallStatus)} className="capitalize">
-                                                {loan.overallStatus}
-                                            </Badge>
-                                          </div>
-                                          <div className="space-y-1">
-                                            <span className="text-sm text-muted-foreground">Progress ({loan.paidCount} / {loan.duration} Paid)</span>
-                                            <Progress value={(loan.paidCount / loan.duration) * 100} className="h-2" />
-                                          </div>
-                                      </div>
-                                  </CardContent>.
-                                </Card>
-                              </PopoverContent>
-                            </Popover>
-                             <p className="text-sm text-muted-foreground">{loan.phoneModel}</p>
-                           </div>
-                           <div className="flex items-center gap-4 mt-2 md:mt-0">
-                                <div className="text-sm text-muted-foreground w-28 text-right">
-                                    {loan.paidCount} / {loan.duration} Paid
-                                </div>
-                                <Progress value={(loan.paidCount / loan.duration) * 100} className="w-24 h-2" />
-                                <Badge variant={getOverallLoanStatus(loan.emis) === 'overdue' ? 'destructive' : 'default'} className="capitalize w-24 justify-center">
-                                    {loan.overallStatus}
-                                </Badge>
-                           </div>
+    </div>
+    <div className="space-y-4 pt-4">
+        {filteredLoans.map(loan => (
+            <Card key={loan.id}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <Link href={`/customers/${loan.id}`} passHref>
+                          <CardTitle className="hover:underline">{loan.name}</CardTitle>
+                        </Link>
+                        <CardDescription>{loan.phoneModel}</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="text-right">
+                            <p className="text-sm font-medium">{loan.paidCount} / {loan.duration} paid</p>
+                            <Progress value={(loan.paidCount / loan.duration) * 100} className="w-24 h-2 mt-1" />
                         </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pt-2 pb-4 border-t">
-                        <div className="space-y-2 mt-4">
-                            {loan.emis.map(emi => (
-                                <div key={emi.emiNumber} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg border bg-card hover:bg-secondary/50 transition-colors">
-                                    <div className="flex-1 mb-2 md:mb-0">
-                                        <p className="font-medium text-sm">
-                                            EMI #{emi.emiNumber}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                           {emi.isPaid && emi.paidDate 
-                                                ? `Paid on ${format(emi.paidDate, "PPP")}`
-                                                : `Due on ${format(emi.dueDate, "PPP")}`
-                                           }
-                                           {emi.status === 'overdue' && emi.overdueDays && (
-                                                <span className="text-destructive"> ({emi.overdueDays} {emi.overdueDays > 1 ? 'days' : 'day'} overdue)</span>
-                                            )}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-4 w-full md:w-auto">
-                                        <span className="font-semibold">₹{formatCurrency(emi.emiAmount)}</span>
-                                        <Badge variant={getStatusBadgeVariant(emi.status)} className="capitalize w-20 justify-center">
-                                        {emi.status}
-                                        </Badge>
-                                        
-                                        {!emi.isPaid && (
-                                          <Button variant="outline" size="sm" onClick={() => setSelectedEmiForPayment(emi)} disabled={emi.isPaid}>
-                                              Record Payment
-                                          </Button>
-                                        )}
-                                        {emi.isLastPaid && (
-                                          <Button variant="destructive" size="sm" onClick={() => setSelectedEmiForRevoke(emi)}>
-                                              Revoke
-                                          </Button>
-                                        )}
-                                    </div>
+                        <Badge variant={getOverallLoanStatus(loan.emis) === 'overdue' ? 'destructive' : 'default'} className="capitalize w-24 justify-center">
+                            {loan.overallStatus}
+                        </Badge>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {loan.emis.map(emi => (
+                        <div key={emi.emiNumber} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
+                            <div className="flex items-center gap-4 flex-1 mb-2 md:mb-0">
+                                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-background">
+                                    {getStatusIcon(emi.status)}
                                 </div>
-                            ))}
+                                <div className="flex-1">
+                                    <p className="font-medium text-sm">
+                                        EMI #{emi.emiNumber} - <span className="font-semibold">{formatCurrency(emi.emiAmount)}</span>
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                       {emi.isPaid && emi.paidDate 
+                                            ? `Paid on ${format(emi.paidDate, "PPP")}`
+                                            : `Due on ${format(emi.dueDate, "PPP")}`
+                                       }
+                                       {emi.status === 'overdue' && emi.overdueDays && (
+                                            <span className="text-destructive font-medium"> ({emi.overdueDays} {emi.overdueDays > 1 ? 'days' : 'day'} overdue)</span>
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                {!emi.isPaid && (
+                                  <Button className="flex-1 md:flex-initial" variant="outline" size="sm" onClick={() => setSelectedEmiForPayment(emi)} disabled={emi.isPaid}>
+                                      Record Payment
+                                  </Button>
+                                )}
+                                {emi.isLastPaid && (
+                                  <Button className="flex-1 md:flex-initial" variant="destructive" size="sm" onClick={() => setSelectedEmiForRevoke(emi)}>
+                                      Revoke
+                                  </Button>
+                                )}
+                            </div>
                         </div>
-                    </AccordionContent>
-                </AccordionItem>
-            ))}
-        </Accordion>
-         {!isLoading && filteredLoans.length === 0 && (
-             <div className="text-center py-10 text-muted-foreground">
+                    ))}
+                </CardContent>
+            </Card>
+        ))}
+
+        {!isLoading && filteredLoans.length === 0 && (
+            <div className="text-center py-20 text-muted-foreground">
                 <p>No loans match the current filters.</p>
             </div>
-          )}
-      </CardContent>
-    </Card>
+        )}
+    </div>
+
 
     <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
               <AlertDialogDescription>
-                  Record a payment of <strong>₹{formatCurrency(selectedEmiForPayment?.emiAmount || 0)}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>.
+                  Record a payment of <strong>{formatCurrency(selectedEmiForPayment?.emiAmount || 0)}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-4 py-4">
