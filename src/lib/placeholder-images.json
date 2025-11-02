@@ -3,8 +3,8 @@
     {
       "id": "user-avatar",
       "description": "Default user avatar",
-      "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxoZWFkc2hvdHxlbnwwfHx8fDE3MjE0MDk5MDB8MA&ixlib=rb-4.0.3&q=80&w=1080",
-      "imageHint": "professional headshot"
+      "imageUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhdmF0YXJ8ZW58MHx8fHwxNzIyMjcwNzY5fDA&ixlib=rb-4.0.3&q=80&w=1080",
+      "imageHint": "user avatar"
     }
   ]
 }
