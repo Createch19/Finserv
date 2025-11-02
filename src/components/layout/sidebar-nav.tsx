@@ -21,7 +21,6 @@ import {
   Bot,
   Receipt,
   ShieldCheck,
-  User,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,7 +36,6 @@ const menuItems = [
 ];
 
 const bottomMenuItems = [
-    { href: '/profile', label: 'Profile', icon: User },
     { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
