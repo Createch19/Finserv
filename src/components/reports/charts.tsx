@@ -200,8 +200,7 @@ export function LoanStatusChart({ customers, height = 200 }: { customers: WithId
 
 // --- Interest Rate Chart ---
 export function InterestRateChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
-  const monthlyInterestRateData = (customers || [])
-    .reduce((acc, customer) => {
+  const monthlyInterestRateData = (customers || []).reduce((acc, customer) => {
       const month = format(parseISO(customer.startDate), "MMM yyyy");
       if (!acc[month]) {
         acc[month] = { totalInterestRate: 0, count: 0 };
@@ -257,7 +256,7 @@ export function NewCustomersChart({ customers, height = 350 }: { customers: With
     .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
   const chartConfig = {
-    count: { label: "New Customers", color: "hsl(var(--chart-3))" },
+    count: { label: "New Customers", color: "hsl(var(--chart-1))" },
   };
 
   return (
