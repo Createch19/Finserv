@@ -170,6 +170,17 @@ export function SettingsTabs() {
     handleColorChange('background', defaultColors.background);
   };
 
+  const ColorPicker = ({ label, id, value, onChange }: { label: string, id: string, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
+    <div className="flex flex-col items-center gap-2">
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <div className="relative">
+        <Input type="color" id={id} value={value} onChange={onChange} className="w-16 h-16 p-1 border-2 border-border rounded-full appearance-none cursor-pointer" />
+        <Palette className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-white mix-blend-difference pointer-events-none" />
+      </div>
+      <span className="text-xs font-mono text-muted-foreground">{value}</span>
+    </div>
+  );
+
 
   return (
     <Tabs defaultValue="defaults" className="w-full">
@@ -205,18 +216,11 @@ export function SettingsTabs() {
                 Change the color scheme of the application.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="flex items-center gap-4">
-                    <Label htmlFor="primary-color">Primary</Label>
-                    <Input type="color" id="primary-color" value={colors.primary} onChange={(e) => handleColorChange('primary', e.target.value)} className="w-12 h-12 p-1"/>
-                </div>
-                 <div className="flex items-center gap-4">
-                    <Label htmlFor="accent-color">Accent</Label>
-                    <Input type="color" id="accent-color" value={colors.accent} onChange={(e) => handleColorChange('accent', e.target.value)} className="w-12 h-12 p-1"/>
-                </div>
-                 <div className="flex items-center gap-4">
-                    <Label htmlFor="background-color">Background</Label>
-                    <Input type="color" id="background-color" value={colors.background} onChange={(e) => handleColorChange('background', e.target.value)} className="w-12 h-12 p-1"/>
+            <CardContent>
+                <div className="flex flex-row justify-around items-center p-4 rounded-lg bg-muted/50">
+                    <ColorPicker label="Primary" id="primary-color" value={colors.primary} onChange={(e) => handleColorChange('primary', e.target.value)} />
+                    <ColorPicker label="Accent" id="accent-color" value={colors.accent} onChange={(e) => handleColorChange('accent', e.target.value)} />
+                    <ColorPicker label="Background" id="background-color" value={colors.background} onChange={(e) => handleColorChange('background', e.target.value)} />
                 </div>
             </CardContent>
             <CardFooter>
@@ -243,3 +247,5 @@ export function SettingsTabs() {
     </Tabs>
   );
 }
+
+    
