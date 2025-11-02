@@ -9,7 +9,7 @@ import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInte
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon, Search, MoreHorizontal, CircleDollarSign, Hash, CalendarDays, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Loader2, CalendarIcon, Search, MoreHorizontal, CircleDollarSign, Hash, CalendarDays, CheckCircle2, XCircle, Clock, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -22,6 +22,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
@@ -352,10 +358,12 @@ export function EmiList() {
             )}
         </div>
     </div>
-    <div className="space-y-4 pt-4">
-        {filteredLoans.map(loan => (
-            <Card key={loan.id}>
-                <CardHeader className="flex flex-row items-center justify-between">
+    <Accordion type="single" collapsible className="w-full space-y-4 pt-4">
+      {filteredLoans.map(loan => (
+        <AccordionItem key={loan.id} value={loan.id} className="border-b-0">
+          <Card>
+            <AccordionTrigger className="p-0 hover:no-underline w-full [&>svg]:mx-6">
+                <CardHeader className="flex flex-row items-center justify-between w-full pr-0">
                     <div>
                         <Link href={`/customers/${loan.id}`} passHref>
                           <CardTitle className="hover:underline">{loan.name}</CardTitle>
@@ -372,6 +380,8 @@ export function EmiList() {
                         </Badge>
                     </div>
                 </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent>
                 <CardContent className="space-y-2">
                     {loan.emis.map(emi => (
                         <div key={emi.emiNumber} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
@@ -409,15 +419,17 @@ export function EmiList() {
                         </div>
                     ))}
                 </CardContent>
-            </Card>
-        ))}
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
+      ))}
+    </Accordion>
 
-        {!isLoading && filteredLoans.length === 0 && (
-            <div className="text-center py-20 text-muted-foreground">
-                <p>No loans match the current filters.</p>
-            </div>
-        )}
-    </div>
+    {!isLoading && filteredLoans.length === 0 && (
+        <div className="text-center py-20 text-muted-foreground">
+            <p>No loans match the current filters.</p>
+        </div>
+    )}
 
 
     <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
