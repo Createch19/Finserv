@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -9,7 +8,7 @@ import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInte
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon, Search, MoreHorizontal, CircleDollarSign, Hash, CalendarDays, CheckCircle2, XCircle, Clock, ChevronDown } from "lucide-react";
+import { Loader2, CalendarIcon, Search, CheckCircle2, XCircle, Clock, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -34,12 +33,11 @@ import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where, orderBy } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, orderBy } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
-import { Separator } from "../ui/separator";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -62,18 +60,6 @@ const getEmiStatus = (dueDate: Date, isPaid: boolean): EmiStatus => {
   if (isBefore(startOfDay(dueDate), today)) return "overdue";
   if (differenceInDays(startOfDay(dueDate), today) <= 7) return "due";
   return "upcoming";
-};
-
-const getStatusBadgeVariant = (status: EmiStatus | ReturnType<typeof getOverallLoanStatus>) => {
-  switch (status) {
-    case "paid": return "success";
-    case "due": return "default";
-    case "overdue": return "destructive";
-    case "upcoming": return "outline";
-    case "active": return "default";
-    case "completed": return "success";
-    default: return "outline";
-  }
 };
 
 const getStatusIcon = (status: EmiStatus) => {
@@ -366,9 +352,9 @@ export function EmiList() {
                 <CardHeader className="flex flex-row items-center justify-between w-full pr-0">
                     <div>
                         <Link href={`/customers/${loan.id}`} passHref>
-                          <CardTitle className="hover:underline">{loan.name}</CardTitle>
+                          <CardTitle className="hover:underline text-lg">{loan.name}</CardTitle>
                         </Link>
-                        <CardDescription>{loan.phoneModel}</CardDescription>
+                        <CardDescription className="text-xs">{loan.phoneModel}</CardDescription>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="text-right">
@@ -493,5 +479,3 @@ export function EmiList() {
     </>
   );
 }
-
-    
