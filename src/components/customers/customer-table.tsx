@@ -33,6 +33,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Customer, WithId, User } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore } from '@/firebase';
@@ -156,7 +157,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   }
   
   return (
-    <>
+    <TooltipProvider>
         {/* Mobile View: Card List */}
         <div className="md:hidden space-y-4">
             {currentCustomers.map(customer => (
@@ -259,19 +260,28 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
-                            <Link href={`/customers/${customer.id}`} passHref>
-                            <Button variant="outline" size="sm">
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                            </Button>
-                            </Link>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Link href={`/customers/${customer.id}`} passHref>
+                                        <Button variant="outline" size="icon">
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent>View Details</TooltipContent>
+                            </Tooltip>
+                            
                             {user?.role === 'admin' && (
                                 <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="sm" disabled={deletingId === customer.id}>
-                                        {deletingId === customer.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                                        Delete
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="destructive" size="icon" disabled={deletingId === customer.id}>
+                                                {deletingId === customer.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Delete Customer</TooltipContent>
+                                    </Tooltip>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
@@ -325,8 +335,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                 </Button>
             </div>
         </div>
-    </>
+    </TooltipProvider>
   );
 }
-
-    
