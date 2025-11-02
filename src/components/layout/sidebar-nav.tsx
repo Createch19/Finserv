@@ -21,6 +21,7 @@ import {
   Bot,
   Receipt,
   ShieldCheck,
+  User,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -33,8 +34,12 @@ const menuItems = [
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
-  { href: '/settings', label: 'Settings', icon: Settings },
 ];
+
+const bottomMenuItems = [
+    { href: '/profile', label: 'Profile', icon: User },
+    { href: '/settings', label: 'Settings', icon: Settings },
+]
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -52,7 +57,7 @@ export function SidebarNav() {
             <span className="font-headline text-lg font-semibold text-sidebar-foreground">FINSERV</span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent className="p-2 flex flex-col justify-between">
         <SidebarMenu>
           {filteredMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
@@ -70,6 +75,25 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
+        </SidebarMenu>
+
+        <SidebarMenu>
+            {bottomMenuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                <Link href={item.href} passHref>
+                    <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith(item.href)}
+                    tooltip={item.label}
+                    >
+                    <div>
+                        <item.icon />
+                        <span>{item.label}</span>
+                    </div>
+                    </SidebarMenuButton>
+                </Link>
+                </SidebarMenuItem>
+            ))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="hidden md:flex">
