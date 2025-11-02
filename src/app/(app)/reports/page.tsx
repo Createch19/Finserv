@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
-import { CollectionChart, ProfitChart, LoanStatusChart, InterestRateChart, CollectionCountChart } from "@/components/reports/charts";
+import { CollectionChart, ProfitChart, LoanStatusChart, InterestRateChart, CollectionCountChart, NewCustomersChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -77,15 +77,26 @@ export default function ReportsPage() {
                 </CardContent>
             </Card>
         </div>
-        <Card>
-            <CardHeader>
-                <CardTitle>Monthly Interest Rate</CardTitle>
-                <CardDescription>Average interest rate for new loans created each month.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <InterestRateChart customers={customers} height={350} />
-            </CardContent>
-        </Card>
+        <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>New Customers by Month</CardTitle>
+                    <CardDescription>Count of new customers approved each month.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <NewCustomersChart customers={customers} height={350} />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Monthly Interest Rate</CardTitle>
+                    <CardDescription>Average interest rate for new loans created each month.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <InterestRateChart customers={customers} height={350} />
+                </CardContent>
+            </Card>
+        </div>
          <div className="grid md:grid-cols-2 gap-6">
             <Card>
                 <CardHeader>

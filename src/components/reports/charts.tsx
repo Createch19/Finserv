@@ -243,3 +243,41 @@ export function InterestRateChart({ customers, height = 350 }: { customers: With
     </ChartContainer>
   );
 }
+
+// --- New Customers Chart ---
+export function NewCustomersChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
+  const monthlyData = (customers || []).reduce((acc, customer) => {
+    const monthKey = format(parseISO(customer.startDate), "MMM yyyy");
+    acc[monthKey] = (acc[monthKey] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const newCustomersChartData = Object.entries(monthlyData)
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+  const chartConfig = {
+    count: { label: "New Customers", color: "hsl(var(--chart-3))" },
+  };
+
+  return (
+    <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+      <BarChart accessibilityLayer data={newCustomersChartData}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          tickFormatter={(value) => value.slice(0, 3)}
+        />
+        <YAxis tickFormatter={(value) => String(value)} />
+        <ChartTooltip
+          cursor={false}
+          content={<ChartTooltipContent formatter={(value) => `${value} customers`} />}
+        />
+        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
