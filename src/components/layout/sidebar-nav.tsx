@@ -10,6 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   CreditCard,
@@ -33,14 +34,20 @@ const menuItems = [
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
-  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function SidebarNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { setOpenMobile, isMobile } = useSidebar();
 
   const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin');
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+        setOpenMobile(false);
+    }
+  }
 
   return (
     <>
@@ -56,7 +63,7 @@ export function SidebarNav() {
         <SidebarMenu>
           {filteredMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} passHref>
+              <Link href={item.href} passHref onClick={handleLinkClick}>
                 <SidebarMenuButton
                   asChild
                   isActive={pathname.startsWith(item.href)}
@@ -70,6 +77,20 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
+            <SidebarMenuItem key="/settings">
+              <Link href="/settings" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/settings")}
+                  tooltip={"Settings"}
+                >
+                  <div>
+                    <Settings />
+                    <span>Settings</span>
+                  </div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="hidden md:flex">
