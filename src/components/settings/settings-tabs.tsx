@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Tabs,
   TabsContent,
@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Palette } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Customer, WithId, User } from "@/types";
@@ -64,20 +64,121 @@ function getCustomersQuery(firestore: any, user: User | null) {
     return collection(firestore, 'customers');
 }
 
+const hexToHsl = (hex: string): string => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return "0 0% 0%";
+  let r = parseInt(result[1], 16) / 255;
+  let g = parseInt(result[2], 16) / 255;
+  let b = parseInt(result[3], 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+};
+
+const hslToHex = (hsl: string): string => {
+    const [h, s, l] = hsl.split(' ').map((val, index) => parseInt(val.replace('%', '')) / (index > 0 ? 100 : 360));
+    let r, g, b;
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const hue2rgb = (p: number, q: number, t: number) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+    const toHex = (x: number) => {
+        const hex = Math.round(x * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    };
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+
 export function SettingsTabs() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  
+  const [colors, setColors] = useState({
+    primary: '#1d7874',
+    accent: '#679289',
+    background: '#f4f9f4',
+  });
+
+  useEffect(() => {
+    const savedPrimary = localStorage.getItem('theme-primary');
+    const savedAccent = localStorage.getItem('theme-accent');
+    const savedBackground = localStorage.getItem('theme-background');
+    
+    const root = document.documentElement;
+    const initialColors = { primary: '#1d7874', accent: '#679289', background: '#f4f9f4' };
+
+    if (savedPrimary) {
+        root.style.setProperty('--primary', hexToHsl(savedPrimary));
+        initialColors.primary = savedPrimary;
+    }
+    if (savedAccent) {
+        root.style.setProperty('--accent', hexToHsl(savedAccent));
+        initialColors.accent = savedAccent;
+    }
+    if (savedBackground) {
+        root.style.setProperty('--background', hexToHsl(savedBackground));
+        initialColors.background = savedBackground;
+    }
+    setColors(initialColors);
+  }, []);
+
+  const handleColorChange = (colorName: keyof typeof colors, value: string) => {
+    setColors(prev => ({...prev, [colorName]: value}));
+    const hslValue = hexToHsl(value);
+    document.documentElement.style.setProperty(`--${colorName}`, hslValue);
+    localStorage.setItem(`theme-${colorName}`, value);
+    if(colorName === 'primary') {
+      document.documentElement.style.setProperty(`--ring`, hslValue);
+    }
+  }
+
+  const resetColors = () => {
+    const defaultColors = {
+      primary: '#1d7874',
+      accent: '#679289',
+      background: '#f4f9f4',
+    };
+    handleColorChange('primary', defaultColors.primary);
+    handleColorChange('accent', defaultColors.accent);
+    handleColorChange('background', defaultColors.background);
+  };
+
 
   return (
     <Tabs defaultValue="defaults" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="defaults">Defaults</TabsTrigger>
+        <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
       </TabsList>
-      <TabsContent value="defaults" className="space-y-6">
+      <TabsContent value="defaults">
         <Card>
           <CardHeader>
             <CardTitle>Application Defaults</CardTitle>
@@ -94,6 +195,33 @@ export function SettingsTabs() {
           <CardFooter>
             <Button>Save Changes</Button>
           </CardFooter>
+        </Card>
+      </TabsContent>
+      <TabsContent value="appearance">
+        <Card>
+            <CardHeader>
+                <CardTitle>Customize Appearance</CardTitle>
+                <CardDescription>
+                Change the color scheme of the application.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex items-center gap-4">
+                    <Label htmlFor="primary-color">Primary</Label>
+                    <Input type="color" id="primary-color" value={colors.primary} onChange={(e) => handleColorChange('primary', e.target.value)} className="w-12 h-12 p-1"/>
+                </div>
+                 <div className="flex items-center gap-4">
+                    <Label htmlFor="accent-color">Accent</Label>
+                    <Input type="color" id="accent-color" value={colors.accent} onChange={(e) => handleColorChange('accent', e.target.value)} className="w-12 h-12 p-1"/>
+                </div>
+                 <div className="flex items-center gap-4">
+                    <Label htmlFor="background-color">Background</Label>
+                    <Input type="color" id="background-color" value={colors.background} onChange={(e) => handleColorChange('background', e.target.value)} className="w-12 h-12 p-1"/>
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button variant="outline" onClick={resetColors}>Reset to Defaults</Button>
+            </CardFooter>
         </Card>
       </TabsContent>
       <TabsContent value="data">

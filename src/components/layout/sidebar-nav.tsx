@@ -33,11 +33,8 @@ const menuItems = [
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
-
-const bottomMenuItems = [
-    { href: '/settings', label: 'Settings', icon: Settings },
-]
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -73,25 +70,6 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
-        </SidebarMenu>
-
-        <SidebarMenu>
-            {bottomMenuItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                <Link href={item.href} passHref>
-                    <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith(item.href)}
-                    tooltip={item.label}
-                    >
-                    <div>
-                        <item.icon />
-                        <span>{item.label}</span>
-                    </div>
-                    </SidebarMenuButton>
-                </Link>
-                </SidebarMenuItem>
-            ))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="hidden md:flex">
