@@ -38,7 +38,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -278,7 +278,7 @@ export function EmiList() {
   }
 
   return (
-    <>
+    <TooltipProvider>
     <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:p-6 border-b">
         <div className="flex flex-col sm:flex-row gap-2 items-center flex-wrap">
              <div className="relative w-full sm:w-auto sm:flex-grow lg:flex-grow-0">
@@ -354,11 +354,11 @@ export function EmiList() {
             <Card>
                 <AccordionTrigger className="p-0 hover:no-underline w-full [&>svg]:mx-6">
                     <CardHeader className="flex flex-row items-center justify-between w-full pr-0">
-                        <div>
+                        <div className="text-start">
                             <Link href={`/customers/${loan.id}`} passHref>
-                            <CardTitle className="hover:underline text-base">{loan.name}</CardTitle>
+                            <CardTitle className="hover:underline text-base uppercase">{loan.name}</CardTitle>
                             </Link>
-                            <CardDescription className="text-xs">{loan.phoneModel}</CardDescription>
+                            <CardDescription className="text-xs text-left">{loan.phoneModel}</CardDescription>
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="text-right">
@@ -495,6 +495,6 @@ export function EmiList() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 }
