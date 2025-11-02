@@ -8,7 +8,7 @@ import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInte
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon, Search, CheckCircle2, XCircle, Clock, CalendarDays } from "lucide-react";
+import { Loader2, CalendarIcon, Search, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -38,6 +38,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -268,15 +269,17 @@ export function EmiList() {
 
   if (isLoading) {
       return (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin" />
           </div>
+        </div>
       )
   }
 
   return (
     <>
-    <div className="sticky top-14 md:top-0 bg-background/95 backdrop-blur-sm z-10 -mx-4 sm:mx-0 px-4 sm:px-0 py-4 border-b">
+    <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:p-6 border-b">
         <div className="flex flex-col sm:flex-row gap-2 items-center flex-wrap">
              <div className="relative w-full sm:w-auto sm:flex-grow lg:flex-grow-0">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -344,78 +347,94 @@ export function EmiList() {
             )}
         </div>
     </div>
-    <Accordion type="single" collapsible className="w-full space-y-4 pt-4">
-      {filteredLoans.map(loan => (
-        <AccordionItem key={loan.id} value={loan.id} className="border-b-0">
-          <Card>
-            <AccordionTrigger className="p-0 hover:no-underline w-full [&>svg]:mx-6">
-                <CardHeader className="flex flex-row items-center justify-between w-full pr-0">
-                    <div>
-                        <Link href={`/customers/${loan.id}`} passHref>
-                          <CardTitle className="hover:underline text-lg">{loan.name}</CardTitle>
-                        </Link>
-                        <CardDescription className="text-xs">{loan.phoneModel}</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-right">
-                            <p className="text-sm font-medium">{loan.paidCount} / {loan.duration} paid</p>
-                            <Progress value={(loan.paidCount / loan.duration) * 100} className="w-24 h-2 mt-1" />
+    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <Accordion type="single" collapsible className="w-full space-y-4">
+        {filteredLoans.map(loan => (
+            <AccordionItem key={loan.id} value={loan.id} className="border-b-0">
+            <Card>
+                <AccordionTrigger className="p-0 hover:no-underline w-full [&>svg]:mx-6">
+                    <CardHeader className="flex flex-row items-center justify-between w-full pr-0">
+                        <div>
+                            <Link href={`/customers/${loan.id}`} passHref>
+                            <CardTitle className="hover:underline text-base">{loan.name}</CardTitle>
+                            </Link>
+                            <CardDescription className="text-xs">{loan.phoneModel}</CardDescription>
                         </div>
-                        <Badge variant={getOverallLoanStatus(loan.emis) === 'overdue' ? 'destructive' : 'default'} className="capitalize w-24 justify-center">
-                            {loan.overallStatus}
-                        </Badge>
-                    </div>
-                </CardHeader>
-            </AccordionTrigger>
-            <AccordionContent>
-                <CardContent className="space-y-2">
-                    {loan.emis.map(emi => (
-                        <div key={emi.emiNumber} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
-                            <div className="flex items-center gap-4 flex-1 mb-2 md:mb-0">
-                                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-background">
-                                    {getStatusIcon(emi.status)}
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <p className="text-sm font-medium">{loan.paidCount} / {loan.duration} paid</p>
+                                <Progress value={(loan.paidCount / loan.duration) * 100} className="w-24 h-2 mt-1" />
+                            </div>
+                            <Badge variant={getOverallLoanStatus(loan.emis) === 'overdue' ? 'destructive' : 'default'} className="capitalize w-24 justify-center">
+                                {loan.overallStatus}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <CardContent className="space-y-2">
+                        {loan.emis.map(emi => (
+                            <div key={emi.emiNumber} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
+                                <div className="flex items-center gap-4 flex-1 mb-2 md:mb-0">
+                                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-background">
+                                        {getStatusIcon(emi.status)}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-medium text-sm">
+                                            EMI #{emi.emiNumber} - <span className="font-semibold">{formatCurrency(emi.emiAmount)}</span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                        {emi.isPaid && emi.paidDate 
+                                                ? `Paid on ${format(emi.paidDate, "PPP")}`
+                                                : `Due on ${format(emi.dueDate, "PPP")}`
+                                        }
+                                        {emi.status === 'overdue' && emi.overdueDays && (
+                                                <span className="text-destructive font-medium"> ({emi.overdueDays} {emi.overdueDays > 1 ? 'days' : 'day'} overdue)</span>
+                                            )}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-sm">
-                                        EMI #{emi.emiNumber} - <span className="font-semibold">{formatCurrency(emi.emiAmount)}</span>
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                       {emi.isPaid && emi.paidDate 
-                                            ? `Paid on ${format(emi.paidDate, "PPP")}`
-                                            : `Due on ${format(emi.dueDate, "PPP")}`
-                                       }
-                                       {emi.status === 'overdue' && emi.overdueDays && (
-                                            <span className="text-destructive font-medium"> ({emi.overdueDays} {emi.overdueDays > 1 ? 'days' : 'day'} overdue)</span>
-                                        )}
-                                    </p>
+                                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                                    {!emi.isPaid && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="outline" size="icon" onClick={() => setSelectedEmiForPayment(emi)} disabled={emi.isPaid}>
+                                                    <Check className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Record Payment</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    {emi.isLastPaid && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="destructive" size="icon" onClick={() => setSelectedEmiForRevoke(emi)}>
+                                                    <Undo2 className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Revoke Payment</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 w-full md:w-auto">
-                                {!emi.isPaid && (
-                                  <Button className="flex-1 md:flex-initial" variant="outline" size="sm" onClick={() => setSelectedEmiForPayment(emi)} disabled={emi.isPaid}>
-                                      Record Payment
-                                  </Button>
-                                )}
-                                {emi.isLastPaid && (
-                                  <Button className="flex-1 md:flex-initial" variant="destructive" size="sm" onClick={() => setSelectedEmiForRevoke(emi)}>
-                                      Revoke
-                                  </Button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </CardContent>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-      ))}
-    </Accordion>
+                        ))}
+                    </CardContent>
+                </AccordionContent>
+            </Card>
+            </AccordionItem>
+        ))}
+        </Accordion>
 
-    {!isLoading && filteredLoans.length === 0 && (
-        <div className="text-center py-20 text-muted-foreground">
-            <p>No loans match the current filters.</p>
-        </div>
-    )}
+        {!isLoading && filteredLoans.length === 0 && (
+            <div className="text-center py-20 text-muted-foreground">
+                <p>No loans match the current filters.</p>
+            </div>
+        )}
+    </div>
 
 
     <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
