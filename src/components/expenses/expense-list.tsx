@@ -28,6 +28,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
