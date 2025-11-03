@@ -184,7 +184,7 @@ export function LoanStatusChart({ customers, height = 200 }: { customers: WithId
     }, {} as any);
     
     return (
-        <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[200px]">
+        <ChartContainer config={chartConfig} className={`mx-auto aspect-square h-[${height}px]`}>
             <PieChart>
                  <ChartTooltip content={<ChartTooltipContent nameKey="value" hideLabel />} />
                 <Pie data={loanStatusChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
