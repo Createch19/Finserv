@@ -38,7 +38,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
-import { Tooltip, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
