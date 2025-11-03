@@ -1,7 +1,7 @@
 
 "use client"
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import type { Customer, Expense, WithId } from "@/types"
 import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore } from "date-fns"
@@ -134,31 +134,42 @@ export function CollectionCountChart({ customers, height = 350 }: { customers: W
 export function ProfitChart({ customers, expenses, isAdmin, height = 200 }: { customers: WithId<Customer>[], expenses?: WithId<Expense>[], isAdmin?: boolean, height?: number }) {
     const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
     const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
-    const totalExpenses = isAdmin ? (expenses || []).reduce((acc, e) => acc + e.amount, 0) : 0;
 
     const profitChartData = [
-        { name: 'Total Principal Financed', value: totalFinanced, fill: 'hsl(var(--chart-1))' },
-        { name: 'Potential Interest (Profit)', value: totalInterest, fill: 'hsl(var(--chart-2))' },
+        { name: 'Total Principal', value: totalFinanced, fill: 'hsl(var(--chart-1))' },
+        { name: 'Potential Interest', value: totalInterest, fill: 'hsl(var(--chart-2))' },
     ];
+    
+     const COLORS = {
+        'Total Principal': 'hsl(var(--chart-1))',
+        'Potential Interest': 'hsl(var(--chart-2))',
+    };
 
-    if (isAdmin) {
-        profitChartData.push({ name: 'Total Expenses', value: totalExpenses, fill: 'hsl(var(--destructive))' });
-    }
+    const chartConfig = profitChartData.reduce((acc, {name}) => {
+        acc[name] = { label: name, color: COLORS[name as keyof typeof COLORS] };
+        return acc;
+    }, {} as any);
 
     return (
-        <ChartContainer config={{}} className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-                 <BarChart layout="vertical" data={profitChartData}>
-                    <CartesianGrid horizontal={false} />
-                    <YAxis type="category" dataKey="name" tick={false} axisLine={false} />
-                    <XAxis type="number" hide />
-                    <ChartTooltip 
-                        cursor={{fill: 'hsl(var(--muted))'}} 
-                        content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString(undefined, {maximumFractionDigits: 0})}`}/>} 
-                    />
-                    <Bar dataKey="value" radius={5} />
-                </BarChart>
-            </ResponsiveContainer>
+       <ChartContainer config={chartConfig} className={`mx-auto aspect-square h-[${height}px]`}>
+            <PieChart>
+                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString()}`} hideLabel />} />
+                <Pie data={profitChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                    return (
+                        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                        {`${(percent * 100).toFixed(0)}%`}
+                        </text>
+                    );
+                    }}>
+                     {profitChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
+                    ))}
+                </Pie>
+                <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+            </PieChart>
         </ChartContainer>
     )
 }
@@ -277,6 +288,73 @@ export function NewCustomersChart({ customers, height = 350 }: { customers: With
         />
         <Bar dataKey="count" fill="var(--color-count)" radius={4} />
       </BarChart>
+    </ChartContainer>
+  );
+}
+
+// --- Capital Flow Chart ---
+export function CapitalFlowChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
+  const monthlyFlows = (customers || []).reduce((acc, customer) => {
+    // Outflow: New loan financed
+    const startMonthKey = format(startOfMonth(parseISO(customer.startDate)), "MMM yyyy");
+    acc[startMonthKey] = acc[startMonthKey] || { collected: 0, financed: 0 };
+    acc[startMonthKey].financed += customer.financedAmount;
+
+    // Inflow: Payments collected
+    (customer.payments || []).forEach(payment => {
+      const paymentMonthKey = format(startOfMonth(parseISO(payment.date)), "MMM yyyy");
+      acc[paymentMonthKey] = acc[paymentMonthKey] || { collected: 0, financed: 0 };
+      acc[paymentMonthKey].collected += payment.amount;
+    });
+
+    return acc;
+  }, {} as Record<string, { collected: number; financed: number }>);
+
+  let runningBalance = 0;
+  const capitalFlowData = Object.entries(monthlyFlows)
+    .map(([month, flows]) => ({ month, ...flows }))
+    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+    .map(data => {
+      const netFlow = data.collected - data.financed;
+      runningBalance += netFlow;
+      return {
+        month: data.month,
+        collected: data.collected,
+        financed: data.financed,
+        capitalPool: runningBalance
+      };
+    });
+  
+  const chartConfig = {
+    capitalPool: { label: "Available Capital", color: "hsl(var(--chart-1))" },
+    collected: { label: "Collected", color: "hsl(var(--chart-2))" },
+    financed: { label: "Financed", color: "hsl(var(--destructive))" },
+  };
+
+  return (
+     <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+      <LineChart accessibilityLayer data={capitalFlowData}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          tickFormatter={(value) => value.slice(0, 3)}
+        />
+        <YAxis
+          tickFormatter={(value) => `₹${Number(value) / 1000}k`}
+        />
+        <ChartTooltip
+          cursor={false}
+          content={<ChartTooltipContent
+            formatter={(value, name) => `₹${(Number(value)).toLocaleString(undefined, {maximumFractionDigits: 0})}`}
+            indicator="line"
+            />}
+        />
+        <ChartLegend />
+        <Line type="monotone" dataKey="capitalPool" stroke="var(--color-capitalPool)" strokeWidth={2} dot={true} />
+      </LineChart>
     </ChartContainer>
   );
 }

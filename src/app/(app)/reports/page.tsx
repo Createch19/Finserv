@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
-import { CollectionChart, ProfitChart, LoanStatusChart, CollectionCountChart, NewCustomersChart, ExpenseByTypeChart } from "@/components/reports/charts";
+import { CollectionChart, ProfitChart, LoanStatusChart, CollectionCountChart, NewCustomersChart, ExpenseByTypeChart, CapitalFlowChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -94,7 +94,7 @@ export default function ReportsPage() {
                         <CardDescription>Breakdown of expenses by category.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ExpenseByTypeChart expenses={expenses} height={350} />
+                        <ExpenseByTypeChart expenses={expenses} height={300} />
                     </CardContent>
                 </Card>
             )}
@@ -119,10 +119,20 @@ export default function ReportsPage() {
                 </CardContent>
             </Card>
          </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>Capital Reinvestment Flow</CardTitle>
+                <CardDescription>Tracks the flow of collected EMIs being reinvested into new loans.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <CapitalFlowChart customers={customers} height={350} />
+            </CardContent>
+        </Card>
       </div>
     </>
   );
 }
 
     
+
 
