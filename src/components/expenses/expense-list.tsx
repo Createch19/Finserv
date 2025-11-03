@@ -36,6 +36,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { collection, deleteDoc, doc, orderBy, query } from "firebase/firestore";
 import type { Expense, WithId } from "@/types";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
+import { Badge } from "@/components/ui/badge";
 
 const formatCurrency = (amount: number) =>
   `₹${amount.toLocaleString("en-IN", {
@@ -97,6 +98,7 @@ export function ExpenseList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -108,6 +110,9 @@ export function ExpenseList() {
                   <TableRow key={expense.id}>
                     <TableCell>
                       {format(new Date(expense.date), "dd MMM yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">{expense.type}</Badge>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {expense.notes}
@@ -155,7 +160,7 @@ export function ExpenseList() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No expenses recorded yet.
                   </TableCell>
                 </TableRow>

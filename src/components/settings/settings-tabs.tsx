@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -19,11 +20,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Loader2, Palette } from "lucide-react";
+import { Download, Loader2, Palette, PlusCircle, Trash2 } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Customer, WithId, User } from "@/types";
+import { collection, addDoc, doc, deleteDoc, query, orderBy } from "firebase/firestore";
+import type { Customer, WithId, User, ExpenseType } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
+import { v4 as uuidv4 } from "uuid";
+import { useToast } from "@/hooks/use-toast";
+import { FirestorePermissionError, errorEmitter } from "@/firebase";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -51,7 +55,7 @@ function downloadCSV(data: any[], filename: string) {
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', filename);
+a.setAttribute('download', filename);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -85,31 +89,96 @@ const hexToHsl = (hex: string): string => {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 };
 
-const hslToHex = (hsl: string): string => {
-    const [h, s, l] = hsl.split(' ').map((val, index) => parseInt(val.replace('%', '')) / (index > 0 ? 100 : 360));
-    let r, g, b;
-    if (s === 0) {
-        r = g = b = l;
-    } else {
-        const hue2rgb = (p: number, q: number, t: number) => {
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1 / 6) return p + (q - p) * 6 * t;
-            if (t < 1 / 2) return q;
-            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-            return p;
+const ManageExpenseTypes = () => {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const [newExpenseType, setNewExpenseType] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const expenseTypesQuery = useMemo(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, "expenseTypes"), orderBy("createdAt", "desc"));
+    }, [firestore]);
+
+    const { data: expenseTypes, isLoading } = useCollection<WithId<ExpenseType>>(expenseTypesQuery);
+
+    const handleAddExpenseType = async () => {
+        if (newExpenseType.trim() === "" || !firestore) return;
+
+        setIsSubmitting(true);
+        const newType: ExpenseType = {
+            id: uuidv4(),
+            name: newExpenseType.trim(),
+            createdAt: new Date().toISOString(),
         };
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1 / 3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1 / 3);
-    }
-    const toHex = (x: number) => {
-        const hex = Math.round(x * 255).toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
+
+        const collectionRef = collection(firestore, "expenseTypes");
+        addDoc(collectionRef, newType)
+            .then(() => {
+                toast({ title: "Expense Type Added" });
+                setNewExpenseType("");
+            })
+            .catch((serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: collectionRef.path,
+                    operation: "create",
+                    requestResourceData: newType,
+                });
+                errorEmitter.emit("permission-error", permissionError);
+            })
+            .finally(() => setIsSubmitting(false));
     };
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    
+    const handleDelete = (typeId: string) => {
+        if (!firestore) return;
+        setDeletingId(typeId);
+        const docRef = doc(firestore, "expenseTypes", typeId);
+        deleteDoc(docRef).catch((serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }).finally(() => {
+            setDeletingId(null);
+        });
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Manage Expense Types</CardTitle>
+                <CardDescription>Add or remove categories for expenses.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                    <Input
+                        placeholder="e.g., Office Rent"
+                        value={newExpenseType}
+                        onChange={(e) => setNewExpenseType(e.target.value)}
+                        disabled={isSubmitting}
+                    />
+                    <Button onClick={handleAddExpenseType} disabled={isSubmitting || newExpenseType.trim() === ""}>
+                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+                        <span className="ml-2">Add</span>
+                    </Button>
+                </div>
+                <div className="space-y-2 rounded-md border p-2">
+                    {isLoading ? <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" /> :
+                        expenseTypes && expenseTypes.length > 0 ? expenseTypes.map(type => (
+                            <div key={type.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                                <span>{type.name}</span>
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(type.id)} disabled={deletingId === type.id}>
+                                    {deletingId === type.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive" />}
+                                </Button>
+                            </div>
+                        )) : <p className="p-4 text-center text-sm text-muted-foreground">No expense types added yet.</p>
+                    }
+                </div>
+            </CardContent>
+        </Card>
+    );
 };
 
 
@@ -184,8 +253,9 @@ export function SettingsTabs() {
 
   return (
     <Tabs defaultValue="defaults" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="defaults">Defaults</TabsTrigger>
+        <TabsTrigger value="expense-types">Expense Types</TabsTrigger>
         <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
       </TabsList>
@@ -207,6 +277,9 @@ export function SettingsTabs() {
             <Button>Save Changes</Button>
           </CardFooter>
         </Card>
+      </TabsContent>
+      <TabsContent value="expense-types">
+        <ManageExpenseTypes />
       </TabsContent>
       <TabsContent value="appearance">
         <Card>
@@ -248,4 +321,3 @@ export function SettingsTabs() {
   );
 }
 
-    

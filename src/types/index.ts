@@ -1,4 +1,5 @@
 
+
 export type Agent = {
   uid: string;
   email: string;
@@ -44,7 +45,14 @@ export type Expense = {
   date: string; // ISO 8601 format
   notes: string;
   amount: number;
+  type: string;
   adminId: string;
 };
+
+export type ExpenseType = {
+    id: string;
+    name: string;
+    createdAt: string;
+}
 
 export type WithId<T> = T & { id: string };

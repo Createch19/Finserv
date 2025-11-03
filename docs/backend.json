@@ -206,6 +206,10 @@
           "type": "number",
           "description": "The amount of the expense."
         },
+        "type": {
+          "type": "string",
+          "description": "The category or type of the expense."
+        },
         "adminId": {
           "type": "string",
           "description": "The UID of the admin who created the expense."
@@ -216,8 +220,30 @@
         "date",
         "notes",
         "amount",
+        "type",
         "adminId"
       ]
+    },
+    "ExpenseType": {
+      "title": "Expense Type",
+      "type": "object",
+      "description": "Represents a category for expenses.",
+      "properties": {
+        "id": {
+            "type": "string",
+            "description": "Unique identifier for the expense type."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the expense type (e.g., 'Office Rent', 'Utilities')."
+        },
+        "createdAt": {
+            "type": "string",
+            "description": "The creation date of the expense type.",
+            "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "createdAt"]
     }
   },
   "auth": {
@@ -238,6 +264,10 @@
       "expenses": {
         "schema": "#/entities/Expense",
         "description": "A top-level collection of all business expenses. Only accessible by admins."
+      },
+      "expenseTypes": {
+        "schema": "#/entities/ExpenseType",
+        "description": "A top-level collection for managing expense categories. Only accessible by admins."
       }
     }
   }
