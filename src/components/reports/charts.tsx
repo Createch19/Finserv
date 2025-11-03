@@ -198,50 +198,50 @@ export function LoanStatusChart({ customers, height = 200 }: { customers: WithId
     )
 }
 
-// --- Interest Rate Chart ---
-export function InterestRateChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
-  const monthlyInterestRateData = (customers || []).reduce((acc, customer) => {
-      const month = format(parseISO(customer.startDate), "MMM yyyy");
-      if (!acc[month]) {
-        acc[month] = { totalInterestRate: 0, count: 0 };
-      }
-      const interestRate = (customer.interestAmount / customer.financedAmount) * 100;
-      acc[month].totalInterestRate += interestRate;
-      acc[month].count += 1;
-      return acc;
-    }, {} as Record<string, { totalInterestRate: number, count: number }>);
+// --- Expense by Type Chart ---
+export function ExpenseByTypeChart({ expenses, height = 350 }: { expenses: WithId<Expense>[], height?: number }) {
+  const expenseData = (expenses || []).reduce((acc, expense) => {
+    acc[expense.type] = (acc[expense.type] || 0) + expense.amount;
+    return acc;
+  }, {} as Record<string, number>);
 
-  const interestRateChartData = Object.entries(monthlyInterestRateData)
-    .map(([month, { totalInterestRate, count }]) => ({
-      month,
-      averageRate: totalInterestRate / count,
-    }))
-    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+  const expenseChartData = Object.entries(expenseData).map(([name, value]) => ({ name, value }));
+
+  const chartConfig = expenseChartData.reduce((acc, { name }, index) => {
+    acc[name] = {
+      label: name,
+      color: `hsl(var(--chart-${(index % 5) + 1}))`,
+    };
+    return acc;
+  }, {} as any);
 
   return (
-    <ChartContainer config={{ averageRate: { label: "Avg. Interest Rate", color: "hsl(var(--chart-2))" } }} className={`h-[${height}px] w-full`}>
-      <BarChart accessibilityLayer data={interestRateChartData}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="month"
-          tickLine={false}
-          tickMargin={10}
-          axisLine={false}
-          tickFormatter={(value) => value.slice(0, 3)}
-        />
-        <YAxis
-          dataKey="averageRate"
-          tickFormatter={(value) => `${value.toFixed(1)}%`}
-        />
+    <ChartContainer config={chartConfig} className={`mx-auto aspect-square h-[${height}px]`}>
+      <PieChart>
         <ChartTooltip
           cursor={false}
-          content={<ChartTooltipContent formatter={(value) => `${Number(value).toFixed(2)}%`} />}
+          content={<ChartTooltipContent hideLabel formatter={(value) => `₹${(Number(value)).toLocaleString()}`} />}
         />
-        <Bar dataKey="averageRate" fill="var(--color-averageRate)" radius={4} />
-      </BarChart>
+        <Pie
+          data={expenseChartData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          outerRadius={100}
+          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+          labelLine={false}
+        >
+          {expenseChartData.map((entry) => (
+            <Cell key={entry.name} fill={chartConfig[entry.name]?.color} />
+          ))}
+        </Pie>
+        <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+      </PieChart>
     </ChartContainer>
   );
 }
+
 
 // --- New Customers Chart ---
 export function NewCustomersChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {

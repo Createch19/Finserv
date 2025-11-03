@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
-import { CollectionChart, ProfitChart, LoanStatusChart, InterestRateChart, CollectionCountChart, NewCustomersChart } from "@/components/reports/charts";
+import { CollectionChart, ProfitChart, LoanStatusChart, CollectionCountChart, NewCustomersChart, ExpenseByTypeChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -87,15 +87,17 @@ export default function ReportsPage() {
                     <NewCustomersChart customers={customers} height={350} />
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Monthly Interest Rate</CardTitle>
-                    <CardDescription>Average interest rate for new loans created each month.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <InterestRateChart customers={customers} height={350} />
-                </CardContent>
-            </Card>
+            {user?.role === 'admin' && expenses && expenses.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Expenses by Type</CardTitle>
+                        <CardDescription>Breakdown of expenses by category.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ExpenseByTypeChart expenses={expenses} height={350} />
+                    </CardContent>
+                </Card>
+            )}
         </div>
          <div className="grid md:grid-cols-2 gap-6">
             <Card>
