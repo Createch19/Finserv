@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
@@ -137,6 +138,8 @@ export default function DashboardPage() {
             </CardContent>
         </Card>
       </div>
+      <Separator className="my-6 md:my-8" />
+      <CapitalFlowTable customers={customers} />
     </>
   );
 }
