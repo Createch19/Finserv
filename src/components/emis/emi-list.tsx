@@ -38,7 +38,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 type EmiStatus = "paid" | "due" | "overdue" | "upcoming";
 
@@ -46,6 +46,8 @@ type EmiEntry = {
   customerName: string;
   customerId: string;
   emiAmount: number;
+  principal: number;
+  interest: number;
   dueDate: Date;
   status: EmiStatus;
   emiNumber: number;
@@ -119,6 +121,9 @@ export function EmiList() {
         const today = startOfDay(new Date());
         const paymentsCount = customer.payments?.length || 0;
 
+        const monthlyPrincipal = customer.financedAmount / customer.duration;
+        const monthlyInterest = customer.interestAmount / customer.duration;
+
         for (let i = 0; i < customer.duration; i++) {
           const dueDate = addMonths(startDate, i + 1);
           const isPaid = i < paymentsCount;
@@ -139,6 +144,8 @@ export function EmiList() {
             customerName: customer.name,
             customerId: customer.id,
             emiAmount: customer.monthlyEMI,
+            principal: monthlyPrincipal,
+            interest: monthlyInterest,
             dueDate: dueDate,
             status: status,
             emiNumber: i + 1,
@@ -380,10 +387,16 @@ export function EmiList() {
                                         {getStatusIcon(emi.status)}
                                     </div>
                                     <div className="flex-1">
-                                        <p className="font-medium text-sm">
-                                            EMI #{emi.emiNumber} - <span className="font-semibold">{formatCurrency(emi.emiAmount)}</span>
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <div className="flex items-baseline gap-2">
+                                            <p className="font-medium text-sm">
+                                                EMI #{emi.emiNumber} - <span className="font-semibold">{formatCurrency(emi.emiAmount)}</span>
+                                            </p>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground flex gap-4">
+                                            <span>Principal: {formatCurrency(emi.principal)}</span>
+                                            <span>Interest: {formatCurrency(emi.interest)}</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">
                                         {emi.isPaid && emi.paidDate 
                                                 ? `Paid on ${format(emi.paidDate, "PPP")}`
                                                 : `Due on ${format(emi.dueDate, "PPP")}`
@@ -498,3 +511,5 @@ export function EmiList() {
     </TooltipProvider>
   );
 }
+
+    
