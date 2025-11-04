@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart } from "recharts"
@@ -46,7 +47,7 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
   };
 
   return (
-    <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+    <ChartContainer config={chartConfig} className={`h-[250px] md:h-[${height}px] w-full`}>
       <BarChart accessibilityLayer data={collectionChartData}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -70,7 +71,7 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
 }
 
 // --- Monthly Collection Count Chart ---
-export function CollectionCountChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
+export function CollectionCountChart({ customers, height = 250 }: { customers: WithId<Customer>[], height?: number }) {
   const monthlyData = (customers || []).reduce((acc, customer) => {
     const startDate = parseISO(customer.startDate);
     const endDate = addMonths(startDate, customer.duration);
@@ -106,7 +107,7 @@ export function CollectionCountChart({ customers, height = 350 }: { customers: W
   };
 
   return (
-    <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+    <ChartContainer config={chartConfig} className={`h-[250px] md:h-[${height}px] w-full`}>
       <BarChart accessibilityLayer data={collectionChartData}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -210,7 +211,7 @@ export function LoanStatusChart({ customers, height = 200 }: { customers: WithId
 }
 
 // --- Expense by Type Chart ---
-export function ExpenseByTypeChart({ expenses, height = 350 }: { expenses: WithId<Expense>[], height?: number }) {
+export function ExpenseByTypeChart({ expenses, height = 300 }: { expenses: WithId<Expense>[], height?: number }) {
   const expenseData = (expenses || []).reduce((acc, expense) => {
     acc[expense.type] = (acc[expense.type] || 0) + expense.amount;
     return acc;
