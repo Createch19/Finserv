@@ -132,45 +132,41 @@ export function CollectionCountChart({ customers, height = 250 }: { customers: W
 
 
 // --- Profit Chart ---
-export function ProfitChart({ customers, expenses, isAdmin, height = 200 }: { customers: WithId<Customer>[], expenses?: WithId<Expense>[], isAdmin?: boolean, height?: number }) {
+export function ProfitChart({ customers, expenses, isAdmin, height = 300 }: { customers: WithId<Customer>[], expenses?: WithId<Expense>[], isAdmin?: boolean, height?: number }) {
     const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
     const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
+    const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
 
     const profitChartData = [
-        { name: 'Total Principal', value: totalFinanced, fill: 'hsl(var(--chart-1))' },
-        { name: 'Potential Interest', value: totalInterest, fill: 'hsl(var(--chart-2))' },
+        {
+            name: "Financials",
+            principal: totalFinanced,
+            interest: totalInterest,
+            expenses: isAdmin ? totalExpenses : 0,
+        }
     ];
-    
-     const COLORS = {
-        'Total Principal': 'hsl(var(--chart-1))',
-        'Potential Interest': 'hsl(var(--chart-2))',
+
+    const chartConfig = {
+        principal: { label: 'Principal', color: 'hsl(var(--chart-1))' },
+        interest: { label: 'Interest', color: 'hsl(var(--chart-2))' },
+        expenses: { label: 'Expenses', color: 'hsl(var(--destructive))' },
     };
 
-    const chartConfig = profitChartData.reduce((acc, {name}) => {
-        acc[name] = { label: name, color: COLORS[name as keyof typeof COLORS] };
-        return acc;
-    }, {} as any);
-
     return (
-       <ChartContainer config={chartConfig} className={`mx-auto aspect-square h-[${height}px]`}>
-            <PieChart>
-                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString()}`} hideLabel />} />
-                <Pie data={profitChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-                    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                    return (
-                        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
-                        {`${(percent * 100).toFixed(0)}%`}
-                        </text>
-                    );
-                    }}>
-                     {profitChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
-                    ))}
-                </Pie>
-                <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-            </PieChart>
+       <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+            <BarChart accessibilityLayer data={profitChartData} layout="vertical">
+                <CartesianGrid horizontal={false} />
+                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} hide />
+                <XAxis type="number" tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+                <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString()}`} />}
+                />
+                <ChartLegend />
+                <Bar dataKey="principal" fill="var(--color-principal)" radius={4} />
+                <Bar dataKey="interest" fill="var(--color-interest)" radius={4} />
+                {isAdmin && <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />}
+            </BarChart>
         </ChartContainer>
     )
 }
