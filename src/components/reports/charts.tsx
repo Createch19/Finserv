@@ -2,7 +2,7 @@
 
 "use client"
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart, Label } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import type { Customer, Expense, WithId } from "@/types"
 import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore } from "date-fns"
@@ -222,6 +222,8 @@ export function ExpenseByTypeChart({ expenses, height = 300 }: { expenses: WithI
     };
     return acc;
   }, {} as any);
+  
+  const totalExpenses = expenseChartData.reduce((acc, curr) => acc + curr.value, 0);
 
   return (
     <ChartContainer config={chartConfig} className={`mx-auto aspect-square h-[${height}px]`}>
@@ -236,13 +238,33 @@ export function ExpenseByTypeChart({ expenses, height = 300 }: { expenses: WithI
           nameKey="name"
           cx="50%"
           cy="50%"
+          innerRadius={60}
           outerRadius={100}
-          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
           labelLine={false}
         >
           {expenseChartData.map((entry) => (
             <Cell key={entry.name} fill={chartConfig[entry.name]?.color} />
           ))}
+            <Label
+                content={({ viewBox }) => {
+                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                        return (
+                            <>
+                                <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-3xl font-bold">
+                                    {totalExpenses.toLocaleString("en-IN", {
+                                        style: "currency",
+                                        currency: "INR",
+                                        maximumFractionDigits: 0,
+                                    })}
+                                </text>
+                                <text x={viewBox.cx} y={(viewBox.cy || 0) + 20} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground">
+                                    Total Expenses
+                                </text>
+                            </>
+                        );
+                    }
+                }}
+            />
         </Pie>
         <ChartLegend content={<ChartLegendContent nameKey="name" />} />
       </PieChart>
