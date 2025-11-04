@@ -36,7 +36,7 @@ export function CapitalFlowTable({
         // Outflow: New loan financed
         const startMonthKey = format(
           startOfMonth(parseISO(customer.startDate)),
-          "MMM yyyy"
+          "yyyy-MM"
         );
         acc[startMonthKey] = acc[startMonthKey] || { collected: 0, financed: 0 };
         acc[startMonthKey].financed += customer.financedAmount;
@@ -45,7 +45,7 @@ export function CapitalFlowTable({
         (customer.payments || []).forEach((payment) => {
           const paymentMonthKey = format(
             startOfMonth(parseISO(payment.date)),
-            "MMM yyyy"
+            "yyyy-MM"
           );
           acc[paymentMonthKey] = acc[paymentMonthKey] || {
             collected: 0,
@@ -60,21 +60,22 @@ export function CapitalFlowTable({
     );
 
     let runningBalance = 0;
-    return Object.entries(monthlyFlows)
-      .map(([month, flows]) => ({ month, ...flows }))
-      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+    const sortedData = Object.entries(monthlyFlows)
+      .map(([monthKey, flows]) => ({ monthKey, ...flows }))
+      .sort((a, b) => new Date(a.monthKey).getTime() - new Date(b.monthKey).getTime())
       .map((data) => {
         const netFlow = data.collected - data.financed;
         runningBalance += netFlow;
         return {
-          month: data.month,
+          month: format(new Date(data.monthKey), "MMM yyyy"),
           collected: data.collected,
           financed: data.financed,
           netFlow: netFlow,
           capitalPool: runningBalance,
         };
-      })
-      .reverse(); // Show most recent months first
+      });
+      
+    return sortedData.reverse(); // Show most recent months first
   }, [customers]);
 
   return (
