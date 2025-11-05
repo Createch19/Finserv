@@ -76,7 +76,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     
     // Admins and Agents fetch all customers.
     // We will filter out 'pending' customers on the client-side.
-    return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
     
   }, [firestore, user]);
 
