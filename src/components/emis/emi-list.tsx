@@ -8,7 +8,7 @@ import { format, isBefore, differenceInDays, startOfDay, addMonths, isWithinInte
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon, Search, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check } from "lucide-react";
+import { Loader2, CalendarIcon, Search, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -82,6 +82,7 @@ const getOverallLoanStatus = (emis: EmiEntry[]) => {
 
 const formatCurrency = (amount: number) => amount.toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
 
+const ITEMS_PER_PAGE = 5;
 
 export function EmiList() {
   const { user, loading: userLoading } = useAuth();
@@ -102,6 +103,7 @@ export function EmiList() {
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData]);
 
+  const [currentPage, setCurrentPage] = useState(1);
   const [loanStatusFilter, setLoanStatusFilter] = useState<"all" | "active" | "overdue" | "completed">("all");
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
@@ -185,6 +187,23 @@ export function EmiList() {
       return statusMatch && dateMatch && searchMatch;
     });
   }, [loans, loanStatusFilter, dateRange, searchTerm]);
+
+  const totalPages = Math.ceil(filteredLoans.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentLoans = filteredLoans.slice(startIndex, endIndex);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
   
   const handleRecordPayment = async () => {
     if (!selectedEmiForPayment || !user || !firestore || !paymentDate) return;
@@ -356,7 +375,7 @@ export function EmiList() {
     </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <Accordion type="single" collapsible className="w-full space-y-4">
-        {filteredLoans.map(loan => (
+        {currentLoans.map(loan => (
             <AccordionItem key={loan.id} value={loan.id} className="border-b-0">
             <Card>
                 <AccordionTrigger className="p-0 hover:no-underline w-full [&>svg]:mx-6">
@@ -449,6 +468,33 @@ export function EmiList() {
         )}
     </div>
 
+    {/* Pagination */}
+    <div className="flex items-center justify-between p-4 md:p-6 border-t">
+        <div className="text-sm text-muted-foreground">
+            Showing {filteredLoans.length > 0 ? startIndex + 1 : 0} to {Math.min(endIndex, filteredLoans.length)} of {filteredLoans.length} loans.
+        </div>
+        <div className="flex items-center gap-2">
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+            >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+            </Button>
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || totalPages === 0}
+            >
+            Next
+            <ChevronRight className="h-4 w-4" />
+            </Button>
+        </div>
+    </div>
+
 
     <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
         <AlertDialogContent>
@@ -511,5 +557,7 @@ export function EmiList() {
     </TooltipProvider>
   );
 }
+
+    
 
     
