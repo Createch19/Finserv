@@ -10,14 +10,14 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
-import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 
 function getCustomersQuery(firestore: any, user: User | null) {
@@ -51,6 +51,47 @@ export default function DashboardPage() {
   
   const isLoading = customersLoading || expensesLoading;
 
+  const monthlyStats = useMemo(() => {
+    const today = new Date();
+    const startOfCurrentMonth = startOfMonth(today);
+    const endOfCurrentMonth = endOfMonth(today);
+    let expectedAmount = 0;
+    let expectedCount = 0;
+
+    customers.forEach(customer => {
+        const startDate = parseISO(customer.startDate);
+        const loanMonths = eachMonthOfInterval({ start: startDate, end: addMonths(startDate, customer.duration) });
+
+        loanMonths.forEach((monthDate, index) => {
+            // The first EMI is due one month after the start date
+            const emiDueDate = addMonths(startDate, index + 1);
+            if (isWithinInterval(emiDueDate, { start: startOfCurrentMonth, end: endOfCurrentMonth })) {
+                if (customer.status === 'active' || customer.status === 'overdue') {
+                    expectedAmount += customer.monthlyEMI;
+                    expectedCount += 1;
+                }
+            }
+        });
+    });
+
+    const collectedAmount = customers
+        .flatMap(c => c.payments || [])
+        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
+        .reduce((acc, p) => acc + p.amount, 0);
+
+    const collectedCount = customers
+        .flatMap(c => c.payments || [])
+        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
+        .length;
+
+    return {
+        expectedAmount,
+        expectedCount,
+        collectedAmount,
+        collectedCount
+    };
+}, [customers]);
+
   if (isLoading || !customers) {
       return (
         <div className="flex h-screen items-center justify-center">
@@ -59,15 +100,7 @@ export default function DashboardPage() {
       )
   }
 
-  const today = new Date();
-  const startOfCurrentMonth = startOfMonth(today);
-  const endOfCurrentMonth = endOfMonth(today);
-
   const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
-  const monthlyCollected = customers
-    .flatMap(c => c.payments || [])
-    .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
-    .reduce((acc, p) => acc + p.amount, 0);
   const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
   const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
   const profit = totalInterest - totalExpenses;
@@ -87,13 +120,29 @@ export default function DashboardPage() {
 
   const stats = [
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
-      { title: "Monthly Collection", value: formatValue(monthlyCollected), icon: HandCoins },
       { title: "Active Loans", value: activeLoans, icon: Users },
       { title: user?.role === 'admin' ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
+  
+  const collectionStat = {
+    title: "Monthly Collection",
+    value: `${formatValue(monthlyStats.collectedAmount)} / ${formatValue(monthlyStats.expectedAmount)}`,
+    icon: HandCoins,
+  };
+
+  const emiCountStat = {
+    title: "Monthly EMIs",
+    value: `${monthlyStats.collectedCount} / ${monthlyStats.expectedCount} EMIs`,
+    icon: ListChecks,
+  };
+  
+  let finalStats = [...stats];
+  finalStats.splice(1, 0, collectionStat);
+  finalStats.splice(2, 0, emiCountStat);
+
 
   if (user?.role === 'admin') {
-      stats.splice(3, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
+      finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
 
   return (
@@ -102,8 +151,8 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
       />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {stats.map((stat, index) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {finalStats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -112,7 +161,7 @@ export default function DashboardPage() {
               <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-xl font-bold">{stat.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -143,7 +192,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
-
-    
