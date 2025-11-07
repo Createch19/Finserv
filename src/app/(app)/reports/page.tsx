@@ -64,7 +64,7 @@ export default function ReportsPage() {
                     <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <CollectionChart customers={customers} height={350} />
+                    <CollectionChart customers={customers} />
                 </CardContent>
             </Card>
             <Card>
@@ -73,7 +73,7 @@ export default function ReportsPage() {
                     <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <CollectionCountChart customers={customers} height={350} />
+                    <CollectionCountChart customers={customers} />
                 </CardContent>
             </Card>
         </div>
@@ -136,3 +136,6 @@ export default function ReportsPage() {
     
 
 
+
+
+    

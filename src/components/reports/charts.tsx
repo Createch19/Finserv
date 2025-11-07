@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart, Label } from "recharts"
@@ -8,7 +7,7 @@ import type { Customer, Expense, WithId } from "@/types"
 import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore } from "date-fns"
 
 // --- Monthly Collection Chart ---
-export function CollectionChart({ customers, height = 250 }: { customers: WithId<Customer>[], height?: number }) {
+export function CollectionChart({ customers, height }: { customers: WithId<Customer>[], height?: number }) {
   const monthlyData = (customers || []).reduce((acc, customer) => {
     const startDate = parseISO(customer.startDate);
     const endDate = addMonths(startDate, customer.duration);
@@ -47,7 +46,7 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
   };
 
   return (
-    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+    <ChartContainer config={chartConfig} className="min-h-[250px] w-full aspect-video">
       <BarChart accessibilityLayer data={collectionChartData}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -71,7 +70,7 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
 }
 
 // --- Monthly Collection Count Chart ---
-export function CollectionCountChart({ customers, height = 250 }: { customers: WithId<Customer>[], height?: number }) {
+export function CollectionCountChart({ customers, height }: { customers: WithId<Customer>[], height?: number }) {
   const monthlyData = (customers || []).reduce((acc, customer) => {
     const startDate = parseISO(customer.startDate);
     const endDate = addMonths(startDate, customer.duration);
@@ -107,7 +106,7 @@ export function CollectionCountChart({ customers, height = 250 }: { customers: W
   };
 
   return (
-    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+    <ChartContainer config={chartConfig} className="min-h-[250px] w-full aspect-video">
       <BarChart accessibilityLayer data={collectionChartData}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -377,3 +376,5 @@ export function CapitalFlowChart({ customers, height = 350 }: { customers: WithI
     </ChartContainer>
   );
 }
+
+    
