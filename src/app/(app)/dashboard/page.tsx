@@ -125,7 +125,7 @@ export default function DashboardPage() {
              <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <CollectionChart customers={customers} height={250} />
+            <CollectionChart customers={customers} />
           </CardContent>
         </Card>
         <Card>
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                 <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
             </CardHeader>
             <CardContent>
-                <CollectionCountChart customers={customers} height={250} />
+                <CollectionCountChart customers={customers} />
             </CardContent>
         </Card>
       </div>

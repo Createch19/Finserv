@@ -47,7 +47,7 @@ export function CollectionChart({ customers, height = 250 }: { customers: WithId
   };
 
   return (
-    <ChartContainer config={chartConfig} className={`h-[250px] md:h-[${height}px] w-full`}>
+    <ChartContainer config={chartConfig} className="h-[250px] w-full">
       <BarChart accessibilityLayer data={collectionChartData}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -107,7 +107,7 @@ export function CollectionCountChart({ customers, height = 250 }: { customers: W
   };
 
   return (
-    <ChartContainer config={chartConfig} className={`h-[250px] md:h-[${height}px] w-full`}>
+    <ChartContainer config={chartConfig} className="h-[250px] w-full">
       <BarChart accessibilityLayer data={collectionChartData}>
         <CartesianGrid vertical={false} />
         <XAxis
