@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, subMonths } from "date-fns";
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +86,7 @@ export function CollectionList() {
   const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [selectedEmiForRevoke, setSelectedEmiForRevoke] = useState<EmiEntry | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   const isLoading = userLoading || (customersLoading);
@@ -135,6 +137,14 @@ export function CollectionList() {
     return allEmis.sort((a, b) => a.dueDate.getDate() - b.dueDate.getDate());
 
   }, [customers, currentMonth]);
+
+    const filteredEmis = useMemo(() => {
+        if (!monthlyEmis) return [];
+        const lowercasedFilter = searchTerm.toLowerCase();
+        return monthlyEmis.filter(emi => 
+            emi.customerName.toLowerCase().includes(lowercasedFilter)
+        );
+    }, [monthlyEmis, searchTerm]);
 
     const monthlyStats = useMemo(() => {
         const expectedAmount = monthlyEmis.reduce((sum, emi) => sum + emi.emiAmount, 0);
@@ -254,14 +264,26 @@ export function CollectionList() {
   return (
     <TooltipProvider>
     <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:px-6 md:pt-6 border-b">
-        <div className="flex justify-center items-center gap-4 mb-4">
-            <Button variant="outline" size="icon" onClick={() => changeMonth(-1)}>
-                <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-xl font-semibold text-center w-48">{format(currentMonth, "MMMM yyyy")}</h2>
-             <Button variant="outline" size="icon" onClick={() => changeMonth(1)}>
-                <ChevronRight className="h-4 w-4" />
-            </Button>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+            <div className="flex justify-center items-center gap-4">
+                <Button variant="outline" size="icon" onClick={() => changeMonth(-1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="text-xl font-semibold text-center w-48">{format(currentMonth, "MMMM yyyy")}</h2>
+                <Button variant="outline" size="icon" onClick={() => changeMonth(1)}>
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+            <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search by customer..."
+                    className="w-full rounded-lg bg-background pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -286,7 +308,7 @@ export function CollectionList() {
     </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="space-y-4">
-            {monthlyEmis.length > 0 ? monthlyEmis.map((emi, index) => {
+            {filteredEmis.length > 0 ? filteredEmis.map((emi, index) => {
                 const statusInfo = getStatusAttributes(emi.status);
                 return (
                 <Card key={`${emi.customerId}-${emi.emiNumber}`}>
@@ -335,7 +357,7 @@ export function CollectionList() {
                 </Card>
             )}) : (
                  <div className="text-center py-20 text-muted-foreground">
-                    <p>No EMIs due for {format(currentMonth, "MMMM yyyy")}.</p>
+                    <p>No EMIs for {format(currentMonth, "MMMM yyyy")} match your search.</p>
                 </div>
             )}
         </div>
