@@ -134,7 +134,22 @@ export function CollectionList() {
         }
     });
 
-    return allEmis.sort((a, b) => a.dueDate.getDate() - b.dueDate.getDate());
+    const statusOrder: Record<EmiStatus, number> = {
+        "overdue": 1,
+        "due": 2,
+        "upcoming": 3,
+        "pending": 4,
+        "paid": 5,
+    };
+
+    return allEmis.sort((a, b) => {
+        const statusOrderA = statusOrder[a.status];
+        const statusOrderB = statusOrder[b.status];
+        if (statusOrderA !== statusOrderB) {
+            return statusOrderA - statusOrderB;
+        }
+        return a.dueDate.getDate() - b.dueDate.getDate();
+    });
 
   }, [customers, currentMonth]);
 
@@ -346,7 +361,7 @@ export function CollectionList() {
                          </Link>
                          <p className="text-lg font-semibold">{formatCurrency(emi.emiAmount)}</p>
                     </CardContent>
-                    <CardFooter className={cn("p-2 flex items-center justify-center gap-2 text-xs", statusInfo.className, emi.isPaid ? 'bg-green-500/10' : emi.status === 'overdue' ? 'bg-destructive/10' : 'bg-transparent')}>
+                    <CardFooter className={cn("p-2 flex items-center justify-center gap-2 text-xs", emi.isPaid ? 'bg-green-500/10 text-green-600' : emi.status === 'overdue' ? 'bg-destructive/10 text-destructive' : 'bg-transparent text-muted-foreground')}>
                         {statusInfo.icon}
                         <span className="font-medium">{statusInfo.text}</span>
                         {emi.isPaid && emi.paidDate ? `on ${format(emi.paidDate, 'dd/MM')}` : ''}
@@ -427,3 +442,4 @@ export function CollectionList() {
     
 
     
+
