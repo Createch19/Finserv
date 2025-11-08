@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, subMonths } from "date-fns";
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,6 +136,21 @@ export function CollectionList() {
 
   }, [customers, currentMonth]);
 
+    const monthlyStats = useMemo(() => {
+        const expectedAmount = monthlyEmis.reduce((sum, emi) => sum + emi.emiAmount, 0);
+        const collectedAmount = monthlyEmis.filter(e => e.isPaid).reduce((sum, emi) => sum + emi.emiAmount, 0);
+        const expectedCount = monthlyEmis.length;
+        const collectedCount = monthlyEmis.filter(e => e.isPaid).length;
+        
+        return {
+            expectedAmount,
+            collectedAmount,
+            expectedCount,
+            collectedCount
+        }
+    }, [monthlyEmis]);
+
+
   const handleRecordPayment = async () => {
     if (!selectedEmiForPayment || !user || !firestore || !paymentDate) return;
 
@@ -238,8 +253,8 @@ export function CollectionList() {
 
   return (
     <TooltipProvider>
-    <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:p-6 border-b">
-        <div className="flex justify-center items-center gap-4">
+    <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:px-6 md:pt-6 border-b">
+        <div className="flex justify-center items-center gap-4 mb-4">
             <Button variant="outline" size="icon" onClick={() => changeMonth(-1)}>
                 <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -248,10 +263,30 @@ export function CollectionList() {
                 <ChevronRight className="h-4 w-4" />
             </Button>
         </div>
+        <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(monthlyStats.collectedAmount)} / <span className="text-muted-foreground">{formatCurrency(monthlyStats.expectedAmount)}</span></div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">EMIs Collected</CardTitle>
+                    <ListChecks className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{monthlyStats.collectedCount} / <span className="text-muted-foreground">{monthlyStats.expectedCount} EMIs</span></div>
+                </CardContent>
+            </Card>
+        </div>
     </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="space-y-4">
-            {monthlyEmis.length > 0 ? monthlyEmis.map(emi => {
+            {monthlyEmis.length > 0 ? monthlyEmis.map((emi, index) => {
                 const statusInfo = getStatusAttributes(emi.status);
                 return (
                 <Card key={`${emi.customerId}-${emi.emiNumber}`}>
@@ -368,4 +403,3 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
-

@@ -9,9 +9,7 @@ export default function CollectionPage() {
         title="Monthly Collection"
         description="View and manage EMIs on a month-by-month basis."
       />
-      <div className="flex-1 overflow-y-auto">
-        <CollectionList />
-      </div>
+      <CollectionList />
     </div>
   );
 }
