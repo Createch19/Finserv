@@ -352,8 +352,8 @@ export function CollectionList() {
                     key={`${emi.customerId}-${emi.emiNumber}`} 
                     onClick={() => handleCardClick(emi)}
                     className={cn(
-                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer",
-                        "hover:shadow-[0_4px_14px_0_#ffa200] hover:-translate-y-1",
+                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer border-2 border-transparent",
+                        "hover:border-[#ffa200] hover:-translate-y-1",
                         emi.status === 'paid' ? 'bg-white' : ''
                     )}>
                     <CardHeader className="p-3 pb-0 flex-row items-start justify-between">
@@ -390,7 +390,7 @@ export function CollectionList() {
                     </CardHeader>
                     <CardContent className="p-3 text-center">
                         <span className="font-semibold">{emi.customerName}</span>
-                        <p className="text-lg font-semibold">{formatCurrency(emi.emiAmount)}</p>
+                        <p className="text-lg font-semibold text-primary">{formatCurrency(emi.emiAmount)}</p>
                          <div className="text-xs text-muted-foreground mt-1">
                             {`EMI ${emi.emiNumber}/${emi.totalEmis}`}
                         </div>
