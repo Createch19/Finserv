@@ -325,7 +325,7 @@ export function CollectionList() {
             </div>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-            <Card>
+            <Card className="border-primary">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
                     <Banknote className="h-4 w-4 text-muted-foreground" />
@@ -334,7 +334,7 @@ export function CollectionList() {
                     <div className="text-2xl font-bold">{formatCurrency(monthlyStats.collectedAmount)} / <span className="text-muted-foreground">{formatCurrency(monthlyStats.expectedAmount)}</span></div>
                 </CardContent>
             </Card>
-            <Card>
+            <Card className="border-primary">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
                     <Hourglass className="h-4 w-4 text-muted-foreground" />
@@ -343,7 +343,7 @@ export function CollectionList() {
                     <div className="text-2xl font-bold">{formatCurrency(monthlyStats.pendingAmount)}</div>
                 </CardContent>
             </Card>
-            <Card>
+            <Card className="border-primary">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">EMIs Collected</CardTitle>
                     <ListChecks className="h-4 w-4 text-muted-foreground" />
@@ -486,3 +486,5 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
+
+    
