@@ -311,54 +311,46 @@ export function CollectionList() {
             {filteredEmis.length > 0 ? filteredEmis.map((emi) => {
                 const statusInfo = getStatusAttributes(emi.status);
                 return (
-                <Card key={`${emi.customerId}-${emi.emiNumber}`} className={cn("flex flex-col justify-between", statusInfo.variant === 'destructive' && "border-destructive/50", statusInfo.variant === 'paid' && "bg-muted/40")}>
-                    <CardHeader className="p-4">
-                        <div className="flex justify-between items-start">
-                             <div className="text-center">
-                                <p className={cn("text-2xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
-                                <p className="text-xs text-muted-foreground">{format(emi.dueDate, 'MMM')}</p>
-                            </div>
-                            <div className={cn("flex items-center justify-center h-8 w-8 rounded-full bg-background", statusInfo.className)}>
-                                {statusInfo.icon}
-                            </div>
+                <Card key={`${emi.customerId}-${emi.emiNumber}`} className={cn("flex flex-col justify-between overflow-hidden", statusInfo.variant === 'destructive' && "border-destructive/50", emi.isPaid && "bg-muted/40")}>
+                    <CardHeader className="p-4 flex-row items-start justify-between">
+                         <div className="text-center bg-background/50 p-2 rounded-lg">
+                            <p className={cn("text-2xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
+                            <p className="text-xs text-muted-foreground">{format(emi.dueDate, 'MMM')}</p>
                         </div>
-                         <CardTitle className="text-base pt-2 truncate">
-                            <Link href={`/customers/${emi.customerId}`} passHref>
-                                <span className="hover:underline">{emi.customerName}</span>
-                            </Link>
-                         </CardTitle>
-                        <CardDescription className="text-xs">
-                             EMI {emi.emiNumber}/{emi.totalEmis}
-                        </CardDescription>
+                        <div className="flex gap-1">
+                            {emi.canBePaid && !emi.isPaid && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedEmiForPayment(emi)}>
+                                            <Check className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Record Payment</p></TooltipContent>
+                                </Tooltip>
+                            )}
+                            {emi.isLastPaid && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setSelectedEmiForRevoke(emi)}>
+                                            <Undo2 className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Revoke Payment</p></TooltipContent>
+                                </Tooltip>
+                            )}
+                        </div>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
+                    <CardContent className="p-4 pt-0 text-center">
+                         <Link href={`/customers/${emi.customerId}`} passHref>
+                            <span className="font-semibold hover:underline">{emi.customerName}</span>
+                         </Link>
                          <p className="text-lg font-semibold">{formatCurrency(emi.emiAmount)}</p>
-                         <p className="text-xs text-muted-foreground">
-                            {emi.isPaid && emi.paidDate ? `Paid on ${format(emi.paidDate, 'dd MMM yyyy')}` : `Due on ${format(emi.dueDate, 'dd MMM yyyy')}`}
-                            {emi.status === 'overdue' && emi.overdueDays && ` (${emi.overdueDays} days overdue)`}
-                        </p>
                     </CardContent>
-                    <CardFooter className="p-4 pt-0 flex gap-2">
-                        {emi.canBePaid && !emi.isPaid && (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" size="sm" className="w-full" onClick={() => setSelectedEmiForPayment(emi)}>
-                                        <Check className="h-4 w-4 mr-2" /> Record
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Record Payment</p></TooltipContent>
-                            </Tooltip>
-                        )}
-                        {emi.isLastPaid && (
-                             <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="destructive" size="sm" className="w-full" onClick={() => setSelectedEmiForRevoke(emi)}>
-                                        <Undo2 className="h-4 w-4 mr-2" /> Revoke
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Revoke Payment</p></TooltipContent>
-                            </Tooltip>
-                        )}
+                    <CardFooter className={cn("p-2 flex items-center justify-center gap-2 text-xs", statusInfo.className, emi.isPaid ? 'bg-green-500/10' : emi.status === 'overdue' ? 'bg-destructive/10' : 'bg-transparent')}>
+                        {statusInfo.icon}
+                        <span className="font-medium">{statusInfo.text}</span>
+                        {emi.isPaid && emi.paidDate ? `on ${format(emi.paidDate, 'dd/MM')}` : ''}
+                        {emi.status === 'overdue' && emi.overdueDays ? `(${emi.overdueDays}d)`: ''}
                     </CardFooter>
                 </Card>
             )}) : (
@@ -431,5 +423,7 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
+
+    
 
     
