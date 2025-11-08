@@ -311,9 +311,9 @@ export function CollectionList() {
             {filteredEmis.length > 0 ? filteredEmis.map((emi) => {
                 const statusInfo = getStatusAttributes(emi.status);
                 return (
-                <Card key={`${emi.customerId}-${emi.emiNumber}`} className={cn("flex flex-col justify-between overflow-hidden", statusInfo.variant === 'destructive' && "border-destructive/50", emi.isPaid && "bg-muted/40")}>
+                <Card key={`${emi.customerId}-${emi.emiNumber}`} className={cn("flex flex-col justify-between overflow-hidden", statusInfo.variant === 'destructive' && "border-destructive/50")}>
                     <CardHeader className="p-4 flex-row items-start justify-between">
-                         <div className="text-center bg-background/50 p-2 rounded-lg">
+                         <div className="text-center bg-muted/50 p-2 rounded-lg">
                             <p className={cn("text-2xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
                             <p className="text-xs text-muted-foreground">{format(emi.dueDate, 'MMM')}</p>
                         </div>
