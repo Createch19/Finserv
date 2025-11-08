@@ -266,6 +266,28 @@ export function CollectionList() {
     setCurrentMonth(prev => addMonths(prev, amount));
   }
 
+  const handleCardClick = (emi: EmiEntry) => {
+    if (emi.isPaid) {
+        if (emi.isLastPaid) {
+            setSelectedEmiForRevoke(emi);
+        } else {
+            toast({
+                variant: 'default',
+                title: "Payment Already Recorded",
+                description: "Only the most recent payment can be revoked.",
+            });
+        }
+    } else if (emi.canBePaid) {
+        setSelectedEmiForPayment(emi);
+    } else {
+        toast({
+            variant: 'default',
+            title: "Pending EMI",
+            description: "Previous EMIs must be paid first.",
+        });
+    }
+  }
+
   if (isLoading) {
       return (
         <div className="flex-1 p-4 md:p-6">
@@ -322,46 +344,36 @@ export function CollectionList() {
         </div>
     </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredEmis.length > 0 ? filteredEmis.map((emi) => {
                 const statusInfo = getStatusAttributes(emi.status);
                 return (
-                <Card key={`${emi.customerId}-${emi.emiNumber}`} className={cn("flex flex-col justify-between overflow-hidden", statusInfo.variant === 'destructive' && "border-destructive/50")}>
-                    <CardHeader className="p-4 flex-row items-start justify-between">
+                <Card 
+                    key={`${emi.customerId}-${emi.emiNumber}`} 
+                    onClick={() => handleCardClick(emi)}
+                    className={cn(
+                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer", 
+                        statusInfo.variant === 'destructive' && "border-destructive/50",
+                        "hover:shadow-md hover:-translate-y-1"
+                    )}>
+                    <CardHeader className="p-3 pb-0 flex-row items-start justify-between">
                          <div className="text-center bg-muted/50 p-2 rounded-lg">
-                            <p className={cn("text-2xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
+                            <p className={cn("text-xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
                             <p className="text-xs text-muted-foreground">{format(emi.dueDate, 'MMM')}</p>
                         </div>
-                        <div className="flex gap-1">
-                            {emi.canBePaid && !emi.isPaid && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedEmiForPayment(emi)}>
-                                            <Check className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Record Payment</p></TooltipContent>
-                                </Tooltip>
-                            )}
-                            {emi.isLastPaid && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setSelectedEmiForRevoke(emi)}>
-                                            <Undo2 className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Revoke Payment</p></TooltipContent>
-                                </Tooltip>
-                            )}
+                        <div className="text-xs text-muted-foreground">
+                            {`EMI ${emi.emiNumber}/${emi.totalEmis}`}
                         </div>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0 text-center">
-                         <Link href={`/customers/${emi.customerId}`} passHref>
-                            <span className="font-semibold hover:underline">{emi.customerName}</span>
-                         </Link>
-                         <p className="text-lg font-semibold">{formatCurrency(emi.emiAmount)}</p>
+                    <CardContent className="p-3 text-center">
+                        <span className="font-semibold">{emi.customerName}</span>
+                        <p className="text-lg font-semibold">{formatCurrency(emi.emiAmount)}</p>
                     </CardContent>
-                    <CardFooter className={cn("p-2 flex items-center justify-center gap-2 text-xs", emi.isPaid ? 'bg-green-500/10 text-green-600' : emi.status === 'overdue' ? 'bg-destructive/10 text-destructive' : 'bg-transparent text-muted-foreground')}>
+                    <CardFooter className={cn(
+                        "p-2 flex items-center justify-center gap-2 text-xs", 
+                        emi.isPaid ? 'bg-green-500/10 text-green-600' : 
+                        emi.status === 'overdue' ? 'bg-destructive/10 text-destructive' : 'bg-transparent text-muted-foreground'
+                    )}>
                         {statusInfo.icon}
                         <span className="font-medium">{statusInfo.text}</span>
                         {emi.isPaid && emi.paidDate ? `on ${format(emi.paidDate, 'dd/MM')}` : ''}
@@ -440,6 +452,3 @@ export function CollectionList() {
 }
 
     
-
-    
-
