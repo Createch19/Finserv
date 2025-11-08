@@ -353,7 +353,7 @@ export function CollectionList() {
                     onClick={() => handleCardClick(emi)}
                     className={cn(
                         "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer",
-                        "hover:shadow-md hover:-translate-y-1",
+                        "hover:shadow-[0_4px_14px_0_#ffa200] hover:-translate-y-1",
                         emi.status === 'paid' ? 'bg-white' : ''
                     )}>
                     <CardHeader className="p-3 pb-0 flex-row items-start justify-between">
@@ -476,7 +476,3 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
