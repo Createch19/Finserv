@@ -22,6 +22,7 @@ import {
   Bot,
   Receipt,
   ShieldCheck,
+  CalendarCheck,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -31,6 +32,7 @@ const menuItems = [
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
   { href: '/emis', label: 'EMI Tracker', icon: CalendarClock },
+  { href: '/collection', label: 'Collection', icon: CalendarCheck },
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
