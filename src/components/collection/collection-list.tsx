@@ -486,7 +486,3 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
