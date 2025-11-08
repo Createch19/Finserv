@@ -306,7 +306,7 @@ export function CollectionList() {
                 <Button variant="outline" size="icon" onClick={() => changeMonth(-1)}>
                     <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <h2 className="text-xl font-semibold text-center w-48">{format(currentMonth, "MMMM yyyy")}</h2>
+                <h2 className="text-xl font-semibold text-center w-48" style={{color: '#ffa200'}}>{format(currentMonth, "MMMM yyyy")}</h2>
                 <Button variant="outline" size="icon" onClick={() => changeMonth(1)}>
                     <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -476,3 +476,5 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
+
+    
