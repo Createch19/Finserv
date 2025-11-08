@@ -344,7 +344,7 @@ export function CollectionList() {
         </div>
     </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredEmis.length > 0 ? filteredEmis.map((emi) => {
                 const statusInfo = getStatusAttributes(emi.status);
                 return (
@@ -352,22 +352,48 @@ export function CollectionList() {
                     key={`${emi.customerId}-${emi.emiNumber}`} 
                     onClick={() => handleCardClick(emi)}
                     className={cn(
-                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer", 
-                        statusInfo.variant === 'destructive' && "border-destructive/50",
-                        "hover:shadow-md hover:-translate-y-1"
+                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer",
+                        "hover:shadow-md hover:-translate-y-1",
+                        emi.status === 'paid' ? 'bg-white' : ''
                     )}>
                     <CardHeader className="p-3 pb-0 flex-row items-start justify-between">
                          <div className="text-center bg-muted/50 p-2 rounded-lg">
                             <p className={cn("text-xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
                             <p className="text-xs text-muted-foreground">{format(emi.dueDate, 'MMM')}</p>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                            {`EMI ${emi.emiNumber}/${emi.totalEmis}`}
+                        <div className="flex items-center gap-1">
+                            {!emi.isPaid && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setSelectedEmiForPayment(emi); }}>
+                                            <Check className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Record Payment</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+                            {emi.isLastPaid && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setSelectedEmiForRevoke(emi); }}>
+                                            <Undo2 className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Revoke Payment</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
                         </div>
                     </CardHeader>
                     <CardContent className="p-3 text-center">
                         <span className="font-semibold">{emi.customerName}</span>
                         <p className="text-lg font-semibold">{formatCurrency(emi.emiAmount)}</p>
+                         <div className="text-xs text-muted-foreground mt-1">
+                            {`EMI ${emi.emiNumber}/${emi.totalEmis}`}
+                        </div>
                     </CardContent>
                     <CardFooter className={cn(
                         "p-2 flex items-center justify-center gap-2 text-xs", 
@@ -450,5 +476,7 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
+
+    
 
     
