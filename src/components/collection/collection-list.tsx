@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, subMonths } from "date-fns";
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks, Search } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks, Search, Hourglass } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -166,12 +166,14 @@ export function CollectionList() {
         const collectedAmount = monthlyEmis.filter(e => e.isPaid).reduce((sum, emi) => sum + emi.emiAmount, 0);
         const expectedCount = monthlyEmis.length;
         const collectedCount = monthlyEmis.filter(e => e.isPaid).length;
+        const pendingAmount = expectedAmount - collectedAmount;
         
         return {
             expectedAmount,
             collectedAmount,
             expectedCount,
-            collectedCount
+            collectedCount,
+            pendingAmount
         }
     }, [monthlyEmis]);
 
@@ -322,7 +324,7 @@ export function CollectionList() {
                 />
             </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
@@ -330,6 +332,15 @@ export function CollectionList() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{formatCurrency(monthlyStats.collectedAmount)} / <span className="text-muted-foreground">{formatCurrency(monthlyStats.expectedAmount)}</span></div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
+                    <Hourglass className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(monthlyStats.pendingAmount)}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -352,9 +363,8 @@ export function CollectionList() {
                     key={`${emi.customerId}-${emi.emiNumber}`} 
                     onClick={() => handleCardClick(emi)}
                     className={cn(
-                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer border-2 border-transparent",
-                        "hover:border-[#ffa200] hover:-translate-y-1",
-                        emi.status === 'paid' ? 'bg-white' : ''
+                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer border-2 hover:border-[#ffa200] hover:-translate-y-1",
+                        emi.isPaid ? 'bg-white' : 'border-transparent'
                     )}>
                     <CardHeader className="p-3 pb-0 flex-row items-start justify-between">
                          <div className="text-center bg-muted/50 p-2 rounded-lg">
@@ -476,5 +486,7 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
+
+    
 
     
