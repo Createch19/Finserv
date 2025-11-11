@@ -35,7 +35,7 @@ service cloud.firestore {
 
     // Only admins can read or write expenses.
     match /expenses/{expenseId} {
-        allow read, write: if isAdmin();
+        allow read, write, list: if isAdmin();
     }
 
     // Only admins can manage expense types.
