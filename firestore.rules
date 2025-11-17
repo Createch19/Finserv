@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,6 +7,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isSuperAdmin() {
+        return isAuthed() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
     function isAdmin() {
       return isAuthed() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
@@ -15,19 +18,19 @@ service cloud.firestore {
     // Users can read and update their own user document.
     match /users/{userId} {
       allow read, update: if isAuthed() && request.auth.uid == userId;
-      // Admins can read all user docs
-      allow list: if isAdmin();
+      // Admins and SuperAdmins can list users
+      allow list: if isAdmin() || isSuperAdmin();
     }
 
     // Customer rules
     match /customers/{customerId} {
       // Admins can read any customer.
       // Agents can read customers they are assigned to.
-      allow read: if isAdmin() || (isAuthed() && resource.data.agent.uid == request.auth.uid);
+      allow read: if isAdmin() || isSuperAdmin() || (isAuthed() && resource.data.agent.uid == request.auth.uid);
       
       // Admins can write to any customer.
       // Agents can create/update customers where they are the agent.
-      allow write: if isAdmin() || (isAuthed() && request.resource.data.agent.uid == request.auth.uid);
+      allow write: if isAdmin() || isSuperAdmin() || (isAuthed() && request.resource.data.agent.uid == request.auth.uid);
       
       // Admins and Agents can list customers. The query on the client enforces who sees what.
       allow list: if isAuthed();
@@ -35,12 +38,16 @@ service cloud.firestore {
 
     // Only admins can read or write expenses.
     match /expenses/{expenseId} {
-        allow read, write, list: if isAdmin();
+        allow read, write, list: if isAdmin() || isSuperAdmin();
     }
 
     // Only admins can manage expense types.
     match /expenseTypes/{expenseTypeId} {
-        allow read, write: if isAdmin();
+        allow read, write, list: if isAdmin() || isSuperAdmin();
+    }
+
+    match /withdrawalRequests/{requestId} {
+        allow read, write, list: if isAuthed();
     }
   }
 }
