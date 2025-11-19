@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
-  // --- START: Simplified Data Fetching ---
+  // --- START: Data Fetching ---
 
   // Query for data relevant to the current user's role for display.
   const customersQuery = useMemo(() => {
@@ -57,13 +57,13 @@ export default function DashboardPage() {
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
 
   // Queries specifically for the Super Admin data overview tool.
-  const allDataQuery = useMemo(() => {
+  const allCustomersQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
       return collection(firestore, 'customers'); // Fetch all customers for overview
     }
     return null;
   }, [firestore, userRole]);
-  const { data: allCustomers, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allDataQuery);
+  const { data: allCustomers, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
 
   const allUsersQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
@@ -89,9 +89,9 @@ export default function DashboardPage() {
   }, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
 
-  const isLoading = customersLoading || expensesLoading || allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading;
+  const isLoading = customersLoading || expensesLoading || (userRole === 'superadmin' && (allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading));
   
-  // --- END: Simplified Data Fetching ---
+  // --- END: Data Fetching ---
 
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
