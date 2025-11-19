@@ -67,14 +67,23 @@ export default function DashboardPage() {
     if (!firestore || !userRole) return null;
     const baseQuery = collection(firestore, 'customers');
     if (userRole === 'superadmin') {
-      return query(baseQuery, where("status", "!=", "pending"));
+      // Fetch all for superadmin, filter client-side
+      return baseQuery;
     }
     if (userCompanyId) { // Important: Only build query if companyId is available
-      return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
+      // ONLY filter by companyId. This is the key change.
+      return query(baseQuery, where("companyId", "==", userCompanyId));
     }
     return null;
   }, [firestore, userRole, userCompanyId]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
+
+  const { data: rawCustomers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
+
+  // Client-side filtering for status
+  const customers = useMemo(() => {
+    if (!rawCustomers) return [];
+    return rawCustomers.filter(c => c.status !== 'pending');
+  }, [rawCustomers]);
 
   const expensesDisplayQuery = useMemo(() => {
     if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
