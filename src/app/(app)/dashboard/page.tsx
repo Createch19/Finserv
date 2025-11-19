@@ -66,7 +66,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isMigrating, setIsMigrating] = useState(false);
+  const [isMigrating, setIsMigrating = useState(false);
 
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
@@ -315,3 +315,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    

@@ -73,16 +73,13 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     if (!firestore || !user || isUserLoading) return null;
 
     if (user.role === 'superadmin') {
-      return query(
-        collection(firestore, 'customers'),
-        orderBy('startDate', 'desc')
-      );
+      // Super admin gets all customers.
+      return collection(firestore, 'customers');
     }
-
+    
     if (!user.companyId) return null;
     
-    // Simplified query to fetch all customers for the company.
-    // Filtering and sorting will happen on the client-side.
+    // Admins and agents get customers for their company.
     return query(
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId)
@@ -90,26 +87,28 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   }, [firestore, user, isUserLoading]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
-
-  const isLoading = isUserLoading || (customersLoading && !error);
-
+  
   useEffect(() => {
     console.log("CustomerTable user:", user);
     console.log("CustomerTable customers data:", customers);
     console.log("CustomerTable error:", error);
   }, [user, customers, error]);
+
+  const isLoading = isUserLoading || (customersLoading && !error);
   
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
-    const lowercasedFilter = searchTerm.toLowerCase();
     
-    // 1. Filter out pending customers
     const approvedCustomers = customers.filter(c => c.status !== 'pending');
-
-    // 2. Sort the approved customers
+    
     const sortedCustomers = [...approvedCustomers].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     
-    // 3. Apply search term filter
+    if (!searchTerm) {
+      return sortedCustomers;
+    }
+    
+    const lowercasedFilter = searchTerm.toLowerCase();
+    
     return sortedCustomers.filter((customer) => {
       return (
         customer.name.toLowerCase().includes(lowercasedFilter) ||
@@ -354,7 +353,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
-
-    
 
     
