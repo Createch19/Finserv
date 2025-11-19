@@ -34,6 +34,8 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
       // Super admin can see all users.
       return collection(firestore, 'users');
     }
+
+    if (!authUser.companyId) return null; // Guard against undefined companyId
     // Regular admin can see users within their own company.
     return query(collection(firestore, 'users'), where('companyId', '==', authUser.companyId));
 
@@ -50,6 +52,8 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
         // Super admin needs all customers to calculate counts for all agents.
         return collection(firestore, 'customers');
     }
+    
+    if (!authUser.companyId) return null; // Guard against undefined companyId
     // Regular admin only needs customers from their company.
     return query(collection(firestore, 'customers'), where('companyId', '==', authUser.companyId));
   }, [firestore, authUser]);

@@ -28,6 +28,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
         return collection(firestore, 'customers');
     }
     
+    if (!user.companyId) return null; // Guard against undefined companyId
     // Admins and Agents are restricted to their companyId
     return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
@@ -40,6 +41,7 @@ function getExpensesQuery(firestore: any, user: User | null) {
         return collection(firestore, 'expenses');
     }
     
+    if (!user.companyId) return null; // Guard against undefined companyId
     // Regular admin sees expenses for their company
     return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
 }

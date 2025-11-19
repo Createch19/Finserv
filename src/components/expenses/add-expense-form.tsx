@@ -70,7 +70,7 @@ export function AddExpenseForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    if (!user || !firestore) {
+    if (!user || !firestore || !user.companyId) {
       toast({
         variant: "destructive",
         title: "Error",

@@ -34,7 +34,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, deleteDoc, doc, orderBy, query } from "firebase/firestore";
+import { collection, deleteDoc, doc, orderBy, query, where } from "firebase/firestore";
 import type { Expense, WithId } from "@/types";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
@@ -52,8 +52,14 @@ export function ExpenseList() {
   const { toast } = useToast();
 
   const expensesQuery = useMemo(() => {
-    if (!firestore || user?.role !== "admin") return null;
-    return query(collection(firestore, "expenses"), orderBy("date", "desc"));
+    if (!firestore || !user || (!user.isSuperAdmin && user.role !== 'admin')) return null;
+
+    if (user.isSuperAdmin) {
+        return query(collection(firestore, "expenses"), orderBy("date", "desc"));
+    }
+    
+    if (!user.companyId) return null; // Guard against undefined companyId
+    return query(collection(firestore, "expenses"), where('companyId', '==', user.companyId), orderBy("date", "desc"));
   }, [firestore, user]);
 
   const { data: expenses, isLoading } =
