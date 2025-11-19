@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -15,11 +15,18 @@ import { CollectionChart, CollectionCountChart } from "@/components/reports/char
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, Query } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -27,33 +34,12 @@ export default function DashboardPage() {
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
+  // New state for super admin's company selection
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
+
   // --- START: Data Fetching ---
 
-  // Queries specifically for the Super Admin data overview tool.
-  const allCustomersQuery = useMemo(() => {
-    if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'customers');
-    }
-    return null;
-  }, [firestore, userRole]);
-  const { data: allCustomers, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
-
-  const allUsersQuery = useMemo(() => {
-    if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'users');
-    }
-    return null;
-  }, [firestore, userRole]);
-  const { data: allUsers, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
-
-  const allExpensesQuery = useMemo(() => {
-    if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'expenses');
-    }
-    return null;
-  }, [firestore, userRole]);
-  const { data: allExpenses, isLoading: allExpensesLoading } = useCollection<WithId<Expense>>(allExpensesQuery);
-  
+  // Queries for Super Admin data overview and company selector
   const allCompaniesQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
       return collection(firestore, 'companies');
@@ -61,59 +47,78 @@ export default function DashboardPage() {
     return null;
   }, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
+  
+  const allUsersQuery = useMemo(() => {
+    if (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') {
+      return collection(firestore, 'users');
+    }
+    return null;
+  }, [firestore, userRole, selectedCompanyId]);
+  const { data: allUsers, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
 
-  // Query for data relevant to the current user's role for display.
-  const customersDisplayQuery = useMemo(() => {
+  // General data fetching logic based on role and selection
+  const customersQuery = useMemo(() => {
     if (!firestore || !userRole) return null;
     const baseQuery = collection(firestore, 'customers');
+
     if (userRole === 'superadmin') {
-      // Fetch all for superadmin, filter client-side
-      return baseQuery;
+      if (selectedCompanyId === 'all') return baseQuery;
+      return query(baseQuery, where("companyId", "==", selectedCompanyId));
     }
-    if (userCompanyId) { // Important: Only build query if companyId is available
-      // ONLY filter by companyId. This is the key change.
+    
+    if (userCompanyId) {
       return query(baseQuery, where("companyId", "==", userCompanyId));
     }
     return null;
-  }, [firestore, userRole, userCompanyId]);
+  }, [firestore, userRole, userCompanyId, selectedCompanyId]);
+  
+  const { data: rawCustomers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  
+  const expensesQuery = useMemo(() => {
+    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
+    const baseQuery = collection(firestore, 'expenses');
+    
+    if (userRole === 'superadmin') {
+      if (selectedCompanyId === 'all') return baseQuery;
+      return query(baseQuery, where("companyId", "==", selectedCompanyId));
+    }
+    
+    if (userCompanyId) {
+      return query(baseQuery, where("companyId", "==", userCompanyId));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId, selectedCompanyId]);
+  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
 
-  const { data: rawCustomers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
+  const withdrawalsQuery = useMemo(() => {
+    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
+    const baseQuery = collection(firestore, "withdrawalRequests");
+    const approvedQuery = query(baseQuery, where('status', '==', 'approved'));
 
-  // Client-side filtering for status
+    if (userRole === 'superadmin') {
+      if (selectedCompanyId === 'all') return approvedQuery;
+      return query(approvedQuery, where("companyId", "==", selectedCompanyId));
+    }
+    if (userCompanyId) {
+      return query(approvedQuery, where("companyId", "==", userCompanyId));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId, selectedCompanyId]);
+  const { data: withdrawals, isLoading: withdrawalsLoading } = useCollection<WithId<WithdrawalRequest>>(withdrawalsQuery);
+  
+  // Data for the 'all companies' overview table doesn't need to be re-fetched, just filtered.
+  const allCustomers = useCollection<WithId<Customer>>(useMemo(() => (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') ? collection(firestore, 'customers') : null, [firestore, userRole, selectedCompanyId]));
+  const allExpenses = useCollection<WithId<Expense>>(useMemo(() => (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') ? collection(firestore, 'expenses') : null, [firestore, userRole, selectedCompanyId]));
+
+  const isLoading = customersLoading || expensesLoading || withdrawalsLoading || allCompaniesLoading || (userRole === 'superadmin' && selectedCompanyId === 'all' && (allCustomers.isLoading || allUsersLoading || allExpenses.isLoading));
+  
+  // --- END: Data Fetching ---
+  
   const customers = useMemo(() => {
     if (!rawCustomers) return [];
     return rawCustomers.filter(c => c.status !== 'pending');
   }, [rawCustomers]);
 
-  const expensesDisplayQuery = useMemo(() => {
-    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
-    const baseQuery = collection(firestore, 'expenses');
-    if (userRole === 'superadmin') {
-      return baseQuery;
-    }
-    if (userCompanyId) { // Important: Only build query if companyId is available
-      return query(baseQuery, where("companyId", "==", userCompanyId));
-    }
-    return null;
-  }, [firestore, userRole, userCompanyId]);
-  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
-
-  const withdrawalsQuery = useMemo(() => {
-    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
-    let baseQuery = query(collection(firestore, "withdrawalRequests"), where('status', '==', 'approved'));
-    if (userRole === 'superadmin') {
-      return baseQuery;
-    }
-    if (userCompanyId) {
-      return query(baseQuery, where("companyId", "==", userCompanyId));
-    }
-    return null;
-  }, [firestore, userRole, userCompanyId]);
-  const { data: withdrawals, isLoading: withdrawalsLoading } = useCollection<WithId<WithdrawalRequest>>(withdrawalsQuery);
-
-  const isLoading = customersLoading || expensesLoading || withdrawalsLoading || (userRole === 'superadmin' && (allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading));
-  
-  // --- END: Data Fetching ---
 
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
@@ -126,7 +131,6 @@ export default function DashboardPage() {
     customers.forEach(customer => {
         if (!customer.startDate) return; 
         const startDate = parseISO(customer.startDate);
-        // Ensure loan duration is valid
         if (customer.duration <= 0) return;
         const loanMonths = eachMonthOfInterval({ start: startDate, end: addMonths(startDate, customer.duration - 1) });
 
@@ -217,15 +221,31 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
-      />
-      {user?.role === 'superadmin' && (
+      >
+        {userRole === 'superadmin' && allCompanies && (
+          <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select a company" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              {allCompanies.map(company => (
+                <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </PageHeader>
+      
+      {user?.role === 'superadmin' && selectedCompanyId === 'all' && (
         <CompanyDataOverview
           companies={allCompanies}
-          customers={allCustomers}
+          customers={allCustomers.data}
           users={allUsers}
-          expenses={allExpenses}
+          expenses={allExpenses.data}
         />
       )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
         {finalStats.map((stat, index) => (
           <Card key={index}>
@@ -267,3 +287,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
