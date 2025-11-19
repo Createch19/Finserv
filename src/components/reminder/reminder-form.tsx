@@ -44,14 +44,14 @@ const formSchema = z.object({
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
+    let baseQuery = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
 
     if (user.role === 'superadmin') {
-      return q;
+      return baseQuery;
     }
 
     if (!user.companyId) return null;
-    return query(q, where('companyId', '==', user.companyId));
+    return query(baseQuery, where('companyId', '==', user.companyId));
 }
 
 export function ReminderForm() {

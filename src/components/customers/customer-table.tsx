@@ -76,7 +76,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
     }
 
-    if (!user.companyId) return null;
+    if (!user.companyId) return null; // Important: Don't query if companyId isn't loaded
     return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('startDate', 'desc'));
     
   }, [firestore, user]);
@@ -86,7 +86,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const customers = useMemo(() => {
     if (!customersData) return [];
     // Filter out pending customers on the client.
-    // This correctly handles old documents that don't have a status field.
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData]);
 

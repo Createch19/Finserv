@@ -77,7 +77,7 @@ export function CollectionList() {
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
 
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
       return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
     }
 
