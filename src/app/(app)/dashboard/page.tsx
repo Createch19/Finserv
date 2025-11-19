@@ -10,7 +10,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, DatabaseZap, TriangleAlert, Info } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
@@ -25,52 +24,24 @@ import { useToast } from "@/hooks/use-toast";
 
 const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
 
-function getCustomersQuery(firestore: any, user: User | null) {
-  if (!firestore || !user) return null;
-  
-  if (user.role === 'superadmin') {
-      return collection(firestore, 'customers');
-  }
-  
-  if (!user.companyId) return null;
-  return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
-}
-
-function getExpensesQuery(firestore: any, user: User | null) {
-  if (!firestore || !user || (user.role !== 'superadmin' && user.role !== 'admin')) return null;
-
-  if (user.role === 'superadmin') {
-      return collection(firestore, 'expenses');
-  }
-  
-  if (!user.companyId) return null;
-  return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
-}
-
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isMigrating, setIsMigrating] = useState(false);
 
-
-  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
-  const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  // Fetch ALL data for Super Admin to perform migration check. Filtering for display happens later.
+  const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(
+      firestore ? collection(firestore, 'customers') : null
+  );
   
-  const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
-  const { data: expensesData, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+  const { data: expensesData, isLoading: expensesLoading } = useCollection<WithId<Expense>>(
+      firestore ? collection(firestore, 'expenses') : null
+  );
 
-  const usersQuery = useMemo(() => user?.role === 'superadmin' && firestore ? collection(firestore, 'users') : null, [user, firestore]);
-  const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
-  
-  const customers = useMemo(() => {
-    if (!customersData) return [];
-    if (user?.role === 'superadmin') return customersData;
-    return customersData.filter(c => c.status !== 'pending');
-  }, [customersData, user]);
-
-  const expenses = useMemo(() => expensesData || [], [expensesData]);
+  const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(
+      firestore ? collection(firestore, 'users') : null
+  );
   
   const isLoading = customersLoading || expensesLoading || usersLoading;
 
@@ -90,6 +61,24 @@ export default function DashboardPage() {
           users: unmigratedUsers,
       }
   }, [user, customersData, usersData, expensesData]);
+  
+  // Now, create memoized lists for display, filtered by user role.
+  const customers = useMemo(() => {
+    if (!customersData) return [];
+    if (user?.role === 'superadmin') return customersData.filter(c => c.status !== 'pending');;
+    if (!user?.companyId) return [];
+    // Admins and Agents only see non-pending customers from their company
+    return customersData.filter(c => c.companyId === user.companyId && c.status !== 'pending');
+  }, [customersData, user]);
+
+  const expenses = useMemo(() => {
+    if (!expensesData) return [];
+    if (user?.role === 'superadmin') return expensesData;
+    if (user?.role !== 'admin' || !user?.companyId) return [];
+    // Admins only see expenses from their company
+    return expensesData.filter(e => e.companyId === user.companyId);
+  }, [expensesData, user]);
+
   
   const handleMigrateData = async () => {
     if (!firestore || user?.role !== 'superadmin') {
