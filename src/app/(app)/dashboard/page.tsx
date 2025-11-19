@@ -53,6 +53,12 @@ function getExpensesQuery(firestore: any, user: User | null) {
     return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
 }
 
+function getUsersQuery(firestore: any, user: User | null) {
+    if (!firestore || user?.role !== 'superadmin') return null;
+    return collection(firestore, 'users');
+}
+
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
@@ -65,6 +71,9 @@ export default function DashboardPage() {
 
   const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+  
+  const usersQuery = useMemo(() => getUsersQuery(firestore, user), [user, firestore]);
+  const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
   
   const customers = useMemo(() => {
     if (!customersData) return [];
@@ -85,9 +94,14 @@ export default function DashboardPage() {
     return expensesData.filter(e => !e.companyId);
   }, [user, expensesData]);
 
-  const unmigratedCount = unmigratedCustomers.length + unmigratedExpenses.length;
+  const unmigratedUsers = useMemo(() => {
+    if (user?.role !== 'superadmin' || !usersData) return [];
+    return usersData.filter(u => !u.companyId && u.role !== 'superadmin'); // Don't migrate the superadmin itself
+  }, [user, usersData]);
+
+  const unmigratedCount = unmigratedCustomers.length + unmigratedExpenses.length + unmigratedUsers.length;
   
-  const isLoading = customersLoading || expensesLoading;
+  const isLoading = customersLoading || expensesLoading || usersLoading;
 
   const handleMigrateData = async () => {
     if (!firestore || unmigratedCount === 0) return;
@@ -105,6 +119,12 @@ export default function DashboardPage() {
             const expenseRef = doc(firestore, 'expenses', expense.id);
             batch.update(expenseRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
         });
+        
+        unmigratedUsers.forEach(user => {
+            const userRef = doc(firestore, 'users', user.id);
+            batch.update(userRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
+        });
+
 
         await batch.commit();
 
@@ -227,7 +247,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
             <div className="text-xl font-bold">{unmigratedCount}</div>
-            <p className="text-xs text-muted-foreground">{unmigratedCustomers.length} customers, {unmigratedExpenses.length} expenses</p>
+            <p className="text-xs text-muted-foreground">{unmigratedCustomers.length} cust, {unmigratedExpenses.length} exp, {unmigratedUsers.length} users</p>
         </CardContent>
         {unmigratedCount > 0 && (
             <CardFooter>
