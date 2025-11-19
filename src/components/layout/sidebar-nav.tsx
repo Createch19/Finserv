@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   CalendarCheck,
   Landmark,
+  Building,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -68,6 +69,13 @@ export function SidebarNav() {
               <Link href="/dashboard" passHref onClick={handleLinkClick}>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard')} tooltip="Admin Dashboard">
                   <div><LayoutDashboard /><span>Admin Dashboard</span></div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/companies" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/companies')} tooltip="Companies">
+                  <div><Building /><span>Companies</span></div>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
