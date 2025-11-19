@@ -72,7 +72,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
     
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
       return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
     }
 
@@ -339,3 +339,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
+
+    

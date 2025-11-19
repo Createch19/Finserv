@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, writeBatch, getDocs, doc } from "firebase/firestore";
+import { collection, query, where, writeBatch, doc } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
@@ -54,7 +54,7 @@ function getExpensesQuery(firestore: any, user: User | null) {
 }
 
 function getUsersQuery(firestore: any, user: User | null) {
-    if (!firestore || user?.role !== 'superadmin') return null;
+    if (!firestore || !user || user.role !== 'superadmin') return null;
     return collection(firestore, 'users');
 }
 
@@ -312,3 +312,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
