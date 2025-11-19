@@ -45,16 +45,16 @@ export function WithdrawalHistory() {
   const companyId = user?.companyId;
 
   const requestsQuery = useMemo(() => {
-    if (!firestore || !companyId) {
+    // CRITICAL: Ensure companyId is a valid string before creating the query.
+    if (!firestore || typeof companyId !== 'string' || companyId === '') {
       return null;
-    };
+    }
     
-    // Remove orderBy to avoid needing a composite index. Sorting will be done client-side.
-    const q = query(
+    // The query now only filters by companyId. Sorting is handled client-side.
+    return query(
         collection(firestore, "withdrawalRequests"), 
         where('companyId', '==', companyId)
     );
-    return q;
   }, [firestore, companyId]);
 
   const { data: unsortedRequests, isLoading } = useCollection<WithId<WithdrawalRequest>>(requestsQuery);
