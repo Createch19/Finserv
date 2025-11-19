@@ -36,7 +36,6 @@ import { useFirestore } from "@/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import type { Company, WithId } from "@/types";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
-import { Badge } from "@/components/ui/badge";
 
 interface CompanyListProps {
     companies: WithId<Company>[] | null;
@@ -88,7 +87,6 @@ export function CompanyList({ companies, isLoading }: CompanyListProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -99,9 +97,6 @@ export function CompanyList({ companies, isLoading }: CompanyListProps) {
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">
                       {company.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={company.status === 'active' ? 'success' : 'secondary'} className="capitalize">{company.status}</Badge>
                     </TableCell>
                     <TableCell>
                       {format(new Date(company.createdAt), "dd MMM yyyy")}
@@ -145,7 +140,7 @@ export function CompanyList({ companies, isLoading }: CompanyListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={3} className="h-24 text-center">
                     No companies found.
                   </TableCell>
                 </TableRow>
