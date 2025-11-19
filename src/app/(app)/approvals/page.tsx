@@ -16,14 +16,15 @@ export default function ApprovalsPage() {
   const firestore = useFirestore();
 
   const pendingCustomersQuery = useMemo(() => {
-    if (!firestore) return null;
-    // Both admins and agents can see all pending approvals.
-    // The button to approve is controlled by role.
+    if (!firestore || !user || !user.companyId) return null;
+    
+    // Admins and agents can only see pending approvals for their own company.
     return query(
       collection(firestore, "customers"),
-      where("status", "==", "pending")
+      where("status", "==", "pending"),
+      where("companyId", "==", user.companyId)
     );
-  }, [firestore]);
+  }, [firestore, user]);
 
   const {
     data: pendingCustomers,
