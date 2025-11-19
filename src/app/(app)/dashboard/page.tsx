@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
-import type { Customer, WithId, User, Expense, Company } from "@/types";
+import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
@@ -98,7 +98,20 @@ export default function DashboardPage() {
   }, [firestore, userRole, userCompanyId]);
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
 
-  const isLoading = customersLoading || expensesLoading || (userRole === 'superadmin' && (allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading));
+  const withdrawalsQuery = useMemo(() => {
+    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
+    let baseQuery = query(collection(firestore, "withdrawalRequests"), where('status', '==', 'approved'));
+    if (userRole === 'superadmin') {
+      return baseQuery;
+    }
+    if (userCompanyId) {
+      return query(baseQuery, where("companyId", "==", userCompanyId));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId]);
+  const { data: withdrawals, isLoading: withdrawalsLoading } = useCollection<WithId<WithdrawalRequest>>(withdrawalsQuery);
+
+  const isLoading = customersLoading || expensesLoading || withdrawalsLoading || (userRole === 'superadmin' && (allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading));
   
   // --- END: Data Fetching ---
 
@@ -250,7 +263,7 @@ export default function DashboardPage() {
         </Card>
       </div>
       <Separator className="my-6 md:my-8" />
-      <CapitalFlowTable customers={customers || []} />
+      <CapitalFlowTable customers={customers || []} withdrawals={withdrawals || []} />
     </>
   );
 }
