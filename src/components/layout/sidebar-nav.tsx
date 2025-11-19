@@ -43,13 +43,49 @@ export function SidebarNav() {
   const { user } = useAuth();
   const { setOpenMobile, isMobile } = useSidebar();
 
-  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin' || user?.isSuperAdmin);
-
   const handleLinkClick = () => {
     if (isMobile) {
         setOpenMobile(false);
     }
   }
+
+  if (user?.isSuperAdmin) {
+    return (
+      <>
+        <SidebarHeader>
+          <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <CreditCard className="h-5 w-5" />
+              </div>
+              <span className="font-headline text-lg font-semibold text-sidebar-foreground">FINSERV</span>
+          </div>
+        </SidebarHeader>
+        <SidebarContent className="p-2 flex flex-col justify-between">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Link href="/dashboard" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard')} tooltip="Admin Dashboard">
+                  <div><LayoutDashboard /><span>Admin Dashboard</span></div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/settings" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/settings')} tooltip="Settings">
+                  <div><Settings /><span>Settings</span></div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="hidden md:flex">
+           <UserNav />
+        </SidebarFooter>
+      </>
+    );
+  }
+
+  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin' || user?.isSuperAdmin);
 
   return (
     <>
