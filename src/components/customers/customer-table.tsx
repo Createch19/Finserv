@@ -82,7 +82,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     if (!user.companyId) return null;
     
     // Simplified query to fetch all customers for the company.
-    // Filtering by status will happen on the client-side.
+    // Filtering and sorting will happen on the client-side.
     return query(
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId)
@@ -92,6 +92,12 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
 
   const isLoading = isUserLoading || (customersLoading && !error);
+
+  useEffect(() => {
+    console.log("CustomerTable user:", user);
+    console.log("CustomerTable customers data:", customers);
+    console.log("CustomerTable error:", error);
+  }, [user, customers, error]);
   
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
