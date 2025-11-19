@@ -72,10 +72,12 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
 
+    const allowedStatuses = ['active', 'completed', 'overdue'];
+
     if (user.role === 'superadmin') {
       return query(
         collection(firestore, 'customers'),
-        where('status', '!=', 'pending'),
+        where('status', 'in', allowedStatuses),
         orderBy('status', 'asc'),
         orderBy('startDate', 'desc')
       );
@@ -85,7 +87,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     return query(
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId),
-      where('status', '!=', 'pending'),
+      where('status', 'in', allowedStatuses),
       orderBy('status', 'asc'),
       orderBy('startDate', 'desc')
     );
