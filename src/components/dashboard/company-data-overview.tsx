@@ -19,7 +19,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, DatabaseZap, AlertTriangle } from "lucide-react";
+import { Loader2, DatabaseZap, AlertTriangle, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore } from "@/firebase";
 import { writeBatch, doc } from "firebase/firestore";
@@ -45,13 +52,13 @@ export function CompanyDataOverview({
   const { toast } = useToast();
   const [isMigrating, setIsMigrating] = useState(false);
 
-  const { companyStats, dataToMigrate, totalCountToMigrate } = useMemo(() => {
+  const { companyStats, dataToMigrate } = useMemo(() => {
     const stats: Record<
       string,
-      { name: string; customerCount: number; userCount: number; expenseCount: number; }
+      { name: string; customerCount: number; userCount: number; expenseCount: number; isProblematic: boolean }
     > = {};
     
-    const migrationList: {id: string; collection: string}[] = [];
+    const migrationList: {id: string; collection: string, originalCompanyId: string}[] = [];
 
     // Initialize with known companies
     (companies || []).forEach((company) => {
@@ -60,52 +67,53 @@ export function CompanyDataOverview({
         customerCount: 0,
         userCount: 0,
         expenseCount: 0,
+        isProblematic: false,
       };
     });
 
     // Initialize groups for unassigned and legacy data
-    stats["unassigned"] = { name: "Unassigned", customerCount: 0, userCount: 0, expenseCount: 0 };
-    stats[LEGACY_COMPANY_ID] = { name: "Unknown Company (Legacy)", customerCount: 0, userCount: 0, expenseCount: 0 };
+    stats["unassigned"] = { name: "Unassigned", customerCount: 0, userCount: 0, expenseCount: 0, isProblematic: true };
+    stats[LEGACY_COMPANY_ID] = { name: "Unknown Company (Legacy)", customerCount: 0, userCount: 0, expenseCount: 0, isProblematic: true };
 
 
     (customers || []).forEach((c) => {
       const companyId = c.companyId || "unassigned";
-      if (!stats[companyId]) stats[companyId] = { name: "Unknown Company", customerCount: 0, userCount: 0, expenseCount: 0 };
+      if (!stats[companyId]) stats[companyId] = { name: `Unknown (${companyId.substring(0,8)})`, customerCount: 0, userCount: 0, expenseCount: 0, isProblematic: true };
       stats[companyId].customerCount++;
       if (!c.companyId || c.companyId === LEGACY_COMPANY_ID) {
-          migrationList.push({id: c.id, collection: 'customers'});
+          migrationList.push({id: c.id, collection: 'customers', originalCompanyId: companyId});
       }
     });
     
     (users || []).forEach((u) => {
       if (u.role === 'superadmin') return;
       const companyId = u.companyId || "unassigned";
-      if (!stats[companyId]) stats[companyId] = { name: "Unknown Company", customerCount: 0, userCount: 0, expenseCount: 0 };
+      if (!stats[companyId]) stats[companyId] = { name: `Unknown (${companyId.substring(0,8)})`, customerCount: 0, userCount: 0, expenseCount: 0, isProblematic: true };
       stats[companyId].userCount++;
       if (!u.companyId || u.companyId === LEGACY_COMPANY_ID) {
-        migrationList.push({id: u.uid, collection: 'users'});
+        migrationList.push({id: u.uid, collection: 'users', originalCompanyId: companyId});
       }
     });
 
     (expenses || []).forEach((e) => {
       const companyId = e.companyId || "unassigned";
-      if (!stats[companyId]) stats[companyId] = { name: "Unknown Company", customerCount: 0, userCount: 0, expenseCount: 0 };
+      if (!stats[companyId]) stats[companyId] = { name: `Unknown (${companyId.substring(0,8)})`, customerCount: 0, userCount: 0, expenseCount: 0, isProblematic: true };
       stats[companyId].expenseCount++;
       if (!e.companyId || e.companyId === LEGACY_COMPANY_ID) {
-        migrationList.push({id: e.id, collection: 'expenses'});
+        migrationList.push({id: e.id, collection: 'expenses', originalCompanyId: companyId});
       }
     });
 
     return {
         companyStats: Object.entries(stats).map(([id, data]) => ({ id, ...data })),
         dataToMigrate: migrationList,
-        totalCountToMigrate: migrationList.length,
     };
   }, [companies, customers, users, expenses]);
 
+  const totalCountToMigrate = dataToMigrate.length;
   const hasDataToMigrate = totalCountToMigrate > 0;
-
-  const handleMigrateData = async () => {
+  
+  const handleMigrateData = async (targetCompanyId: string) => {
     if (!firestore || !hasDataToMigrate) {
       toast({ variant: 'destructive', title: 'Error', description: 'No data to migrate or Firestore not available.' });
       return;
@@ -116,14 +124,15 @@ export function CompanyDataOverview({
 
     dataToMigrate.forEach(item => {
         const docRef = doc(firestore, item.collection, item.id);
-        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
+        batch.update(docRef, { companyId: targetCompanyId });
     });
 
     try {
       await batch.commit();
+      const companyName = companies?.find(c => c.id === targetCompanyId)?.name || "the selected company";
       toast({
         title: 'Migration Complete',
-        description: `${dataToMigrate.length} records have been successfully consolidated into the FINSERV company.`
+        description: `${dataToMigrate.length} records have been successfully consolidated into ${companyName}.`
       });
     } catch (error) {
       console.error("Migration failed:", error);
@@ -157,21 +166,41 @@ export function CompanyDataOverview({
                     <TableHead className="text-center">Users</TableHead>
                     <TableHead className="text-center">Customers</TableHead>
                     <TableHead className="text-center">Expenses</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {companyStats.filter(s => s.customerCount > 0 || s.userCount > 0 || s.expenseCount > 0).map(stat => (
                     <TableRow 
                         key={stat.id}
-                        className={stat.id === 'unassigned' || stat.id === LEGACY_COMPANY_ID ? "bg-amber-100/50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30" : ""}
+                        className={stat.isProblematic ? "bg-amber-100/50 hover:bg-amber-100/70 dark:bg-amber-900/20 dark:hover:bg-amber-900/30" : ""}
                     >
                         <TableCell>
-                            <div className={`font-medium ${stat.id === 'unassigned' || stat.id === LEGACY_COMPANY_ID ? "text-amber-700 dark:text-amber-400" : ""}`}>{stat.name}</div>
+                            <div className={`font-medium ${stat.isProblematic ? "text-amber-700 dark:text-amber-400" : ""}`}>{stat.name}</div>
                             <div className="text-xs text-muted-foreground font-mono">{stat.id}</div>
                         </TableCell>
                         <TableCell className="text-center">{stat.userCount}</TableCell>
                         <TableCell className="text-center">{stat.customerCount}</TableCell>
                         <TableCell className="text-center">{stat.expenseCount}</TableCell>
+                        <TableCell className="text-right">
+                            {stat.isProblematic && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isMigrating}>
+                                             {isMigrating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Assign All To</DropdownMenuLabel>
+                                        {(companies || []).map(c => (
+                                            <DropdownMenuItem key={c.id} onSelect={() => handleMigrateData(c.id)}>
+                                                {c.name}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -186,9 +215,9 @@ export function CompanyDataOverview({
                         Found <strong>{totalCountToMigrate} records</strong> that are unassigned or part of a legacy company. These should be consolidated.
                     </p>
                 </div>
-                <Button onClick={handleMigrateData} disabled={isMigrating}>
+                <Button onClick={() => handleMigrateData(FINSERV_COMPANY_ID)} disabled={isMigrating}>
                     {isMigrating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Consolidate Data
+                    Consolidate to FINSERV
                 </Button>
             </div>
         </CardFooter>
@@ -196,4 +225,3 @@ export function CompanyDataOverview({
     </Card>
   );
 }
-
