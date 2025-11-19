@@ -15,12 +15,12 @@ service cloud.firestore {
     }
 
     function getRole() {
-      // Fallback to token claim, but prefer the user document in Firestore.
+      // Prefer the user document in Firestore over token claims.
       return getUserDoc().role;
     }
 
     function getUserCompanyId() {
-        // Fallback to token claim, but prefer the user document in Firestore.
+      // Prefer the user document in Firestore over token claims.
       return getUserDoc().companyId;
     }
     
@@ -52,17 +52,18 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       // Super Admin has full access.
-      // Otherwise, user must be part of the same company.
       allow read, write: if isSuperAdmin();
-      allow list: if isSuperAdmin() || getRole() == 'admin' || getRole() == 'agent';
-
-      allow read, write: if (isTenantMember(resource.data) || isRequestingTenantMember()) && 
-                          (getRole() == 'admin' || getRole() == 'agent');
+      // Admins and agents can manage customers within their own company.
+      allow list, read, write: if (getRole() == 'admin' || getRole() == 'agent') && 
+                                  (isTenantMember(resource.data) || isRequestingTenantMember());
     }
 
     match /expenses/{expenseId} {
+      // Super Admin has full access.
       allow read, write: if isSuperAdmin();
+      // Admins can manage expenses within their own company.
       allow read, write: if getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember());
+      // For list, we rely on the client query to filter by companyId
       allow list: if isSuperAdmin() || getRole() == 'admin';
     }
     
