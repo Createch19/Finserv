@@ -69,7 +69,7 @@ service cloud.firestore {
     
     match /expenseTypes/{expenseTypeId} {
         allow read, list: if isSuperAdmin() || getRole() == 'admin';
-        allow write: if isSuperAdmin();
+        allow write: if isSuperAdmin() || getRole() == 'admin';
     }
     
     match /withdrawalRequests/{requestId} {
