@@ -72,8 +72,8 @@ service cloud.firestore {
     }
     
     match /withdrawalRequests/{requestId} {
-      // Super Admin can read, update, and list all requests.
-      allow read, list, update: if isSuperAdmin();
+      // Super Admin can read, update, delete, and list all requests.
+      allow read, list, update, delete: if isSuperAdmin();
       // Admins can create requests for their own company.
       allow create: if getRole() == 'admin' && isRequestingTenantMember();
       // Admins can read a list of requests, but client query must filter by their companyId.
