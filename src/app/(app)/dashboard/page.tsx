@@ -10,12 +10,12 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, DatabaseZap, TriangleAlert, Info } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, DatabaseZap } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, writeBatch, getDocs, doc } from "firebase/firestore";
+import { collection, query, where, writeBatch, doc } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
@@ -30,29 +30,45 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [isMigrating, setIsMigrating] = useState(false);
 
-  // Fetch ALL data for Super Admin to perform migration check. Filtering for display happens later.
-  const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(
-      firestore ? collection(firestore, 'customers') : null
-  );
+  // --- Queries for Data Migration Check (Super Admin only) ---
+  const allCustomersQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'customers') : null, [firestore, user]);
+  const { data: allCustomersData, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
   
-  const { data: expensesData, isLoading: expensesLoading } = useCollection<WithId<Expense>>(
-      firestore ? collection(firestore, 'expenses') : null
-  );
+  const allExpensesQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'expenses') : null, [firestore, user]);
+  const { data: allExpensesData, isLoading: allExpensesLoading } = useCollection<WithId<Expense>>(allExpensesQuery);
+  
+  const allUsersQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'users') : null, [firestore, user]);
+  const { data: allUsersData, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
 
-  const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(
-      firestore ? collection(firestore, 'users') : null
-  );
-  
-  const isLoading = customersLoading || expensesLoading || usersLoading;
+  // --- Role-based Queries for Display ---
+  const customersDisplayQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    const baseQuery = collection(firestore, 'customers');
+    if (user.role === 'superadmin') return query(baseQuery, where("status", "!=", "pending"));
+    if (!user.companyId) return null;
+    return query(baseQuery, where("companyId", "==", user.companyId), where("status", "!=", "pending"));
+  }, [firestore, user]);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
+
+  const expensesDisplayQuery = useMemo(() => {
+    if (!firestore || !user || (user.role !== 'admin' && user.role !== 'superadmin')) return null;
+    const baseQuery = collection(firestore, 'expenses');
+    if (user.role === 'superadmin') return baseQuery;
+    if (!user.companyId) return null;
+    return query(baseQuery, where("companyId", "==", user.companyId));
+  }, [firestore, user]);
+  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
+
+  const isLoading = customersLoading || expensesLoading || allCustomersLoading || allExpensesLoading || allUsersLoading;
 
   const migrationData = useMemo(() => {
-      if (user?.role !== 'superadmin' || !customersData || !usersData || !expensesData) {
+      if (user?.role !== 'superadmin' || !allCustomersData || !allUsersData || !allExpensesData) {
           return { required: false, customers: [], expenses: [], users: [] };
       }
 
-      const unmigratedCustomers = customersData.filter(c => !c.companyId);
-      const unmigratedExpenses = expensesData.filter(e => !e.companyId);
-      const unmigratedUsers = usersData.filter(u => u.role !== 'superadmin' && !u.companyId);
+      const unmigratedCustomers = allCustomersData.filter(c => !c.companyId);
+      const unmigratedExpenses = allExpensesData.filter(e => !e.companyId);
+      const unmigratedUsers = allUsersData.filter(u => u.role !== 'superadmin' && !u.companyId);
 
       return {
           required: unmigratedCustomers.length > 0 || unmigratedExpenses.length > 0 || unmigratedUsers.length > 0,
@@ -60,25 +76,8 @@ export default function DashboardPage() {
           expenses: unmigratedExpenses,
           users: unmigratedUsers,
       }
-  }, [user, customersData, usersData, expensesData]);
+  }, [user, allCustomersData, allUsersData, allExpensesData]);
   
-  // Now, create memoized lists for display, filtered by user role.
-  const customers = useMemo(() => {
-    if (!customersData) return [];
-    if (user?.role === 'superadmin') return customersData.filter(c => c.status !== 'pending');;
-    if (!user?.companyId) return [];
-    // Admins and Agents only see non-pending customers from their company
-    return customersData.filter(c => c.companyId === user.companyId && c.status !== 'pending');
-  }, [customersData, user]);
-
-  const expenses = useMemo(() => {
-    if (!expensesData) return [];
-    if (user?.role === 'superadmin') return expensesData;
-    if (user?.role !== 'admin' || !user?.companyId) return [];
-    // Admins only see expenses from their company
-    return expensesData.filter(e => e.companyId === user.companyId);
-  }, [expensesData, user]);
-
   
   const handleMigrateData = async () => {
     if (!firestore || user?.role !== 'superadmin') {
@@ -123,6 +122,7 @@ export default function DashboardPage() {
 
 
   const monthlyStats = useMemo(() => {
+    if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
     const today = new Date();
     const startOfCurrentMonth = startOfMonth(today);
     const endOfCurrentMonth = endOfMonth(today);
@@ -171,12 +171,12 @@ export default function DashboardPage() {
       )
   }
 
-  const totalFinanced = customers.reduce((acc, c) => acc + c.financedAmount, 0);
-  const totalInterest = customers.reduce((acc, c) => acc + c.interestAmount, 0);
+  const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
+  const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
   const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
   const profit = totalInterest - totalExpenses;
 
-  const activeLoans = customers.filter(c => c.status === 'active' || c.status === 'overdue').length;
+  const activeLoans = (customers || []).filter(c => c.status === 'active' || c.status === 'overdue').length;
 
   const formatValue = (value: number) => {
     const roundedValue = Math.round(value);
@@ -270,7 +270,7 @@ export default function DashboardPage() {
              <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <CollectionChart customers={customers} />
+            <CollectionChart customers={customers || []} />
           </CardContent>
         </Card>
         <Card>
@@ -279,12 +279,12 @@ export default function DashboardPage() {
                 <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
             </CardHeader>
             <CardContent>
-                <CollectionCountChart customers={customers} />
+                <CollectionCountChart customers={customers || []} />
             </CardContent>
         </Card>
       </div>
       <Separator className="my-6 md:my-8" />
-      <CapitalFlowTable customers={customers} />
+      <CapitalFlowTable customers={customers || []} />
     </>
   );
 }
