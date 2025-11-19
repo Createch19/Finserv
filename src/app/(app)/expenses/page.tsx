@@ -10,7 +10,7 @@ import { ShieldAlert } from "lucide-react";
 
 export default function ExpensesPage() {
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || user?.isSuperAdmin;
     
     if (!isAdmin) {
         return (

@@ -29,14 +29,6 @@ export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
 
-const defaultUsers = {
-    'admin@finserv.com': { name: 'Admin User', role: 'admin' },
-    'agent@finserv.com': { name: 'Agent User', role: 'agent' }
-};
-
-// This represents the initial company created during the migration.
-const FINSERV_COMPANY_ID = 'FINSERV_001';
-
 interface AuthProviderProps {
   children: ReactNode;
   auth: Auth;
@@ -58,33 +50,33 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
 
       if (firebaseUser) {
         try {
+            // Force refresh the token to get the latest custom claims
+            const idTokenResult = await firebaseUser.getIdTokenResult(true);
+            const claims = idTokenResult.claims;
+
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
-                const userData = {
-                    ...userDoc.data(),
+                const docData = userDoc.data();
+                const userData: User = {
                     uid: firebaseUser.uid,
-                } as User;
+                    email: firebaseUser.email!,
+                    name: docData.name,
+                    // Primarily use claims, fallback to Firestore doc
+                    role: claims.role || docData.role,
+                    companyId: claims.companyId || docData.companyId,
+                    isSuperAdmin: claims.superAdmin === true,
+                };
                 setUser(userData);
             } else {
-                const defaultUserInfo = defaultUsers[firebaseUser.email as keyof typeof defaultUsers];
-                
-                if (defaultUserInfo) {
-                    const newUser: User = {
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email!,
-                        name: defaultUserInfo.name,
-                        role: defaultUserInfo.role as 'admin' | 'agent',
-                        companyId: FINSERV_COMPANY_ID, // Assign to the initial company
-                    };
-                    await setDoc(userDocRef, newUser);
-                    setUser(newUser);
-                } else {
-                    setUser(null);
-                }
+                 // User exists in Auth but not Firestore. This case should be handled
+                 // by a backend provisioning function, so we log an error.
+                 console.error("User document not found for authenticated user:", firebaseUser.uid);
+                 setUser(null);
             }
         } catch(error) {
+            console.error("Error fetching user data:", error);
             setUser(null);
         } finally {
             setLoading(false);
@@ -107,20 +99,11 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle the rest.
+      // onAuthStateChanged will handle fetching user doc and claims.
     } catch (error: any) {
-      if (
-        (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') &&
-        defaultUsers.hasOwnProperty(email)
-      ) {
-        try {
-          await createUserWithEmailAndPassword(auth, email, pass);
-        } catch (creationError) {
-          throw creationError;
-        }
-      } else {
+        // Don't attempt to create user on client-side anymore
+        console.error("Sign in failed:", error);
         throw error;
-      }
     } finally {
         // We let onAuthStateChanged handle the final loading state
     }

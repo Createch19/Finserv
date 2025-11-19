@@ -51,12 +51,16 @@
         },
         "role": {
           "type": "string",
-          "description": "The role of the user (admin or agent).",
+          "description": "The user's role within their specific company.",
           "enum": ["admin", "agent"]
         },
         "companyId": {
           "type": "string",
           "description": "The ID of the company this user belongs to."
+        },
+        "isSuperAdmin": {
+            "type": "boolean",
+            "description": "Indicates if the user has global super administrator privileges. Primarily managed via Custom Claims."
         }
       },
       "required": [

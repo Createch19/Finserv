@@ -23,14 +23,25 @@ import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    // Admins and Agents fetch all customers.
-    // We will filter out 'pending' customers on the client-side.
-    return collection(firestore, 'customers');
+    if (user.isSuperAdmin) {
+        // Super admin sees all customers across all companies
+        return collection(firestore, 'customers');
+    }
+    
+    // Admins and Agents are restricted to their companyId
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
-    if (!firestore || !user || user.role !== 'admin') return null;
-    return collection(firestore, 'expenses');
+    if (!firestore || !user || (!user.isSuperAdmin && user.role !== 'admin')) return null;
+
+    if (user.isSuperAdmin) {
+        // Super admin sees all expenses
+        return collection(firestore, 'expenses');
+    }
+    
+    // Regular admin sees expenses for their company
+    return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
 }
 
 export default function DashboardPage() {
@@ -121,7 +132,7 @@ export default function DashboardPage() {
   const stats = [
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
       { title: "Active Loans", value: activeLoans, icon: Users },
-      { title: user?.role === 'admin' ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
+      { title: (user?.role === 'admin' || user?.isSuperAdmin) ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
   
   const collectionStat = {
@@ -141,7 +152,7 @@ export default function DashboardPage() {
   finalStats.splice(2, 0, emiCountStat);
 
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'admin' || user?.isSuperAdmin) {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
 

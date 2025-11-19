@@ -28,8 +28,15 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
 
   // In this new model, we can query the `users` collection directly.
   const usersQuery = useMemo(() => {
-    if (!firestore || !authUser || authUser.role !== 'admin') return null;
-    return collection(firestore, 'users');
+    if (!firestore || !authUser || (!authUser.isSuperAdmin && authUser.role !== 'admin')) return null;
+
+    if (authUser.isSuperAdmin) {
+      // Super admin can see all users.
+      return collection(firestore, 'users');
+    }
+    // Regular admin can see users within their own company.
+    return query(collection(firestore, 'users'), where('companyId', '==', authUser.companyId));
+
   }, [firestore, authUser]);
 
   // We only fetch users if the logged-in user is an admin.
@@ -37,16 +44,22 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
 
   // We still need customers to show the customer count for each user.
   const customersQuery = useMemo(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'customers');
-  }, [firestore]);
+    if (!firestore || !authUser) return null;
+
+    if (authUser.isSuperAdmin) {
+        // Super admin needs all customers to calculate counts for all agents.
+        return collection(firestore, 'customers');
+    }
+    // Regular admin only needs customers from their company.
+    return query(collection(firestore, 'customers'), where('companyId', '==', authUser.companyId));
+  }, [firestore, authUser]);
   
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const isLoading = usersLoading || customersLoading;
 
   const users = useMemo(() => {
-     if (authUser?.role !== 'admin') {
+     if (!authUser || (!authUser.isSuperAdmin && authUser.role !== 'admin')) {
          return authUser ? [authUser] : [];
      }
      return usersData || [];
@@ -110,7 +123,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
                   </TableCell>
                   <TableCell>
                     <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                      {user.role}
+                      {user.isSuperAdmin ? 'Super Admin' : user.role}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

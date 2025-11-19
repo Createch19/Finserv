@@ -19,6 +19,7 @@ export type User = Agent & {
   role: 'admin' | 'agent';
   password?: string;
   companyId: string;
+  isSuperAdmin?: boolean;
 };
 
 export type Payment = {

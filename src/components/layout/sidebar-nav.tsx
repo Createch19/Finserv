@@ -43,7 +43,7 @@ export function SidebarNav() {
   const { user } = useAuth();
   const { setOpenMobile, isMobile } = useSidebar();
 
-  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin');
+  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin' || user?.isSuperAdmin);
 
   const handleLinkClick = () => {
     if (isMobile) {
