@@ -23,7 +23,7 @@ import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
         // Super admin sees all customers across all companies
         return collection(firestore, 'customers');
     }
@@ -34,9 +34,9 @@ function getCustomersQuery(firestore: any, user: User | null) {
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
-    if (!firestore || !user || (!user.isSuperAdmin && user.role !== 'admin')) return null;
+    if (!firestore || !user || (user.role !== 'superadmin' && user.role !== 'admin')) return null;
 
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
         // Super admin sees all expenses
         return collection(firestore, 'expenses');
     }
@@ -59,12 +59,12 @@ export default function DashboardPage() {
   const customers = useMemo(() => {
     if (!customersData) return [];
     // For non-superadmins, filter out pending customers. Superadmin can see all.
-    if (user?.isSuperAdmin) return customersData;
+    if (user?.role === 'superadmin') return customersData;
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData, user]);
 
   const unmigratedCount = useMemo(() => {
-    if (!user?.isSuperAdmin || !customersData) return 0;
+    if (user?.role !== 'superadmin' || !customersData) return 0;
     return customersData.filter(c => !c.companyId).length;
   }, [user, customersData]);
   
@@ -141,7 +141,7 @@ export default function DashboardPage() {
   const stats = [
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
       { title: "Active Loans", value: activeLoans, icon: Users },
-      { title: (user?.role === 'admin' || user?.isSuperAdmin) ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
+      { title: (user?.role === 'admin' || user?.role === 'superadmin') ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
   
   const collectionStat = {
@@ -161,11 +161,11 @@ export default function DashboardPage() {
   finalStats.splice(2, 0, emiCountStat);
 
 
-  if (user?.role === 'admin' || user?.isSuperAdmin) {
+  if (user?.role === 'admin' || user?.role === 'superadmin') {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
 
-  if (user?.isSuperAdmin) {
+  if (user?.role === 'superadmin') {
     finalStats.push({ title: "Pending Migration", value: unmigratedCount, icon: Hourglass });
   }
 

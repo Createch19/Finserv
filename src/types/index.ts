@@ -16,10 +16,9 @@ export type Agent = {
 
 export type User = Agent & {
   uid: string;
-  role: 'admin' | 'agent';
+  role: 'admin' | 'agent' | 'superadmin';
   password?: string;
   companyId: string;
-  isSuperAdmin?: boolean;
 };
 
 export type Payment = {

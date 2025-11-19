@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
         return collection(firestore, 'customers');
     }
 
@@ -25,7 +25,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
 function getExpensesQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
 
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
         return collection(firestore, 'expenses');
     }
     
@@ -98,7 +98,7 @@ export default function ReportsPage() {
                     <NewCustomersChart customers={customers} height={350} />
                 </CardContent>
             </Card>
-            {user?.role === 'admin' && expenses && expenses.length > 0 && (
+            {(user?.role === 'admin' || user?.role === 'superadmin') && expenses && expenses.length > 0 && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Expenses by Type</CardTitle>
@@ -117,7 +117,7 @@ export default function ReportsPage() {
                     <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin'} height={300} />
+                    <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin' || user?.role === 'superadmin'} height={300} />
                 </CardContent>
             </Card>
             <Card>

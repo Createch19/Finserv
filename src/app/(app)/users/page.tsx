@@ -13,7 +13,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
 
-  const isAdmin = user?.role === 'admin' || user?.isSuperAdmin;
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <>

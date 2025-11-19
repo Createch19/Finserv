@@ -46,7 +46,7 @@ function getCustomersQuery(firestore: any, user: User | null) {
     
     let q = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
 
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
       return q;
     }
 

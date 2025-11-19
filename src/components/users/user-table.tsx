@@ -28,9 +28,9 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
 
   // In this new model, we can query the `users` collection directly.
   const usersQuery = useMemo(() => {
-    if (!firestore || !authUser || (!authUser.isSuperAdmin && authUser.role !== 'admin')) return null;
+    if (!firestore || !authUser || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) return null;
 
-    if (authUser.isSuperAdmin) {
+    if (authUser.role === 'superadmin') {
       // Super admin can see all users.
       return collection(firestore, 'users');
     }
@@ -48,7 +48,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const customersQuery = useMemo(() => {
     if (!firestore || !authUser) return null;
 
-    if (authUser.isSuperAdmin) {
+    if (authUser.role === 'superadmin') {
         // Super admin needs all customers to calculate counts for all agents.
         return collection(firestore, 'customers');
     }
@@ -63,7 +63,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const isLoading = usersLoading || customersLoading;
 
   const users = useMemo(() => {
-     if (!authUser || (!authUser.isSuperAdmin && authUser.role !== 'admin')) {
+     if (!authUser || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) {
          return authUser ? [authUser] : [];
      }
      return usersData || [];
@@ -126,8 +126,8 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
                     <div className="text-sm text-muted-foreground">{user.email}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                      {user.isSuperAdmin ? 'Super Admin' : user.role}
+                    <Badge variant={user.role === 'admin' || user.role === 'superadmin' ? 'default' : 'secondary'} className="capitalize">
+                      {user.role}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

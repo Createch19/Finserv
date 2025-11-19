@@ -66,7 +66,6 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
                     // Prioritize claims, but fall back to Firestore doc for a smooth migration.
                     role: claims.role || docData.role,
                     companyId: claims.companyId || docData.companyId, // Correctly fall back to docData
-                    isSuperAdmin: claims.superAdmin === true,
                 };
                 setUser(userData);
             } else {

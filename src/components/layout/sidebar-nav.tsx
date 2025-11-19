@@ -49,7 +49,7 @@ export function SidebarNav() {
     }
   }
 
-  if (user?.isSuperAdmin) {
+  if (user?.role === 'superadmin') {
     return (
       <>
         <SidebarHeader>
@@ -85,7 +85,7 @@ export function SidebarNav() {
     );
   }
 
-  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin' || user?.isSuperAdmin);
+  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin');
 
   return (
     <>

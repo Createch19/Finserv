@@ -52,9 +52,9 @@ export function ExpenseList() {
   const { toast } = useToast();
 
   const expensesQuery = useMemo(() => {
-    if (!firestore || !user || (!user.isSuperAdmin && user.role !== 'admin')) return null;
+    if (!firestore || !user || (user.role !== 'superadmin' && user.role !== 'admin')) return null;
 
-    if (user.isSuperAdmin) {
+    if (user.role === 'superadmin') {
         return query(collection(firestore, "expenses"), orderBy("date", "desc"));
     }
     
