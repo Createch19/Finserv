@@ -26,38 +26,40 @@ const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
+  const userRole = user?.role;
+  const userCompanyId = user?.companyId;
 
   // --- Data for Super Admin Company Overview ---
-  const allCustomersQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'customers') : null, [firestore, user]);
+  const allCustomersQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'customers') : null, [firestore, userRole]);
   const { data: allCustomersData, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
   
-  const allExpensesQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'expenses') : null, [firestore, user]);
+  const allExpensesQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'expenses') : null, [firestore, userRole]);
   const { data: allExpensesData, isLoading: allExpensesLoading } = useCollection<WithId<Expense>>(allExpensesQuery);
   
-  const allUsersQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'users') : null, [firestore, user]);
+  const allUsersQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'users') : null, [firestore, userRole]);
   const { data: allUsersData, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
   
-  const allCompaniesQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'companies') : null, [firestore, user]);
+  const allCompaniesQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'companies') : null, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
   
 
   // --- Role-based Queries for general dashboard stats ---
   const customersDisplayQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !userRole) return null;
     const baseQuery = collection(firestore, 'customers');
-    if (user.role === 'superadmin') return query(baseQuery, where("status", "!=", "pending"));
-    if (!user.companyId) return null;
-    return query(baseQuery, where("companyId", "==", user.companyId), where("status", "!=", "pending"));
-  }, [firestore, user]);
+    if (userRole === 'superadmin') return query(baseQuery, where("status", "!=", "pending"));
+    if (!userCompanyId) return null;
+    return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
+  }, [firestore, userRole, userCompanyId]);
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
 
   const expensesDisplayQuery = useMemo(() => {
-    if (!firestore || !user || (user.role !== 'admin' && user.role !== 'superadmin')) return null;
+    if (!firestore || !userRole || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
     const baseQuery = collection(firestore, 'expenses');
-    if (user.role === 'superadmin') return baseQuery;
-    if (!user.companyId) return null;
-    return query(baseQuery, where("companyId", "==", user.companyId));
-  }, [firestore, user]);
+    if (userRole === 'superadmin') return baseQuery;
+    if (!userCompanyId) return null;
+    return query(baseQuery, where("companyId", "==", userCompanyId));
+  }, [firestore, userRole, userCompanyId]);
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
 
   const isLoading = customersLoading || expensesLoading || allCustomersLoading || allExpensesLoading || allUsersLoading || allCompaniesLoading;
@@ -212,5 +214,7 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
 
     
