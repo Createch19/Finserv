@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -15,54 +15,117 @@ import { CollectionChart, CollectionCountChart } from "@/components/reports/char
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, doc, writeBatch } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 
-const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
-
 export default function DashboardPage() {
+  console.log("--- DashboardPage RENDER START ---");
   const { user } = useAuth();
   const firestore = useFirestore();
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
+  console.log("Auth user object:", user);
+
   // --- Data for Super Admin Company Overview ---
-  const allCustomersQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'customers') : null, [firestore, userRole]);
+  const allCustomersQuery = useMemo(() => {
+    console.log("useMemo: allCustomersQuery re-calculating...");
+    if (firestore && userRole === 'superadmin') {
+      console.log("Super Admin - creating query for ALL customers.");
+      return collection(firestore, 'customers');
+    }
+    console.log("Not Super Admin or no Firestore - allCustomersQuery is null.");
+    return null;
+  }, [firestore, userRole]);
   const { data: allCustomersData, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
-  
-  const allExpensesQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'expenses') : null, [firestore, userRole]);
+  console.log("useCollection(allCustomers):", { data: allCustomersData, isLoading: allCustomersLoading });
+
+  const allExpensesQuery = useMemo(() => {
+    console.log("useMemo: allExpensesQuery re-calculating...");
+    if (firestore && userRole === 'superadmin') {
+       console.log("Super Admin - creating query for ALL expenses.");
+      return collection(firestore, 'expenses');
+    }
+     console.log("Not Super Admin or no Firestore - allExpensesQuery is null.");
+    return null;
+  }, [firestore, userRole]);
   const { data: allExpensesData, isLoading: allExpensesLoading } = useCollection<WithId<Expense>>(allExpensesQuery);
+  console.log("useCollection(allExpenses):", { data: allExpensesData, isLoading: allExpensesLoading });
   
-  const allUsersQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'users') : null, [firestore, userRole]);
+  const allUsersQuery = useMemo(() => {
+    console.log("useMemo: allUsersQuery re-calculating...");
+    if (firestore && userRole === 'superadmin') {
+      console.log("Super Admin - creating query for ALL users.");
+      return collection(firestore, 'users');
+    }
+    console.log("Not Super Admin or no Firestore - allUsersQuery is null.");
+    return null;
+  }, [firestore, userRole]);
   const { data: allUsersData, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
+  console.log("useCollection(allUsers):", { data: allUsersData, isLoading: allUsersLoading });
   
-  const allCompaniesQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'companies') : null, [firestore, userRole]);
+  const allCompaniesQuery = useMemo(() => {
+    console.log("useMemo: allCompaniesQuery re-calculating...");
+    if (firestore && userRole === 'superadmin') {
+      console.log("Super Admin - creating query for ALL companies.");
+      return collection(firestore, 'companies');
+    }
+    console.log("Not Super Admin or no Firestore - allCompaniesQuery is null.");
+    return null;
+  }, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
-  
+  console.log("useCollection(allCompanies):", { data: allCompanies, isLoading: allCompaniesLoading });
 
   // --- Role-based Queries for general dashboard stats ---
   const customersDisplayQuery = useMemo(() => {
-    if (!firestore || !userRole) return null;
+    console.log("useMemo: customersDisplayQuery re-calculating...");
+    if (!firestore || !userRole) {
+      console.log("No firestore/userRole - customersDisplayQuery is null.");
+      return null;
+    };
     const baseQuery = collection(firestore, 'customers');
-    if (userRole === 'superadmin') return query(baseQuery, where("status", "!=", "pending"));
-    if (!userCompanyId) return null;
+    if (userRole === 'superadmin') {
+      console.log("Creating customersDisplayQuery for Super Admin.");
+      return query(baseQuery, where("status", "!=", "pending"));
+    }
+    if (!userCompanyId) {
+      console.log("No companyId for non-superadmin - customersDisplayQuery is null.");
+      return null;
+    }
+    console.log(`Creating customersDisplayQuery for role ${userRole} and company ${userCompanyId}`);
     return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
   }, [firestore, userRole, userCompanyId]);
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
+  console.log("useCollection(customersDisplay):", { data: customers, isLoading: customersLoading });
+
 
   const expensesDisplayQuery = useMemo(() => {
-    if (!firestore || !userRole || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
+     console.log("useMemo: expensesDisplayQuery re-calculating...");
+    if (!firestore || !userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+      console.log("No firestore/not admin role - expensesDisplayQuery is null.");
+      return null;
+    }
     const baseQuery = collection(firestore, 'expenses');
-    if (userRole === 'superadmin') return baseQuery;
-    if (!userCompanyId) return null;
+    if (userRole === 'superadmin') {
+      console.log("Creating expensesDisplayQuery for Super Admin.");
+      return baseQuery;
+    }
+    if (!userCompanyId) {
+      console.log("No companyId for admin - expensesDisplayQuery is null.");
+      return null;
+    }
+    console.log(`Creating expensesDisplayQuery for admin and company ${userCompanyId}`);
     return query(baseQuery, where("companyId", "==", userCompanyId));
   }, [firestore, userRole, userCompanyId]);
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
+  console.log("useCollection(expensesDisplay):", { data: expenses, isLoading: expensesLoading });
+
 
   const isLoading = customersLoading || expensesLoading || allCustomersLoading || allExpensesLoading || allUsersLoading || allCompaniesLoading;
+  console.log("Overall isLoading state:", isLoading);
   
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
@@ -107,6 +170,7 @@ export default function DashboardPage() {
 }, [customers]);
 
   if (isLoading || !user) {
+      console.log("RENDER BLOCKED: isLoading or !user is true. Showing loader.");
       return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -158,7 +222,8 @@ export default function DashboardPage() {
   if (user?.role === 'admin' || user?.role === 'superadmin') {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
-
+  
+  console.log("--- DashboardPage RENDER END ---");
   return (
     <>
       <PageHeader
@@ -214,7 +279,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
-
-    
