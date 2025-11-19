@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -9,16 +9,23 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Hourglass } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Hourglass, DatabaseZap } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, writeBatch, getDocs } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
+
+// Define a default company ID for migration.
+const DEFAULT_MIGRATION_COMPANY_ID = 'finserv-company-id';
+
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
@@ -49,6 +56,9 @@ function getExpensesQuery(firestore: any, user: User | null) {
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isMigrating, setIsMigrating] = useState(false);
+
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
@@ -63,12 +73,42 @@ export default function DashboardPage() {
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData, user]);
 
-  const unmigratedCount = useMemo(() => {
-    if (user?.role !== 'superadmin' || !customersData) return 0;
-    return customersData.filter(c => !c.companyId).length;
+  const unmigratedCustomers = useMemo(() => {
+    if (user?.role !== 'superadmin' || !customersData) return [];
+    return customersData.filter(c => !c.companyId);
   }, [user, customersData]);
   
   const isLoading = customersLoading || expensesLoading;
+
+  const handleMigrateData = async () => {
+    if (!firestore || unmigratedCustomers.length === 0) return;
+
+    setIsMigrating(true);
+    try {
+        const batch = writeBatch(firestore);
+        
+        unmigratedCustomers.forEach(customer => {
+            const customerRef = doc(firestore, 'customers', customer.id);
+            batch.update(customerRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
+        });
+
+        await batch.commit();
+
+        toast({
+            title: "Migration Successful",
+            description: `${unmigratedCustomers.length} customer records have been migrated.`,
+        });
+    } catch (error) {
+        console.error("Migration failed: ", error);
+        toast({
+            variant: "destructive",
+            title: "Migration Failed",
+            description: "An error occurred while migrating data. Check the console for details.",
+        });
+    } finally {
+        setIsMigrating(false);
+    }
+  };
 
   const monthlyStats = useMemo(() => {
     const today = new Date();
@@ -165,9 +205,29 @@ export default function DashboardPage() {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
 
-  if (user?.role === 'superadmin') {
-    finalStats.push({ title: "Pending Migration", value: unmigratedCount, icon: Hourglass });
-  }
+  const migrationCard = user?.role === 'superadmin' ? (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Migration</CardTitle>
+            <Hourglass className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            <div className="text-xl font-bold">{unmigratedCustomers.length}</div>
+        </CardContent>
+        {unmigratedCustomers.length > 0 && (
+            <CardFooter>
+                <Button onClick={handleMigrateData} disabled={isMigrating} className="w-full">
+                    {isMigrating ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <DatabaseZap className="mr-2 h-4 w-4" />
+                    )}
+                    Migrate Data
+                </Button>
+            </CardFooter>
+        )}
+    </Card>
+  ) : null;
 
   return (
     <>
@@ -189,6 +249,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+        {migrationCard}
       </div>
       <Separator className="my-6 md:my-8" />
        <div className="grid gap-4 md:grid-cols-2">
