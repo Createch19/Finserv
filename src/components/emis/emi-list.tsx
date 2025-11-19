@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where, orderBy } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -92,11 +92,11 @@ export function EmiList() {
     if (!firestore || !user) return null;
     
     if (user.role === 'superadmin') {
-      return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+      return collection(firestore, 'customers');
     }
     
     if (!user.companyId) return null;
-    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('name', 'asc'));
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
   }, [user, firestore]);
 
   const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
@@ -170,10 +170,6 @@ export function EmiList() {
             paidCount,
             overallStatus
         };
-    }).sort((a,b) => {
-        if (a.overallStatus === 'overdue' && b.overallStatus !== 'overdue') return -1;
-        if (a.overallStatus !== 'overdue' && b.overallStatus === 'overdue') return 1;
-        return a.name.localeCompare(b.name);
     });
 
   }, [customers]);
@@ -560,5 +556,3 @@ export function EmiList() {
     </TooltipProvider>
   );
 }
-
-    

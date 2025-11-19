@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where, orderBy } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
@@ -78,11 +78,11 @@ export function CollectionList() {
     if (!firestore || !user) return null;
 
     if (user.role === 'superadmin') {
-      return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+      return collection(firestore, 'customers');
     }
 
     if (!user.companyId) return null;
-    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('name', 'asc'));
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
   }, [user, firestore]);
 
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
@@ -140,22 +140,7 @@ export function CollectionList() {
         }
     });
 
-    const statusOrder: Record<EmiStatus, number> = {
-        "overdue": 1,
-        "due": 2,
-        "upcoming": 3,
-        "pending": 4,
-        "paid": 5,
-    };
-
-    return allEmis.sort((a, b) => {
-        const statusOrderA = statusOrder[a.status];
-        const statusOrderB = statusOrder[b.status];
-        if (statusOrderA !== statusOrderB) {
-            return statusOrderA - statusOrderB;
-        }
-        return a.dueDate.getDate() - b.dueDate.getDate();
-    });
+    return allEmis;
 
   }, [customers, currentMonth]);
 
@@ -493,4 +478,3 @@ export function CollectionList() {
   );
 }
 
-    
