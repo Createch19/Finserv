@@ -50,10 +50,6 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
 
       if (firebaseUser) {
         try {
-            // Force refresh the token to get the latest custom claims
-            const idTokenResult = await firebaseUser.getIdTokenResult(true);
-            const claims = idTokenResult.claims;
-
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
             const userDoc: DocumentSnapshot = await getDoc(userDocRef);
 
@@ -64,12 +60,12 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
                     uid: firebaseUser.uid,
                     email: firebaseUser.email!,
                     name: docData.name,
-                    role: claims.role || docData.role,
-                    companyId: docData.companyId, // Prioritize firestore doc for companyId
+                    role: docData.role,
+                    companyId: docData.companyId,
                 };
-
-                // For the hardcoded superadmin, ensure their role is always correct client-side
-                if (firebaseUser.uid === 'WkxEkKrs8fTm2dIsiYLz6OpAlx32') {
+                
+                // Client-side override to ensure superadmin role is always correct
+                 if (firebaseUser.uid === 'WkxEkKrs8fTm2dIsiYLz6OpAlx32') {
                     userData.role = 'superadmin';
                 }
 
