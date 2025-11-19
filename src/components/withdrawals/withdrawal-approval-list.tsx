@@ -24,12 +24,23 @@ import {
     TabsList,
     TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, doc, orderBy, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, orderBy, query, updateDoc, deleteDoc } from "firebase/firestore";
 import type { WithdrawalRequest, WithId } from "@/types";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
 import { Badge } from "../ui/badge";
@@ -52,6 +63,7 @@ export function WithdrawalApprovalList() {
   const { user } = useAuth();
   const firestore = useFirestore();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const requestsQuery = useMemo(() => {
@@ -94,6 +106,31 @@ export function WithdrawalApprovalList() {
         setProcessingId(null);
       });
   };
+
+  const handleDelete = (requestId: string) => {
+    if (!firestore) return;
+    setDeletingId(requestId);
+    const docRef = doc(firestore, "withdrawalRequests", requestId);
+
+    deleteDoc(docRef)
+      .then(() => {
+        toast({
+          title: "Request Deleted",
+          description: "The withdrawal request has been permanently deleted.",
+        });
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: "delete",
+        });
+        errorEmitter.emit("permission-error", permissionError);
+      })
+      .finally(() => {
+        setDeletingId(null);
+      });
+  };
+
 
   if (isLoading) {
       return (
@@ -173,6 +210,7 @@ export function WithdrawalApprovalList() {
                                 <TableHead>Requested By</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -186,11 +224,47 @@ export function WithdrawalApprovalList() {
                                     <Badge variant={getStatusBadgeVariant(req.status)} className="capitalize">{req.status}</Badge>
                                 </TableCell>
                                 <TableCell className="text-right font-medium">{formatCurrency(req.amount)}</TableCell>
+                                <TableCell className="text-right">
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled={deletingId === req.id}
+                                        >
+                                            {deletingId === req.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                            )}
+                                        </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>
+                                            Are you absolutely sure?
+                                            </AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                            This action cannot be undone. This will
+                                            permanently delete this request record.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                            onClick={() => handleDelete(req.id)}
+                                            >
+                                            Continue
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
                             </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={6} className="h-24 text-center">
                                     No processed requests yet.
                                 </TableCell>
                             </TableRow>
