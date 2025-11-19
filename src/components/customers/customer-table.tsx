@@ -64,7 +64,7 @@ const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined
 export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
-  const { user, loading: userLoading } = useAuth();
+  const { user, loading: isUserLoading } = useAuth();
   const firestore = useFirestore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
@@ -78,7 +78,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       return query(
         collection(firestore, 'customers'),
         where('status', 'in', allowedStatuses),
-        orderBy('status', 'asc'),
         orderBy('startDate', 'desc')
       );
     }
@@ -88,7 +87,6 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId),
       where('status', 'in', allowedStatuses),
-      orderBy('status', 'asc'),
       orderBy('startDate', 'desc')
     );
   }, [firestore, user]);
@@ -101,7 +99,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     console.log("CustomerTable error:", error);
   }, [user, customers, error]);
 
-  const isLoading = userLoading || (customersLoading && !error);
+  const isLoading = isUserLoading || (customersLoading && !error);
   
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
