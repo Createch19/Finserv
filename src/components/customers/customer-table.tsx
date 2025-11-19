@@ -70,7 +70,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const router = useRouter();
 
   const customersQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || isUserLoading) return null;
 
     const allowedStatuses = ['active', 'completed', 'overdue'];
 
@@ -83,13 +83,16 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     }
 
     if (!user.companyId) return null;
+    
+    // Simplified query to avoid composite index requirement.
+    // The combination of `where('status', 'in', ...)` and `orderBy('startDate', ...)`
+    // requires a custom index. Removing the orderBy clause fixes the crash.
     return query(
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId),
-      where('status', 'in', allowedStatuses),
-      orderBy('startDate', 'desc')
+      where('status', 'in', allowedStatuses)
     );
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
 
@@ -104,7 +107,10 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
-    return customers.filter((customer) => {
+    
+    const sortedCustomers = [...customers].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    
+    return sortedCustomers.filter((customer) => {
       return (
         customer.name.toLowerCase().includes(lowercasedFilter) ||
         customer.phone.includes(searchTerm)
@@ -348,3 +354,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
+
+    
