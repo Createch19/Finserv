@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore } from '@/firebase';
 import { FirestorePermissionError, errorEmitter } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
+import { collection, deleteDoc, doc, query, where } from 'firebase/firestore';
 
 const getStatusBadgeVariant = (status: Customer['status']) => {
   switch (status) {
@@ -73,13 +73,11 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     if (!firestore || !user || isUserLoading) return null;
 
     if (user.role === 'superadmin') {
-      // Super admin gets all customers.
       return collection(firestore, 'customers');
     }
     
     if (!user.companyId) return null;
     
-    // Admins and agents get customers for their company.
     return query(
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId)
@@ -99,8 +97,10 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
     
+    // Client-side filtering for status
     const approvedCustomers = customers.filter(c => c.status !== 'pending');
     
+    // Client-side sorting
     const sortedCustomers = [...approvedCustomers].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     
     if (!searchTerm) {
@@ -353,5 +353,3 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
-
-    

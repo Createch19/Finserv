@@ -47,13 +47,12 @@ export default function ReportsPage() {
 
   const customers = useMemo(() => {
     if (!customersData) return [];
-    // Filter out pending customers on the client.
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData]);
 
-  const isLoading = customersLoading || expensesLoading;
+  const isLoading = customersLoading || expensesLoading || !user;
 
-  if (isLoading || !customers) {
+  if (isLoading) {
       return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

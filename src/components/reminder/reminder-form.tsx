@@ -127,7 +127,7 @@ export function ReminderForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={customersLoading}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={customersLoading || !user}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a customer" />
@@ -147,7 +147,7 @@ export function ReminderForm() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full" disabled={isLoading || customersLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || customersLoading || !user}>
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

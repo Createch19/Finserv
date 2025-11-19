@@ -95,7 +95,7 @@ export function CollectionList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  const isLoading = userLoading || (customersLoading);
+  const isLoading = userLoading || customersLoading;
 
   const monthlyEmis = useMemo(() => {
     if (!customers) return [];

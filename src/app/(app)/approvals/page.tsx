@@ -19,14 +19,10 @@ export default function ApprovalsPage() {
     if (!firestore || !user) return null;
 
     if (user.role === 'superadmin') {
-      // Super admin can see all pending approvals.
       return query(collection(firestore, "customers"), where("status", "==", "pending"));
     }
     
-    // For other roles, companyId is required.
     if (!user.companyId) return null;
-
-    // Admins and agents can only see pending approvals for their own company.
     return query(
       collection(firestore, "customers"),
       where("status", "==", "pending"),
@@ -70,7 +66,7 @@ export default function ApprovalsPage() {
         description="Review and approve new customer financing requests."
       />
 
-      {isLoading ? (
+      {isLoading || !user ? (
          <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>

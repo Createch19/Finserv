@@ -103,7 +103,6 @@ export function EmiList() {
   
   const customers = useMemo(() => {
     if (!customersData) return [];
-    // Filter out pending customers on the client.
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData]);
 

@@ -30,14 +30,10 @@ function getCustomersQuery(firestore: any, user: User | null) {
   if (!firestore || !user) return null;
   
   if (user.role === 'superadmin') {
-      // Super admin sees all customers across all companies
       return collection(firestore, 'customers');
   }
   
-  // For other roles, companyId is required.
   if (!user.companyId) return null;
-
-  // Admins and Agents are restricted to their companyId
   return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
 
@@ -45,14 +41,10 @@ function getExpensesQuery(firestore: any, user: User | null) {
   if (!firestore || !user || (user.role !== 'superadmin' && user.role !== 'admin')) return null;
 
   if (user.role === 'superadmin') {
-      // Super admin sees all expenses
       return collection(firestore, 'expenses');
   }
   
-  // For admin role, companyId is required.
   if (!user.companyId) return null;
-
-  // Regular admin sees expenses for their company
   return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
 }
 
@@ -188,7 +180,7 @@ export default function DashboardPage() {
     };
 }, [customers]);
 
-  if (isLoading || !customers) {
+  if (isLoading || !user) {
       return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
