@@ -80,8 +80,8 @@ export default function DashboardPage() {
   
   
   const handleMigrateData = async () => {
-    if (!firestore || user?.role !== 'superadmin') {
-      toast({ variant: 'destructive', title: 'Error', description: 'You do not have permission to perform this action.' });
+    if (!firestore || user?.role !== 'superadmin' || !migrationData.required) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No data to migrate or insufficient permissions.' });
       return;
     }
     
@@ -107,7 +107,7 @@ export default function DashboardPage() {
         title: 'Migration Complete',
         description: 'All records have been successfully associated with the FINSERV company.'
       });
-      // Data will refetch automatically due to useCollection hook
+      // Data will refetch automatically due to useCollection hooks, hiding the migration card.
     } catch (error) {
       console.error("Migration failed:", error);
       toast({
