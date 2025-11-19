@@ -71,23 +71,27 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
 
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    
+
     if (user.role === 'superadmin') {
-      return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
+      return query(
+        collection(firestore, 'customers'),
+        where('status', '!=', 'pending'),
+        orderBy('status', 'asc'),
+        orderBy('startDate', 'desc')
+      );
     }
 
     if (!user.companyId) return null;
-    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('startDate', 'desc'));
-    
+    return query(
+      collection(firestore, 'customers'),
+      where('companyId', '==', user.companyId),
+      where('status', '!=', 'pending'),
+      orderBy('status', 'asc'),
+      orderBy('startDate', 'desc')
+    );
   }, [firestore, user]);
 
-  const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
-  
-  const customers = useMemo(() => {
-    if (!customersData) return [];
-    // Filter out pending customers on the client.
-    return customersData.filter(c => c.status !== 'pending');
-  }, [customersData]);
+  const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
 
   const isLoading = userLoading || (customersLoading && !error);
   
