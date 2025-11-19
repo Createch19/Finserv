@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Loader2, MoreVertical, Building } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, MoreVertical } from 'lucide-react';
 import type { Company, Customer, User, WithId } from '@/types';
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
@@ -83,10 +83,9 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
     if (!users) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
     return users.filter((user) => {
-      return (
-        user.name.toLowerCase().includes(lowercasedFilter) ||
-        user.email.toLowerCase().includes(lowercasedFilter)
-      );
+      const isSuperAdmin = user.role === 'superadmin';
+      const matchesSearch = user.name.toLowerCase().includes(lowercasedFilter) || user.email.toLowerCase().includes(lowercasedFilter);
+      return !isSuperAdmin && matchesSearch;
     });
   }, [searchTerm, users]);
 
