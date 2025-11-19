@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -92,6 +92,12 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   }, [firestore, user]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
+
+  useEffect(() => {
+    console.log("CustomerTable user:", user);
+    console.log("CustomerTable customers data:", customers);
+    console.log("CustomerTable error:", error);
+  }, [user, customers, error]);
 
   const isLoading = userLoading || (customersLoading && !error);
   
