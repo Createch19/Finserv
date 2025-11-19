@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Hourglass } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
@@ -58,9 +58,15 @@ export default function DashboardPage() {
   
   const customers = useMemo(() => {
     if (!customersData) return [];
-    // Filter out pending customers on the client.
+    // For non-superadmins, filter out pending customers. Superadmin can see all.
+    if (user?.isSuperAdmin) return customersData;
     return customersData.filter(c => c.status !== 'pending');
-  }, [customersData]);
+  }, [customersData, user]);
+
+  const unmigratedCount = useMemo(() => {
+    if (!user?.isSuperAdmin || !customersData) return 0;
+    return customersData.filter(c => !c.companyId).length;
+  }, [user, customersData]);
   
   const isLoading = customersLoading || expensesLoading;
 
@@ -72,6 +78,7 @@ export default function DashboardPage() {
     let expectedCount = 0;
 
     customers.forEach(customer => {
+        if (!customer.startDate) return; // Skip if no start date
         const startDate = parseISO(customer.startDate);
         const loanMonths = eachMonthOfInterval({ start: startDate, end: addMonths(startDate, customer.duration) });
 
@@ -156,6 +163,10 @@ export default function DashboardPage() {
 
   if (user?.role === 'admin' || user?.isSuperAdmin) {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
+  }
+
+  if (user?.isSuperAdmin) {
+    finalStats.push({ title: "Pending Migration", value: unmigratedCount, icon: Hourglass });
   }
 
   return (
