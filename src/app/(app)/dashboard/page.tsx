@@ -16,7 +16,7 @@ import { CollectionChart, CollectionCountChart } from "@/components/reports/char
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, writeBatch, getDocs } from "firebase/firestore";
+import { collection, query, where, writeBatch, getDocs, doc } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
@@ -79,9 +79,9 @@ export default function DashboardPage() {
           return { required: false, customers: [], expenses: [], users: [] };
       }
 
-      const unmigratedCustomers = customersData.filter(c => c.companyId !== FINSERV_COMPANY_ID);
-      const unmigratedExpenses = expensesData.filter(e => e.companyId !== FINSERV_COMPANY_ID);
-      const unmigratedUsers = usersData.filter(u => u.role !== 'superadmin' && u.companyId !== FINSERV_COMPANY_ID);
+      const unmigratedCustomers = customersData.filter(c => !c.companyId);
+      const unmigratedExpenses = expensesData.filter(e => !e.companyId);
+      const unmigratedUsers = usersData.filter(u => u.role !== 'superadmin' && !u.companyId);
 
       return {
           required: unmigratedCustomers.length > 0 || unmigratedExpenses.length > 0 || unmigratedUsers.length > 0,
