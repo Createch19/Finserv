@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import {
   Table,
@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, orderBy, query, where } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import type { WithdrawalRequest, WithId } from "@/types";
 
 const formatCurrency = (amount: number) =>
@@ -44,33 +44,28 @@ export function WithdrawalHistory() {
   const firestore = useFirestore();
   const companyId = user?.companyId;
 
-  console.log('[WithdrawalHistory] Render Start. Auth User:', user);
-
   const requestsQuery = useMemo(() => {
-    console.log('[WithdrawalHistory] useMemo triggered. Firestore available:', !!firestore, 'Company ID:', companyId);
     if (!firestore || !companyId) {
-      console.log('[WithdrawalHistory] Query is null because firestore or companyId is missing.');
       return null;
     };
     
+    // Remove orderBy to avoid needing a composite index. Sorting will be done client-side.
     const q = query(
         collection(firestore, "withdrawalRequests"), 
-        where('companyId', '==', companyId), 
-        orderBy("requestedAt", "desc")
+        where('companyId', '==', companyId)
     );
-    console.log('[WithdrawalHistory] Constructed Firestore query:', q);
     return q;
   }, [firestore, companyId]);
 
-  const { data: requests, isLoading, error } = useCollection<WithId<WithdrawalRequest>>(requestsQuery);
+  const { data: unsortedRequests, isLoading } = useCollection<WithId<WithdrawalRequest>>(requestsQuery);
 
-  useEffect(() => {
-    console.log('[WithdrawalHistory] useCollection result:', {
-        data: requests,
-        isLoading,
-        error
-    });
-  }, [requests, isLoading, error]);
+  const requests = useMemo(() => {
+    if (!unsortedRequests) return [];
+    // Sort the requests by date client-side
+    return [...unsortedRequests].sort((a, b) => 
+        new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
+    );
+  }, [unsortedRequests]);
 
   return (
     <Card>
