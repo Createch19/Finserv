@@ -72,35 +72,24 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const customersQuery = useMemo(() => {
     if (!firestore || !user || isUserLoading) return null;
 
-    const allowedStatuses = ['active', 'completed', 'overdue'];
-
     if (user.role === 'superadmin') {
       return query(
         collection(firestore, 'customers'),
-        where('status', 'in', allowedStatuses),
         orderBy('startDate', 'desc')
       );
     }
 
     if (!user.companyId) return null;
     
-    // Simplified query to avoid composite index requirement.
-    // The combination of `where('status', 'in', ...)` and `orderBy('startDate', ...)`
-    // requires a custom index. Removing the orderBy clause fixes the crash.
+    // Simplified query to fetch all customers for the company.
+    // Filtering by status will happen on the client-side.
     return query(
       collection(firestore, 'customers'),
-      where('companyId', '==', user.companyId),
-      where('status', 'in', allowedStatuses)
+      where('companyId', '==', user.companyId)
     );
   }, [firestore, user, isUserLoading]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
-
-  useEffect(() => {
-    console.log("CustomerTable user:", user);
-    console.log("CustomerTable customers data:", customers);
-    console.log("CustomerTable error:", error);
-  }, [user, customers, error]);
 
   const isLoading = isUserLoading || (customersLoading && !error);
   
@@ -108,8 +97,13 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     if (!customers) return [];
     const lowercasedFilter = searchTerm.toLowerCase();
     
-    const sortedCustomers = [...customers].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    // 1. Filter out pending customers
+    const approvedCustomers = customers.filter(c => c.status !== 'pending');
+
+    // 2. Sort the approved customers
+    const sortedCustomers = [...approvedCustomers].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     
+    // 3. Apply search term filter
     return sortedCustomers.filter((customer) => {
       return (
         customer.name.toLowerCase().includes(lowercasedFilter) ||
@@ -164,7 +158,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       )
   }
   
-  if (!customers || customers.length === 0) {
+  if (!filteredCustomers || filteredCustomers.length === 0) {
       return (
           <div className="text-center py-10 text-muted-foreground">
               <p>No approved customers found.</p>
@@ -354,5 +348,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
+
+    
 
     
