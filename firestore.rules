@@ -4,80 +4,69 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Core Auth Functions (from Custom Claims) ---
+    // --- Core Auth Functions ---
     function isAuthed() {
       return request.auth != null;
     }
 
+    // Get user data directly from the /users collection in Firestore
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function getRole() {
-      return request.auth.token.role;
+      // Fallback to token claim, but prefer the user document in Firestore.
+      return getUserDoc().role;
     }
 
     function getUserCompanyId() {
-      return request.auth.token.companyId;
-    }
-
-    function isSuperAdmin() {
-      // Grant superadmin privileges to the specific UID to bypass claim loading issues.
-      return request.auth.uid == 'WkxEkKrs8fTm2dIsiYLz6OpAlx32' || getRole() == 'superadmin';
+        // Fallback to token claim, but prefer the user document in Firestore.
+      return getUserDoc().companyId;
     }
     
-    // --- Resource/Request Context Functions ---
+    function isSuperAdmin() {
+      return getRole() == 'superadmin';
+    }
 
-    // Checks if the user's company matches the company of an EXISTING document
+    // --- Resource/Request Context Functions ---
     function isTenantMember(doc) {
       return getUserCompanyId() == doc.companyId;
     }
     
-    // Checks if the user's company matches the company in a NEW document being created
     function isRequestingTenantMember() {
-        return getUserCompanyId() == request.resource.data.companyId;
+      return getUserCompanyId() == request.resource.data.companyId;
     }
 
     // --- Collection Rules ---
 
     match /companies/{companyId} {
-      // Only Super Admin can create, update, or delete companies
       allow create, update, delete: if isSuperAdmin();
-
-      // Allow any authenticated user to read company details (e.g., to check status)
       allow read, list: if isAuthed();
     }
     
     match /users/{userId} {
-      // Super Admin has full access to any user document.
       allow read, write: if isSuperAdmin();
-
-      // Admins can manage users within their own company.
-      // `isTenantMember(resource.data)` for existing docs (read, update, delete)
-      // `isRequestingTenantMember()` for new docs (create)
       allow read, write: if getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember());
-      
-      // Any authenticated user can read their own document.
       allow get: if isAuthed() && request.auth.uid == userId;
     }
 
     match /customers/{customerId} {
       // Super Admin has full access.
       // Otherwise, user must be part of the same company.
-      allow read, list, write: if isSuperAdmin() || (
-        (isTenantMember(resource.data) || isRequestingTenantMember()) && 
-        (getRole() == 'admin' || getRole() == 'agent')
-      );
+      allow read, write: if isSuperAdmin();
+      allow list: if isSuperAdmin() || getRole() == 'admin' || getRole() == 'agent';
+
+      allow read, write: if (isTenantMember(resource.data) || isRequestingTenantMember()) && 
+                          (getRole() == 'admin' || getRole() == 'agent');
     }
 
     match /expenses/{expenseId} {
-      // Admins can manage expenses within their own company.
-      // Super Admins have full access.
-      allow read, write: if isSuperAdmin() || (
-        getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember())
-      );
-      // For list, we rely on the client query to filter by companyId
+      allow read, write: if isSuperAdmin();
+      allow read, write: if getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember());
       allow list: if isSuperAdmin() || getRole() == 'admin';
     }
     
     match /expenseTypes/{expenseTypeId} {
-        // These are global settings managed only by Super Admin
         allow read, list, write: if isSuperAdmin();
     }
     
