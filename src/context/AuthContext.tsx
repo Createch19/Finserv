@@ -60,13 +60,14 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
             if (userDoc.exists()) {
                 const docData = userDoc.data();
                 // Construct the user object by merging claims and firestore data.
-                // Claims are the source of truth for roles and company, but fallback to doc for stability.
+                // Claims are the source of truth for role, but fallback to doc for stability.
+                // Most importantly, ensure companyId from the doc is used if the claim is missing.
                 const userData: User = {
                     uid: firebaseUser.uid,
                     email: firebaseUser.email!,
                     name: docData.name,
                     role: claims.role || docData.role,
-                    companyId: claims.companyId || docData.companyId,
+                    companyId: claims.companyId || docData.companyId, // Correct fallback logic
                 };
                 setUser(userData);
             } else {

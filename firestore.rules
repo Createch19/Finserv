@@ -19,7 +19,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       // Grant superadmin privileges to the specific UID to bypass claim loading issues.
-      return request.auth.uid == 'WkxEkKrs8fTm2dIsiYLz6OpAlx32';
+      return request.auth.uid == 'WkxEkKrs8fTm2dIsiYLz6OpAlx32' || getRole() == 'superadmin';
     }
     
     // --- Resource/Request Context Functions ---
@@ -60,7 +60,7 @@ service cloud.firestore {
     match /customers/{customerId} {
       // Super Admin has full access.
       // Otherwise, user must be part of the same company.
-      allow read, list, write: if request.auth.uid == 'WkxEkKrs8fTm2dIsiYLz6OpAlx32' || isSuperAdmin() || (
+      allow read, list, write: if isSuperAdmin() || (
         (isTenantMember(resource.data) || isRequestingTenantMember()) && 
         (getRole() == 'admin' || getRole() == 'agent')
       );
