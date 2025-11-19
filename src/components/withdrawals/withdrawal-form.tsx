@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,9 +27,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, query, where, doc, getDoc } from "firebase/firestore";
-import type { WithdrawalRequest, Company, WithId } from "@/types";
+import { useFirestore } from "@/firebase";
+import { collection, doc, getDoc, setDoc } from "firebase/firestore";
+import type { WithdrawalRequest, Company } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { errorEmitter, FirestorePermissionError } from "@/firebase";
 
@@ -74,9 +74,10 @@ export function WithdrawalForm() {
     }
     const companyData = companySnap.data() as Company;
 
-    const requestCollectionRef = collection(firestore, "withdrawalRequests");
+    const requestId = uuidv4();
+    const requestDocRef = doc(firestore, "withdrawalRequests", requestId);
     const newRequest: WithdrawalRequest = {
-      id: uuidv4(),
+      id: requestId,
       companyId: user.companyId,
       companyName: companyData.name,
       adminId: user.uid,
@@ -87,7 +88,7 @@ export function WithdrawalForm() {
       requestedAt: new Date().toISOString(),
     };
 
-    addDoc(requestCollectionRef, newRequest)
+    setDoc(requestDocRef, newRequest)
       .then(() => {
         toast({
           title: "Request Submitted",
@@ -97,7 +98,7 @@ export function WithdrawalForm() {
       })
       .catch((serverError) => {
         const permissionError = new FirestorePermissionError({
-          path: requestCollectionRef.path,
+          path: requestDocRef.path,
           operation: "create",
           requestResourceData: newRequest,
         });

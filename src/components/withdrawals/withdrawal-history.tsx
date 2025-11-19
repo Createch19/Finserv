@@ -42,16 +42,17 @@ const getStatusBadgeVariant = (status: WithdrawalRequest['status']) => {
 export function WithdrawalHistory() {
   const { user } = useAuth();
   const firestore = useFirestore();
+  const companyId = user?.companyId;
 
   const requestsQuery = useMemo(() => {
-    if (!firestore || !user || !user.companyId) return null;
+    if (!firestore || !companyId) return null;
     
     return query(
         collection(firestore, "withdrawalRequests"), 
-        where('companyId', '==', user.companyId), 
+        where('companyId', '==', companyId), 
         orderBy("requestedAt", "desc")
     );
-  }, [firestore, user]);
+  }, [firestore, companyId]);
 
   const { data: requests, isLoading } = useCollection<WithId<WithdrawalRequest>>(requestsQuery);
 
