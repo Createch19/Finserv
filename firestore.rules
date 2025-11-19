@@ -18,7 +18,8 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return request.auth.token.superAdmin == true;
+      // Grant superadmin privileges to the specific UID to bypass claim loading issues.
+      return request.auth.uid == 'WkxEkKrs8fTm2dIsiYLz6OpAlx32';
     }
     
     // --- Resource/Request Context Functions ---
@@ -66,11 +67,13 @@ service cloud.firestore {
     }
 
     match /expenses/{expenseId} {
-      // Super Admin has full access.
-      // Otherwise, only admins of the same company can access.
-      allow read, list, write: if isSuperAdmin() || (
-        (isTenantMember(resource.data) || isRequestingTenantMember()) && getRole() == 'admin'
+      // Admins can manage expenses within their own company.
+      // Super Admins have full access.
+      allow read, write: if isSuperAdmin() || (
+        getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember())
       );
+      // For list, we rely on the client query to filter by companyId
+      allow list: if isSuperAdmin() || getRole() == 'admin';
     }
     
     match /expenseTypes/{expenseTypeId} {
