@@ -23,13 +23,13 @@ function getCustomersQuery(firestore: any, user: User | null) {
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || (user.role !== 'admin' && user.role !== 'superadmin')) return null;
 
     if (user.role === 'superadmin') {
         return collection(firestore, 'expenses');
     }
     
-    if (!user.companyId || user.role !== 'admin') return null;
+    if (!user.companyId) return null;
     
     return query(collection(firestore, "expenses"), where('companyId', '==', user.companyId));
 }
