@@ -29,37 +29,10 @@ export default function DashboardPage() {
 
   // --- START: Data Fetching ---
 
-  // Query for data relevant to the current user's role for display.
-  const customersQuery = useMemo(() => {
-    if (!firestore || !userRole) return null;
-    const baseQuery = collection(firestore, 'customers');
-    if (userRole === 'superadmin') {
-      return query(baseQuery, where("status", "!=", "pending"));
-    }
-    if (userCompanyId) {
-      return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
-    }
-    return null;
-  }, [firestore, userRole, userCompanyId]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
-
-  const expensesQuery = useMemo(() => {
-    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
-    const baseQuery = collection(firestore, 'expenses');
-    if (userRole === 'superadmin') {
-      return baseQuery;
-    }
-    if (userCompanyId) {
-      return query(baseQuery, where("companyId", "==", userCompanyId));
-    }
-    return null;
-  }, [firestore, userRole, userCompanyId]);
-  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
-
   // Queries specifically for the Super Admin data overview tool.
   const allCustomersQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'customers'); // Fetch all customers for overview
+      return collection(firestore, 'customers');
     }
     return null;
   }, [firestore, userRole]);
@@ -88,6 +61,33 @@ export default function DashboardPage() {
     return null;
   }, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
+
+  // Query for data relevant to the current user's role for display.
+  const customersDisplayQuery = useMemo(() => {
+    if (!firestore || !userRole) return null;
+    const baseQuery = collection(firestore, 'customers');
+    if (userRole === 'superadmin') {
+      return query(baseQuery, where("status", "!=", "pending"));
+    }
+    if (userCompanyId) { // Important: Only build query if companyId is available
+      return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId]);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
+
+  const expensesDisplayQuery = useMemo(() => {
+    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
+    const baseQuery = collection(firestore, 'expenses');
+    if (userRole === 'superadmin') {
+      return baseQuery;
+    }
+    if (userCompanyId) { // Important: Only build query if companyId is available
+      return query(baseQuery, where("companyId", "==", userCompanyId));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId]);
+  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
 
   const isLoading = customersLoading || expensesLoading || (userRole === 'superadmin' && (allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading));
   
