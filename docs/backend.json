@@ -1,6 +1,36 @@
 
 {
   "entities": {
+    "Company": {
+      "title": "Company",
+      "type": "object",
+      "description": "Represents a tenant company in the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the company."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the company account.",
+          "enum": ["active", "inactive", "setup_complete"]
+        },
+        "ownerUID": {
+          "type": "string",
+          "description": "The UID of the user who owns this company."
+        },
+        "createdAt": {
+            "type": "string",
+            "description": "The creation date of the company.",
+            "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "status", "ownerUID", "createdAt"]
+    },
     "User": {
       "title": "User",
       "type": "object",
@@ -23,13 +53,18 @@
           "type": "string",
           "description": "The role of the user (admin or agent).",
           "enum": ["admin", "agent"]
+        },
+        "companyId": {
+          "type": "string",
+          "description": "The ID of the company this user belongs to."
         }
       },
       "required": [
         "uid",
         "name",
         "email",
-        "role"
+        "role",
+        "companyId"
       ]
     },
     "Customer": {
@@ -40,6 +75,10 @@
         "customerId": {
           "type": "string",
           "description": "The unique identifier for the customer, matching the Firestore document ID."
+        },
+        "companyId": {
+            "type": "string",
+            "description": "The ID of the company this customer belongs to."
         },
         "name": {
           "type": "string",
@@ -111,6 +150,7 @@
       },
       "required": [
         "customerId",
+        "companyId",
         "name",
         "phone",
         "address",
@@ -193,6 +233,10 @@
           "type": "string",
           "description": "The unique identifier for the expense."
         },
+        "companyId": {
+            "type": "string",
+            "description": "The ID of the company this expense belongs to."
+        },
         "date": {
           "type": "string",
           "description": "The date the expense was incurred.",
@@ -217,6 +261,7 @@
       },
       "required": [
         "expenseId",
+        "companyId",
         "date",
         "notes",
         "amount",
@@ -253,6 +298,10 @@
   },
   "firestore": {
     "collections": {
+      "companies": {
+        "schema": "#/entities/Company",
+        "description": "A top-level collection of all tenant companies."
+      },
       "users": {
         "schema": "#/entities/User",
         "description": "A top-level collection of all application users (admins and agents)."

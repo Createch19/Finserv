@@ -1,5 +1,13 @@
 
 
+export type Company = {
+    id: string;
+    name: string;
+    status: 'active' | 'inactive' | 'setup_complete';
+    ownerUID: string;
+    createdAt: string; // ISO 8601 format
+}
+
 export type Agent = {
   uid: string;
   email: string;
@@ -10,6 +18,7 @@ export type User = Agent & {
   uid: string;
   role: 'admin' | 'agent';
   password?: string;
+  companyId: string;
 };
 
 export type Payment = {
@@ -22,6 +31,7 @@ export type Payment = {
 
 export type Customer = {
   customerId: string;
+  companyId: string;
   name: string;
   phone: string;
   address: string;
@@ -42,6 +52,7 @@ export type Customer = {
 
 export type Expense = {
   expenseId: string;
+  companyId: string;
   date: string; // ISO 8601 format
   notes: string;
   amount: number;

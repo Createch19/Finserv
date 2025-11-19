@@ -129,6 +129,7 @@ export function AddCustomerForm() {
 
     const newCustomer: Customer = {
       customerId: customerId,
+      companyId: user.companyId, // Add companyId from logged-in user
       name: values.customerName,
       phone: values.phoneNumber,
       address: values.address,

@@ -34,6 +34,9 @@ const defaultUsers = {
     'agent@finserv.com': { name: 'Agent User', role: 'agent' }
 };
 
+// This represents the initial company created during the migration.
+const FINSERV_COMPANY_ID = 'FINSERV_001';
+
 interface AuthProviderProps {
   children: ReactNode;
   auth: Auth;
@@ -72,7 +75,8 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
                         uid: firebaseUser.uid,
                         email: firebaseUser.email!,
                         name: defaultUserInfo.name,
-                        role: defaultUserInfo.role as 'admin' | 'agent'
+                        role: defaultUserInfo.role as 'admin' | 'agent',
+                        companyId: FINSERV_COMPANY_ID, // Assign to the initial company
                     };
                     await setDoc(userDocRef, newUser);
                     setUser(newUser);

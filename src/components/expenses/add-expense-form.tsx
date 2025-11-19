@@ -83,6 +83,7 @@ export function AddExpenseForm() {
     const expenseCollectionRef = collection(firestore, "expenses");
     const newExpense: Expense = {
       expenseId: uuidv4(),
+      companyId: user.companyId, // Add companyId from logged-in user
       amount: values.amount,
       notes: values.notes,
       type: values.type,
