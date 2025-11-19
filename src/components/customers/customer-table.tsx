@@ -70,13 +70,14 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const router = useRouter();
 
   const customersQuery = useMemo(() => {
-    if (!firestore || !user) {
-        return null;
-    }
+    if (!firestore || !user) return null;
     
-    // Admins and Agents fetch all customers.
-    // We will filter out 'pending' customers on the client-side.
-    return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
+    if (user.isSuperAdmin) {
+      return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
+    }
+
+    if (!user.companyId) return null;
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('startDate', 'desc'));
     
   }, [firestore, user]);
 

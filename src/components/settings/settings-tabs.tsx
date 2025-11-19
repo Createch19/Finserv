@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, Loader2, Palette, PlusCircle, Trash2 } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, doc, deleteDoc, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, doc, deleteDoc, query, where, orderBy } from "firebase/firestore";
 import type { Customer, WithId, User, ExpenseType } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { v4 as uuidv4 } from "uuid";
@@ -64,8 +64,12 @@ a.setAttribute('download', filename);
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    // Fetch all customers for both admins and agents.
-    return collection(firestore, 'customers');
+    if (user.isSuperAdmin) {
+        return collection(firestore, 'customers');
+    }
+
+    if (!user.companyId) return null;
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
 
 const hexToHsl = (hex: string): string => {
@@ -320,4 +324,5 @@ export function SettingsTabs() {
     </Tabs>
   );
 }
+
 

@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Customer, Payment, WithId, User } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, orderBy } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where, orderBy } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -89,10 +89,14 @@ export function EmiList() {
   const firestore = useFirestore();
 
    const customersQuery = useMemo(() => {
-    if (!firestore || !user) {
-        return null;
+    if (!firestore || !user) return null;
+    
+    if (user.isSuperAdmin) {
+      return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
     }
-    return query(collection(firestore, 'customers'), orderBy('name', 'asc'));
+    
+    if (!user.companyId) return null;
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('name', 'asc'));
   }, [user, firestore]);
 
   const { data: customersData, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
