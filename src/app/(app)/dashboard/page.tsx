@@ -16,11 +16,14 @@ import { CollectionChart, CollectionCountChart } from "@/components/reports/char
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, writeBatch, getDocs } from "firebase/firestore";
 import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
+const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
 
 function getCustomersQuery(firestore: any, user: User | null) {
   if (!firestore || !user) return null;
@@ -48,12 +51,18 @@ function getExpensesQuery(firestore: any, user: User | null) {
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isMigrating, setIsMigrating] = useState(false);
+
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
-
+  
   const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+
+  const usersQuery = useMemo(() => user?.role === 'superadmin' && firestore ? collection(firestore, 'users') : null, [user, firestore]);
+  const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
   
   const customers = useMemo(() => {
     if (!customersData) return [];
@@ -63,9 +72,66 @@ export default function DashboardPage() {
 
   const expenses = useMemo(() => expensesData || [], [expensesData]);
   
-  const isLoading = customersLoading || expensesLoading;
+  const isLoading = customersLoading || expensesLoading || usersLoading;
 
-  const showSeedDataMessage = !isLoading && user && user.role !== 'superadmin' && customers.length === 0;
+  const migrationData = useMemo(() => {
+      if (user?.role !== 'superadmin' || !customersData || !usersData || !expensesData) {
+          return { required: false, customers: [], expenses: [], users: [] };
+      }
+
+      const unmigratedCustomers = customersData.filter(c => c.companyId !== FINSERV_COMPANY_ID);
+      const unmigratedExpenses = expensesData.filter(e => e.companyId !== FINSERV_COMPANY_ID);
+      const unmigratedUsers = usersData.filter(u => u.role !== 'superadmin' && u.companyId !== FINSERV_COMPANY_ID);
+
+      return {
+          required: unmigratedCustomers.length > 0 || unmigratedExpenses.length > 0 || unmigratedUsers.length > 0,
+          customers: unmigratedCustomers,
+          expenses: unmigratedExpenses,
+          users: unmigratedUsers,
+      }
+  }, [user, customersData, usersData, expensesData]);
+  
+  const handleMigrateData = async () => {
+    if (!firestore || user?.role !== 'superadmin') {
+      toast({ variant: 'destructive', title: 'Error', description: 'You do not have permission to perform this action.' });
+      return;
+    }
+    
+    setIsMigrating(true);
+    const batch = writeBatch(firestore);
+
+    migrationData.customers.forEach(item => {
+        const docRef = doc(firestore, 'customers', item.id);
+        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
+    });
+    migrationData.expenses.forEach(item => {
+        const docRef = doc(firestore, 'expenses', item.id);
+        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
+    });
+    migrationData.users.forEach(item => {
+        const docRef = doc(firestore, 'users', item.id);
+        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
+    });
+
+    try {
+      await batch.commit();
+      toast({
+        title: 'Migration Complete',
+        description: 'All records have been successfully associated with the FINSERV company.'
+      });
+      // Data will refetch automatically due to useCollection hook
+    } catch (error) {
+      console.error("Migration failed:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Migration Failed',
+        description: 'An error occurred during the data migration. Please check the console.'
+      });
+    } finally {
+      setIsMigrating(false);
+    }
+  }
+
 
   const monthlyStats = useMemo(() => {
     const today = new Date();
@@ -167,18 +233,29 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
       />
-
-        {showSeedDataMessage && (
-             <Alert className="mb-6 border-blue-500 text-blue-800">
-                <Info className="h-4 w-4 !text-blue-800" />
-                <AlertTitle>No Data Found for Your Company</AlertTitle>
-                <AlertDescription>
-                    It looks like there's no data associated with your company account. 
-                    If this is a new setup, a Super Admin can populate the database with sample data.
-                    <br />
-                    To do this, open a new terminal and run the command: <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">npm run db:seed</code>
-                </AlertDescription>
-            </Alert>
+        {user?.role === 'superadmin' && migrationData.required && (
+            <Card className="mb-6 border-amber-500">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <DatabaseZap className="h-6 w-6 text-amber-600" />
+                        Data Migration Required
+                    </CardTitle>
+                    <CardDescription>
+                        Some records are not associated with a company. This will prevent admin and agent users from seeing their data.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ul className="list-disc pl-5 text-sm space-y-1">
+                        {migrationData.customers.length > 0 && <li>{migrationData.customers.length} customer(s) need to be updated.</li>}
+                        {migrationData.expenses.length > 0 && <li>{migrationData.expenses.length} expense(s) need to be updated.</li>}
+                        {migrationData.users.length > 0 && <li>{migrationData.users.length} user(s) need to be updated.</li>}
+                    </ul>
+                    <Button className="mt-4" onClick={handleMigrateData} disabled={isMigrating}>
+                        {isMigrating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Migrate Data to FINSERV Company
+                    </Button>
+                </CardContent>
+            </Card>
         )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
