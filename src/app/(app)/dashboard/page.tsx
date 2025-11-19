@@ -64,7 +64,7 @@ export default function DashboardPage() {
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const expensesQuery = useMemo(() => getExpensesQuery(firestore, user), [user, firestore]);
-  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+  const { data: expensesData, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
   
   const customers = useMemo(() => {
     if (!customersData) return [];
@@ -73,15 +73,24 @@ export default function DashboardPage() {
     return customersData.filter(c => c.status !== 'pending');
   }, [customersData, user]);
 
+  const expenses = useMemo(() => expensesData || [], [expensesData]);
+
   const unmigratedCustomers = useMemo(() => {
     if (user?.role !== 'superadmin' || !customersData) return [];
     return customersData.filter(c => !c.companyId);
   }, [user, customersData]);
   
+  const unmigratedExpenses = useMemo(() => {
+    if (user?.role !== 'superadmin' || !expensesData) return [];
+    return expensesData.filter(e => !e.companyId);
+  }, [user, expensesData]);
+
+  const unmigratedCount = unmigratedCustomers.length + unmigratedExpenses.length;
+  
   const isLoading = customersLoading || expensesLoading;
 
   const handleMigrateData = async () => {
-    if (!firestore || unmigratedCustomers.length === 0) return;
+    if (!firestore || unmigratedCount === 0) return;
 
     setIsMigrating(true);
     try {
@@ -91,12 +100,17 @@ export default function DashboardPage() {
             const customerRef = doc(firestore, 'customers', customer.id);
             batch.update(customerRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
         });
+        
+        unmigratedExpenses.forEach(expense => {
+            const expenseRef = doc(firestore, 'expenses', expense.id);
+            batch.update(expenseRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
+        });
 
         await batch.commit();
 
         toast({
             title: "Migration Successful",
-            description: `${unmigratedCustomers.length} customer records have been migrated.`,
+            description: `${unmigratedCount} records have been migrated.`,
         });
     } catch (error) {
         console.error("Migration failed: ", error);
@@ -212,9 +226,10 @@ export default function DashboardPage() {
             <Hourglass className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-            <div className="text-xl font-bold">{unmigratedCustomers.length}</div>
+            <div className="text-xl font-bold">{unmigratedCount}</div>
+            <p className="text-xs text-muted-foreground">{unmigratedCustomers.length} customers, {unmigratedExpenses.length} expenses</p>
         </CardContent>
-        {unmigratedCustomers.length > 0 && (
+        {unmigratedCount > 0 && (
             <CardFooter>
                 <Button onClick={handleMigrateData} disabled={isMigrating} className="w-full">
                     {isMigrating ? (
