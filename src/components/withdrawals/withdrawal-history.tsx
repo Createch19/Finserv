@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import {
   Table,
@@ -44,17 +44,33 @@ export function WithdrawalHistory() {
   const firestore = useFirestore();
   const companyId = user?.companyId;
 
+  console.log('[WithdrawalHistory] Render Start. Auth User:', user);
+
   const requestsQuery = useMemo(() => {
-    if (!firestore || !companyId) return null;
+    console.log('[WithdrawalHistory] useMemo triggered. Firestore available:', !!firestore, 'Company ID:', companyId);
+    if (!firestore || !companyId) {
+      console.log('[WithdrawalHistory] Query is null because firestore or companyId is missing.');
+      return null;
+    };
     
-    return query(
+    const q = query(
         collection(firestore, "withdrawalRequests"), 
         where('companyId', '==', companyId), 
         orderBy("requestedAt", "desc")
     );
+    console.log('[WithdrawalHistory] Constructed Firestore query:', q);
+    return q;
   }, [firestore, companyId]);
 
-  const { data: requests, isLoading } = useCollection<WithId<WithdrawalRequest>>(requestsQuery);
+  const { data: requests, isLoading, error } = useCollection<WithId<WithdrawalRequest>>(requestsQuery);
+
+  useEffect(() => {
+    console.log('[WithdrawalHistory] useCollection result:', {
+        data: requests,
+        isLoading,
+        error
+    });
+  }, [requests, isLoading, error]);
 
   return (
     <Card>
