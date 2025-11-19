@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Hourglass, DatabaseZap } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, DatabaseZap, TriangleAlert } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,8 @@ import type { Customer, WithId, User, Expense } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 
-// Define a default company ID for migration.
-const DEFAULT_MIGRATION_COMPANY_ID = 'finserv-company-id';
+// Define a default company ID for migration. This should match the one in your seed script.
+const DEFAULT_MIGRATION_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
 
 function getCustomersQuery(firestore: any, user: User | null) {
   if (!firestore || !user) return null;
@@ -107,7 +107,7 @@ export default function DashboardPage() {
   const isLoading = customersLoading || expensesLoading || usersLoading;
 
   const handleMigrateData = async () => {
-    if (!firestore || unmigratedCount === 0) return;
+    if (!firestore || unmigratedCount === 0 || user?.role !== 'superadmin') return;
 
     setIsMigrating(true);
     try {
@@ -123,17 +123,16 @@ export default function DashboardPage() {
             batch.update(expenseRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
         });
         
-        unmigratedUsers.forEach(user => {
-            const userRef = doc(firestore, 'users', user.id);
+        unmigratedUsers.forEach(appUser => {
+            const userRef = doc(firestore, 'users', appUser.id);
             batch.update(userRef, { companyId: DEFAULT_MIGRATION_COMPANY_ID });
         });
-
 
         await batch.commit();
 
         toast({
             title: "Migration Successful",
-            description: `${unmigratedCount} records have been migrated.`,
+            description: `${unmigratedCount} records have been successfully assigned to the default company. Admins and agents can now see their data.`,
         });
     } catch (error) {
         console.error("Migration failed: ", error);
@@ -242,38 +241,38 @@ export default function DashboardPage() {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
 
-  const migrationCard = user?.role === 'superadmin' ? (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Migration</CardTitle>
-            <Hourglass className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-            <div className="text-xl font-bold">{unmigratedCount}</div>
-            <p className="text-xs text-muted-foreground">{unmigratedCustomers.length} cust, {unmigratedExpenses.length} exp, {unmigratedUsers.length} users</p>
-        </CardContent>
-        {unmigratedCount > 0 && (
-            <CardFooter>
-                <Button onClick={handleMigrateData} disabled={isMigrating} className="w-full">
-                    {isMigrating ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <DatabaseZap className="mr-2 h-4 w-4" />
-                    )}
-                    Migrate Data
-                </Button>
-            </CardFooter>
-        )}
-    </Card>
-  ) : null;
-
   return (
     <>
       <PageHeader
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
       />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+
+        {user?.role === 'superadmin' && unmigratedCount > 0 && (
+            <Alert variant="destructive" className="mb-6">
+                <TriangleAlert className="h-4 w-4" />
+                <AlertTitle>Action Required: Data Migration</AlertTitle>
+                <AlertDescription className="flex items-center justify-between">
+                    <div>
+                        <p>
+                            Detected {unmigratedCount} records (customers, expenses, users) that are not assigned to a company.
+                            This will prevent admin/agent users from seeing their data.
+                        </p>
+                         <p className="font-semibold">Please run the one-time migration to resolve this.</p>
+                    </div>
+                    <Button onClick={handleMigrateData} disabled={isMigrating}>
+                        {isMigrating ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <DatabaseZap className="mr-2 h-4 w-4" />
+                        )}
+                        Migrate Data
+                    </Button>
+                </AlertDescription>
+            </Alert>
+        )}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {finalStats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -287,7 +286,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
-        {migrationCard}
       </div>
       <Separator className="my-6 md:my-8" />
        <div className="grid gap-4 md:grid-cols-2">
