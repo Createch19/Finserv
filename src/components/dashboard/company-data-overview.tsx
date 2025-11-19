@@ -154,9 +154,12 @@ export function CompanyDataOverview({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {companyStats.filter(s => s.id !== 'unassigned').map(stat => (
+                {companyStats.filter(s => s.id !== 'unassigned' && (s.customerCount > 0 || s.userCount > 0 || s.expenseCount > 0)).map(stat => (
                     <TableRow key={stat.id}>
-                        <TableCell className="font-medium">{stat.name}</TableCell>
+                        <TableCell>
+                            <div className="font-medium">{stat.name}</div>
+                            <div className="text-xs text-muted-foreground font-mono">{stat.id}</div>
+                        </TableCell>
                         <TableCell className="text-center">{stat.userCount}</TableCell>
                         <TableCell className="text-center">{stat.customerCount}</TableCell>
                         <TableCell className="text-center">{stat.expenseCount}</TableCell>
@@ -189,5 +192,3 @@ export function CompanyDataOverview({
     </Card>
   );
 }
-
-    
