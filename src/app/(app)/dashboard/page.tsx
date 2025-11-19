@@ -216,6 +216,8 @@ export default function DashboardPage() {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
   }
   
+  const isAllCompaniesSelected = userRole === 'superadmin' && selectedCompanyId === 'all';
+  
   return (
     <>
       <PageHeader
@@ -237,15 +239,6 @@ export default function DashboardPage() {
         )}
       </PageHeader>
       
-      {user?.role === 'superadmin' && selectedCompanyId === 'all' && (
-        <CompanyDataOverview
-          companies={allCompanies}
-          customers={allCustomers.data}
-          users={allUsers}
-          expenses={allExpenses.data}
-        />
-      )}
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
         {finalStats.map((stat, index) => (
           <Card key={index}>
@@ -261,8 +254,22 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
       <Separator className="my-6 md:my-8" />
-       <div className="grid gap-4 md:grid-cols-2">
+      
+      {isAllCompaniesSelected && (
+        <>
+          <CompanyDataOverview
+            companies={allCompanies}
+            customers={allCustomers.data}
+            users={allUsers}
+            expenses={allExpenses.data}
+          />
+          <Separator className="my-6 md:my-8" />
+        </>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Monthly Collection</CardTitle>
@@ -287,5 +294,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
