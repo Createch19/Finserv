@@ -69,6 +69,13 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/users" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/users')} tooltip="Users">
+                  <div><Users /><span>Users</span></div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/settings" passHref onClick={handleLinkClick}>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/settings')} tooltip="Settings">

@@ -10,14 +10,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import type { Customer, User, WithId } from '@/types';
-import { useCollection, useFirestore } from '@/firebase';
+import { ChevronLeft, ChevronRight, Loader2, MoreVertical, Building } from 'lucide-react';
+import type { Company, Customer, User, WithId } from '@/types';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { useAuth } from '@/hooks/use-auth';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -25,42 +32,43 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const { user: authUser } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
 
-  // In this new model, we can query the `users` collection directly.
   const usersQuery = useMemo(() => {
     if (!firestore || !authUser || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) return null;
 
     if (authUser.role === 'superadmin') {
-      // Super admin can see all users.
       return collection(firestore, 'users');
     }
 
-    if (!authUser.companyId) return null; // Guard against undefined companyId
-    // Regular admin can see users within their own company.
+    if (!authUser.companyId) return null;
     return query(collection(firestore, 'users'), where('companyId', '==', authUser.companyId));
 
   }, [firestore, authUser]);
 
-  // We only fetch users if the logged-in user is an admin.
   const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
-
-  // We still need customers to show the customer count for each user.
+  
   const customersQuery = useMemo(() => {
     if (!firestore || !authUser) return null;
 
     if (authUser.role === 'superadmin') {
-        // Super admin needs all customers to calculate counts for all agents.
         return collection(firestore, 'customers');
     }
     
-    if (!authUser.companyId) return null; // Guard against undefined companyId
-    // Regular admin only needs customers from their company.
+    if (!authUser.companyId) return null;
     return query(collection(firestore, 'customers'), where('companyId', '==', authUser.companyId));
   }, [firestore, authUser]);
   
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
-  const isLoading = usersLoading || customersLoading;
+  const companiesQuery = useMemo(() => {
+    if (!firestore || authUser?.role !== 'superadmin') return null;
+    return collection(firestore, 'companies');
+  }, [firestore, authUser]);
+
+  const { data: companies, isLoading: companiesLoading } = useCollection<WithId<Company>>(companiesQuery);
+  
+  const isLoading = usersLoading || customersLoading || companiesLoading;
 
   const users = useMemo(() => {
      if (!authUser || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) {
@@ -97,6 +105,26 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
       setCurrentPage(currentPage - 1);
     }
   };
+
+  const handleAssignCompany = async (userId: string, companyId: string) => {
+    if (!firestore) return;
+
+    const userDocRef = doc(firestore, 'users', userId);
+    try {
+        await updateDoc(userDocRef, { companyId: companyId });
+        toast({
+            title: "User Updated",
+            description: "User has been assigned to the new company."
+        })
+    } catch(serverError) {
+        const permissionError = new FirestorePermissionError({
+          path: userDocRef.path,
+          operation: 'update',
+          requestResourceData: { companyId },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  }
   
   if (isLoading) {
       return (
@@ -104,6 +132,10 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
               <Loader2 className="h-8 w-8 animate-spin" />
           </div>
       )
+  }
+
+  const getCompanyName = (companyId: string) => {
+    return companies?.find(c => c.id === companyId)?.name || 'Unknown Company';
   }
 
   return (
@@ -114,7 +146,9 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
+              {authUser?.role === 'superadmin' && <TableHead>Company</TableHead>}
               <TableHead className="text-right">Customers Managed</TableHead>
+              {authUser?.role === 'superadmin' && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,14 +164,51 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
                       {user.role}
                     </Badge>
                   </TableCell>
+                  {authUser?.role === 'superadmin' && (
+                    <TableCell>
+                      {user.companyId ? getCompanyName(user.companyId) : (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">Assign Company</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                {companies?.map(company => (
+                                    <DropdownMenuItem key={company.id} onSelect={() => handleAssignCompany(user.uid, company.id)}>
+                                        {company.name}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     {customers?.filter(c => c.agent?.uid === user.uid).length ?? 0}
                   </TableCell>
+                  {authUser?.role === 'superadmin' && (
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Assign Company</DropdownMenuLabel>
+                                {companies?.map(company => (
+                                    <DropdownMenuItem key={company.id} onSelect={() => handleAssignCompany(user.uid, company.id)}>
+                                        {company.name}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={authUser?.role === 'superadmin' ? 5 : 3} className="h-24 text-center">
                   No users found.
                 </TableCell>
               </TableRow>
