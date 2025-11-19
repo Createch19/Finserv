@@ -59,20 +59,22 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
 
             if (userDoc.exists()) {
                 const docData = userDoc.data();
-                // Construct the user object by merging claims and firestore data.
-                // Claims are the source of truth for role, but fallback to doc for stability.
-                // Most importantly, ensure companyId from the doc is used if the claim is missing.
+                
                 const userData: User = {
                     uid: firebaseUser.uid,
                     email: firebaseUser.email!,
                     name: docData.name,
                     role: claims.role || docData.role,
-                    companyId: claims.companyId || docData.companyId, // Correct fallback logic
+                    companyId: docData.companyId, // Prioritize firestore doc for companyId
                 };
+
+                // For the hardcoded superadmin, ensure their role is always correct client-side
+                if (firebaseUser.uid === 'WkxEkKrs8fTm2dIsiYLz6OpAlx32') {
+                    userData.role = 'superadmin';
+                }
+
                 setUser(userData);
             } else {
-                 // User exists in Auth but not Firestore. This case should be handled
-                 // by a backend provisioning function, so we log an error.
                  console.error("User document not found for authenticated user:", firebaseUser.uid);
                  setUser(null);
             }
