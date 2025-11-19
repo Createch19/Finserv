@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -27,14 +27,51 @@ export default function DashboardPage() {
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
-  // --- Data for Super Admin Company Overview ---
-  const allCustomersQuery = useMemo(() => {
+  // --- START: Simplified Data Fetching ---
+
+  // Query for data relevant to the current user's role for display.
+  const customersQuery = useMemo(() => {
+    if (!firestore || !userRole) return null;
+    const baseQuery = collection(firestore, 'customers');
+    if (userRole === 'superadmin') {
+      return query(baseQuery, where("status", "!=", "pending"));
+    }
+    if (userCompanyId) {
+      return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId]);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+
+  const expensesQuery = useMemo(() => {
+    if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
+    const baseQuery = collection(firestore, 'expenses');
+    if (userRole === 'superadmin') {
+      return baseQuery;
+    }
+    if (userCompanyId) {
+      return query(baseQuery, where("companyId", "==", userCompanyId));
+    }
+    return null;
+  }, [firestore, userRole, userCompanyId]);
+  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
+
+  // Queries specifically for the Super Admin data overview tool.
+  const allDataQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'customers');
+      return collection(firestore, 'customers'); // Fetch all customers for overview
     }
     return null;
   }, [firestore, userRole]);
-  const { data: allCustomersData, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
+  const { data: allCustomers, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allDataQuery);
+
+  const allUsersQuery = useMemo(() => {
+    if (firestore && userRole === 'superadmin') {
+      return collection(firestore, 'users');
+    }
+    return null;
+  }, [firestore, userRole]);
+  const { data: allUsers, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
 
   const allExpensesQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
@@ -42,15 +79,7 @@ export default function DashboardPage() {
     }
     return null;
   }, [firestore, userRole]);
-  const { data: allExpensesData, isLoading: allExpensesLoading } = useCollection<WithId<Expense>>(allExpensesQuery);
-  
-  const allUsersQuery = useMemo(() => {
-    if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'users');
-    }
-    return null;
-  }, [firestore, userRole]);
-  const { data: allUsersData, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
+  const { data: allExpenses, isLoading: allExpensesLoading } = useCollection<WithId<Expense>>(allExpensesQuery);
   
   const allCompaniesQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
@@ -60,41 +89,10 @@ export default function DashboardPage() {
   }, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
 
-  // --- Role-based Queries for general dashboard stats ---
-  const customersDisplayQuery = useMemo(() => {
-    if (!firestore || !userRole) {
-      return null;
-    };
-    const baseQuery = collection(firestore, 'customers');
-    if (userRole === 'superadmin') {
-      return query(baseQuery, where("status", "!=", "pending"));
-    }
-    if (!userCompanyId) {
-      return null;
-    }
-    return query(baseQuery, where("companyId", "==", userCompanyId), where("status", "!=", "pending"));
-  }, [firestore, userRole, userCompanyId]);
-  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersDisplayQuery);
-
-
-  const expensesDisplayQuery = useMemo(() => {
-    if (!firestore || !userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
-      return null;
-    }
-    const baseQuery = collection(firestore, 'expenses');
-    if (userRole === 'superadmin') {
-      return baseQuery;
-    }
-    if (!userCompanyId) {
-      return null;
-    }
-    return query(baseQuery, where("companyId", "==", userCompanyId));
-  }, [firestore, userRole, userCompanyId]);
-  const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
-
-
-  const isLoading = customersLoading || expensesLoading || allCustomersLoading || allExpensesLoading || allUsersLoading || allCompaniesLoading;
+  const isLoading = customersLoading || expensesLoading || allCustomersLoading || allUsersLoading || allExpensesLoading || allCompaniesLoading;
   
+  // --- END: Simplified Data Fetching ---
+
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
     const today = new Date();
@@ -106,9 +104,11 @@ export default function DashboardPage() {
     customers.forEach(customer => {
         if (!customer.startDate) return; 
         const startDate = parseISO(customer.startDate);
-        const loanMonths = eachMonthOfInterval({ start: startDate, end: addMonths(startDate, customer.duration) });
+        // Ensure loan duration is valid
+        if (customer.duration <= 0) return;
+        const loanMonths = eachMonthOfInterval({ start: startDate, end: addMonths(startDate, customer.duration - 1) });
 
-        loanMonths.forEach((monthDate, index) => {
+        loanMonths.forEach((_, index) => {
             const emiDueDate = addMonths(startDate, index + 1);
             if (isWithinInterval(emiDueDate, { start: startOfCurrentMonth, end: endOfCurrentMonth })) {
                 if (customer.status === 'active' || customer.status === 'overdue') {
@@ -119,12 +119,12 @@ export default function DashboardPage() {
         });
     });
 
-    const collectedAmount = customers
+    const collectedAmount = (customers || [])
         .flatMap(c => c.payments || [])
         .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
         .reduce((acc, p) => acc + p.amount, 0);
 
-    const collectedCount = customers
+    const collectedCount = (customers || [])
         .flatMap(c => c.payments || [])
         .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
         .length;
@@ -199,9 +199,9 @@ export default function DashboardPage() {
       {user?.role === 'superadmin' && (
         <CompanyDataOverview
           companies={allCompanies}
-          customers={allCustomersData}
-          users={allUsersData}
-          expenses={allExpensesData}
+          customers={allCustomers}
+          users={allUsers}
+          expenses={allExpenses}
         />
       )}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
