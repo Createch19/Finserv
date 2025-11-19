@@ -10,27 +10,22 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, DatabaseZap } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, writeBatch, doc } from "firebase/firestore";
-import type { Customer, WithId, User, Expense } from "@/types";
+import { collection, query, where } from "firebase/firestore";
+import type { Customer, WithId, User, Expense, Company } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-
-const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
+import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
-  const { toast } = useToast();
-  const [isMigrating, setIsMigrating] = useState(false);
 
-  // --- Queries for Data Migration Check (Super Admin only) ---
+  // --- Data for Super Admin Company Overview ---
   const allCustomersQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'customers') : null, [firestore, user]);
   const { data: allCustomersData, isLoading: allCustomersLoading } = useCollection<WithId<Customer>>(allCustomersQuery);
   
@@ -39,8 +34,12 @@ export default function DashboardPage() {
   
   const allUsersQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'users') : null, [firestore, user]);
   const { data: allUsersData, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
+  
+  const allCompaniesQuery = useMemo(() => (firestore && user?.role === 'superadmin') ? collection(firestore, 'companies') : null, [firestore, user]);
+  const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
+  
 
-  // --- Role-based Queries for Display ---
+  // --- Role-based Queries for general dashboard stats ---
   const customersDisplayQuery = useMemo(() => {
     if (!firestore || !user) return null;
     const baseQuery = collection(firestore, 'customers');
@@ -59,68 +58,8 @@ export default function DashboardPage() {
   }, [firestore, user]);
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesDisplayQuery);
 
-  const isLoading = customersLoading || expensesLoading || allCustomersLoading || allExpensesLoading || allUsersLoading;
-
-  const migrationData = useMemo(() => {
-      if (user?.role !== 'superadmin' || !allCustomersData || !allUsersData || !allExpensesData) {
-          return { required: false, customers: [], expenses: [], users: [] };
-      }
-
-      const unmigratedCustomers = allCustomersData.filter(c => !c.companyId);
-      const unmigratedExpenses = allExpensesData.filter(e => !e.companyId);
-      const unmigratedUsers = allUsersData.filter(u => u.role !== 'superadmin' && !u.companyId);
-
-      return {
-          required: unmigratedCustomers.length > 0 || unmigratedExpenses.length > 0 || unmigratedUsers.length > 0,
-          customers: unmigratedCustomers,
-          expenses: unmigratedExpenses,
-          users: unmigratedUsers,
-      }
-  }, [user, allCustomersData, allUsersData, allExpensesData]);
+  const isLoading = customersLoading || expensesLoading || allCustomersLoading || allExpensesLoading || allUsersLoading || allCompaniesLoading;
   
-  
-  const handleMigrateData = async () => {
-    if (!firestore || user?.role !== 'superadmin' || !migrationData.required) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No data to migrate or insufficient permissions.' });
-      return;
-    }
-    
-    setIsMigrating(true);
-    const batch = writeBatch(firestore);
-
-    migrationData.customers.forEach(item => {
-        const docRef = doc(firestore, 'customers', item.id);
-        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
-    });
-    migrationData.expenses.forEach(item => {
-        const docRef = doc(firestore, 'expenses', item.id);
-        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
-    });
-    migrationData.users.forEach(item => {
-        const docRef = doc(firestore, 'users', item.id);
-        batch.update(docRef, { companyId: FINSERV_COMPANY_ID });
-    });
-
-    try {
-      await batch.commit();
-      toast({
-        title: 'Migration Complete',
-        description: 'All records have been successfully associated with the FINSERV company.'
-      });
-      // Data will refetch automatically due to useCollection hooks, hiding the migration card.
-    } catch (error) {
-      console.error("Migration failed:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Migration Failed',
-        description: 'An error occurred during the data migration. Please check the console.'
-      });
-    } finally {
-      setIsMigrating(false);
-    }
-  }
-
-
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
     const today = new Date();
@@ -222,32 +161,15 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
       />
-        {user?.role === 'superadmin' && migrationData.required && (
-            <Card className="mb-6 border-amber-500">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <DatabaseZap className="h-6 w-6 text-amber-600" />
-                        Data Migration Required
-                    </CardTitle>
-                    <CardDescription>
-                        Some records are not associated with a company. This will prevent admin and agent users from seeing their data.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ul className="list-disc pl-5 text-sm space-y-1">
-                        {migrationData.customers.length > 0 && <li>{migrationData.customers.length} customer(s) need to be updated.</li>}
-                        {migrationData.expenses.length > 0 && <li>{migrationData.expenses.length} expense(s) need to be updated.</li>}
-                        {migrationData.users.length > 0 && <li>{migrationData.users.length} user(s) need to be updated.</li>}
-                    </ul>
-                    <Button className="mt-4" onClick={handleMigrateData} disabled={isMigrating}>
-                        {isMigrating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Migrate Data to FINSERV Company
-                    </Button>
-                </CardContent>
-            </Card>
-        )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {user?.role === 'superadmin' && (
+        <CompanyDataOverview
+          companies={allCompanies}
+          customers={allCustomersData}
+          users={allUsersData}
+          expenses={allExpensesData}
+        />
+      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
         {finalStats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -288,5 +210,7 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
 
     
