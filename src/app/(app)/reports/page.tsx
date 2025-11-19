@@ -14,9 +14,12 @@ import { Loader2 } from "lucide-react";
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
     
-    // Admins and Agents fetch all customers.
-    // We will filter out 'pending' customers on the client-side.
-    return collection(firestore, 'customers');
+    if (user.isSuperAdmin) {
+        return collection(firestore, 'customers');
+    }
+
+    if (!user.companyId) return null;
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
