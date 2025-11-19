@@ -115,7 +115,7 @@ export function EmiList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  const isLoading = userLoading || (customersLoading && !error);
+  const isLoading = userLoading || customersLoading;
 
   const loans = useMemo(() => {
     if (!customers) return [];
@@ -560,3 +560,5 @@ export function EmiList() {
     </TooltipProvider>
   );
 }
+
+    

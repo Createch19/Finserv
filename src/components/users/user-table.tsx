@@ -36,7 +36,7 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
   const { toast } = useToast();
 
   const usersQuery = useMemo(() => {
-    if (!firestore || !authUser || userLoading || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) return null;
+    if (!firestore || !authUser || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) return null;
 
     if (authUser.role === 'superadmin') {
       return collection(firestore, 'users');
@@ -45,12 +45,12 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
     if (!authUser.companyId) return null;
     return query(collection(firestore, 'users'), where('companyId', '==', authUser.companyId));
 
-  }, [firestore, authUser, userLoading]);
+  }, [firestore, authUser]);
 
   const { data: usersData, isLoading: usersLoading } = useCollection<WithId<User>>(usersQuery);
   
   const customersQuery = useMemo(() => {
-    if (!firestore || !authUser || userLoading) return null;
+    if (!firestore || !authUser) return null;
 
     if (authUser.role === 'superadmin') {
         return collection(firestore, 'customers');
@@ -58,18 +58,18 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
     
     if (!authUser.companyId) return null;
     return query(collection(firestore, 'customers'), where('companyId', '==', authUser.companyId));
-  }, [firestore, authUser, userLoading]);
+  }, [firestore, authUser]);
   
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const companiesQuery = useMemo(() => {
-    if (!firestore || userLoading || authUser?.role !== 'superadmin') return null;
+    if (!firestore || authUser?.role !== 'superadmin') return null;
     return collection(firestore, 'companies');
-  }, [firestore, authUser, userLoading]);
+  }, [firestore, authUser]);
 
   const { data: companies, isLoading: companiesLoading } = useCollection<WithId<Company>>(companiesQuery);
   
-  const isLoading = usersLoading || customersLoading || companiesLoading;
+  const isLoading = userLoading || usersLoading || customersLoading || companiesLoading;
 
   const users = useMemo(() => {
      if (!authUser || (authUser.role !== 'superadmin' && authUser.role !== 'admin')) {
@@ -244,3 +244,5 @@ export function UserTable({ searchTerm }: { searchTerm: string }) {
     </Card>
   );
 }
+
+    

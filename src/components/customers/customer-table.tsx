@@ -70,7 +70,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
   const router = useRouter();
 
   const customersQuery = useMemo(() => {
-    if (!firestore || !user || isUserLoading) return null;
+    if (!firestore || !user) return null;
 
     if (user.role === 'superadmin') {
       return collection(firestore, 'customers');
@@ -82,14 +82,14 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       collection(firestore, 'customers'),
       where('companyId', '==', user.companyId)
     );
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: customers, isLoading: customersLoading, error } = useCollection<WithId<Customer>>(customersQuery);
   
   useEffect(() => {
-    console.log("CustomerTable user:", user);
-    console.log("CustomerTable customers data:", customers);
-    console.log("CustomerTable error:", error);
+    console.log("[CustomerTable] Auth User:", user);
+    console.log("[CustomerTable] Fetched customers data:", customers);
+    console.log("[CustomerTable] Firestore error:", error);
   }, [user, customers, error]);
 
   const isLoading = isUserLoading || (customersLoading && !error);
@@ -353,3 +353,5 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
+
+    

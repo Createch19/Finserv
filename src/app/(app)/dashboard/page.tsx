@@ -15,11 +15,13 @@ import { CollectionChart, CollectionCountChart } from "@/components/reports/char
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, doc, writeBatch } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company } from "@/types";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
+
+const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -210,7 +212,5 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
 
     

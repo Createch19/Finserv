@@ -41,7 +41,14 @@ const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
 });
 
-function getCustomersQuery(firestore: any, user: User | null) {
+export function ReminderForm() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<IntelligentEmiReminderOutput | null>(null);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const firestore = useFirestore();
+
+  const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
     
     let baseQuery = query(collection(firestore, 'customers'), where('status', 'in', ['active', 'overdue']));
@@ -52,16 +59,8 @@ function getCustomersQuery(firestore: any, user: User | null) {
 
     if (!user.companyId) return null;
     return query(baseQuery, where('companyId', '==', user.companyId));
-}
-
-export function ReminderForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<IntelligentEmiReminderOutput | null>(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const firestore = useFirestore();
-
-  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
+  }, [firestore, user]);
+  
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -209,3 +208,5 @@ export function ReminderForm() {
     </div>
   );
 }
+
+    
