@@ -26,31 +26,34 @@ import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 // Define a default company ID for migration.
 const DEFAULT_MIGRATION_COMPANY_ID = 'finserv-company-id';
 
-
 function getCustomersQuery(firestore: any, user: User | null) {
-    if (!firestore || !user) return null;
-    
-    if (user.role === 'superadmin') {
-        // Super admin sees all customers across all companies
-        return collection(firestore, 'customers');
-    }
-    
-    if (!user.companyId) return null; // Guard against undefined companyId for non-superadmins
-    // Admins and Agents are restricted to their companyId
-    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
+  if (!firestore || !user) return null;
+  
+  if (user.role === 'superadmin') {
+      // Super admin sees all customers across all companies
+      return collection(firestore, 'customers');
+  }
+  
+  // For other roles, companyId is required.
+  if (!user.companyId) return null;
+
+  // Admins and Agents are restricted to their companyId
+  return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
-    if (!firestore || !user || (user.role !== 'superadmin' && user.role !== 'admin')) return null;
+  if (!firestore || !user || (user.role !== 'superadmin' && user.role !== 'admin')) return null;
 
-    if (user.role === 'superadmin') {
-        // Super admin sees all expenses
-        return collection(firestore, 'expenses');
-    }
-    
-    if (!user.companyId) return null; // Guard against undefined companyId for regular admin
-    // Regular admin sees expenses for their company
-    return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
+  if (user.role === 'superadmin') {
+      // Super admin sees all expenses
+      return collection(firestore, 'expenses');
+  }
+  
+  // For admin role, companyId is required.
+  if (!user.companyId) return null;
+
+  // Regular admin sees expenses for their company
+  return query(collection(firestore, 'expenses'), where('companyId', '==', user.companyId));
 }
 
 function getUsersQuery(firestore: any, user: User | null) {
@@ -312,5 +315,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    

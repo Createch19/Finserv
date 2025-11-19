@@ -76,7 +76,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
       return query(collection(firestore, 'customers'), orderBy('startDate', 'desc'));
     }
 
-    if (!user.companyId) return null; // Important: Don't query if companyId isn't loaded
+    if (!user.companyId) return null;
     return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId), orderBy('startDate', 'desc'));
     
   }, [firestore, user]);
@@ -338,5 +338,3 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
-
-    

@@ -58,7 +58,7 @@ export function ExpenseList() {
         return query(collection(firestore, "expenses"), orderBy("date", "desc"));
     }
     
-    if (!user.companyId) return null; // Guard against undefined companyId
+    if (!user.companyId) return null;
     return query(collection(firestore, "expenses"), where('companyId', '==', user.companyId), orderBy("date", "desc"));
   }, [firestore, user]);
 

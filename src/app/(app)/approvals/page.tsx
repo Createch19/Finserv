@@ -23,7 +23,9 @@ export default function ApprovalsPage() {
       return query(collection(firestore, "customers"), where("status", "==", "pending"));
     }
     
+    // For other roles, companyId is required.
     if (!user.companyId) return null;
+
     // Admins and agents can only see pending approvals for their own company.
     return query(
       collection(firestore, "customers"),
