@@ -23,9 +23,17 @@ function getCustomersQuery(firestore: any, user: User | null) {
 }
 
 function getExpensesQuery(firestore: any, user: User | null) {
-    if (!firestore || !user || user.role !== 'admin') return null;
-    return collection(firestore, 'expenses');
+    if (!firestore || !user) return null;
+
+    if (user.isSuperAdmin) {
+        return collection(firestore, 'expenses');
+    }
+    
+    if (!user.companyId || user.role !== 'admin') return null;
+    
+    return query(collection(firestore, "expenses"), where('companyId', '==', user.companyId));
 }
+
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -135,10 +143,3 @@ export default function ReportsPage() {
     </>
   );
 }
-
-    
-
-
-
-
-    
