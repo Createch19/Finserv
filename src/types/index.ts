@@ -67,4 +67,18 @@ export type ExpenseType = {
     createdAt: string;
 }
 
+export type WithdrawalRequest = {
+  id: string;
+  companyId: string;
+  companyName: string;
+  adminId: string;
+  adminName: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  notes: string;
+  requestedAt: string; // ISO 8601 format
+  processedAt?: string; // ISO 8601 format
+  processedBy?: string; // Super Admin UID
+};
+
 export type WithId<T> = T & { id: string };

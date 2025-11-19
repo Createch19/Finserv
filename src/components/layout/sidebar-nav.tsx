@@ -23,6 +23,7 @@ import {
   Receipt,
   ShieldCheck,
   CalendarCheck,
+  Landmark,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -36,6 +37,7 @@ const menuItems = [
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
+  { href: '/withdrawals', label: 'Withdrawals', icon: Landmark, adminOnly: true },
 ];
 
 export function SidebarNav() {
@@ -77,6 +79,13 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
+              <Link href="/withdrawals" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/withdrawals')} tooltip="Withdrawals">
+                  <div><Landmark /><span>Withdrawals</span></div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <Link href="/settings" passHref onClick={handleLinkClick}>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/settings')} tooltip="Settings">
                   <div><Settings /><span>Settings</span></div>
@@ -92,7 +101,7 @@ export function SidebarNav() {
     );
   }
 
-  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin');
+  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
 
   return (
     <>

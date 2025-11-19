@@ -289,6 +289,25 @@
         }
       },
       "required": ["id", "name", "createdAt"]
+    },
+    "WithdrawalRequest": {
+        "title": "Withdrawal Request",
+        "type": "object",
+        "description": "Represents a request by a company admin to withdraw funds.",
+        "properties": {
+            "id": { "type": "string", "description": "Unique ID for the request." },
+            "companyId": { "type": "string", "description": "The ID of the company requesting the withdrawal." },
+            "companyName": { "type": "string", "description": "The name of the company." },
+            "adminId": { "type": "string", "description": "The UID of the admin making the request." },
+            "adminName": { "type": "string", "description": "The name of the admin." },
+            "amount": { "type": "number", "description": "The amount requested for withdrawal." },
+            "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "The status of the request." },
+            "notes": { "type": "string", "description": "Notes or reason for the withdrawal." },
+            "requestedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the request was made." },
+            "processedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the request was processed." },
+            "processedBy": { "type": "string", "description": "UID of the super admin who processed the request." }
+        },
+        "required": ["id", "companyId", "companyName", "adminId", "adminName", "amount", "status", "requestedAt"]
     }
   },
   "auth": {
@@ -317,6 +336,10 @@
       "expenseTypes": {
         "schema": "#/entities/ExpenseType",
         "description": "A top-level collection for managing expense categories. Only accessible by admins."
+      },
+      "withdrawalRequests": {
+          "schema": "#/entities/WithdrawalRequest",
+          "description": "A top-level collection for managing fund withdrawal requests."
       }
     }
   }
