@@ -80,5 +80,12 @@ service cloud.firestore {
       // Admins can read a list of requests, but client query must filter by their companyId.
       allow list: if getRole() == 'admin';
     }
+
+    match /settings/{settingId} {
+      // Any authenticated user can read settings (e.g. to apply defaults on client)
+      allow read, list: if isAuthed();
+      // Only Admins and Super Admins can change settings
+      allow write: if isSuperAdmin() || getRole() == 'admin';
+    }
   }
 }
