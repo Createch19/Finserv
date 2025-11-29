@@ -195,7 +195,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                                         <Pencil className="mr-2 h-4 w-4" /> Edit
                                     </Link>
                                 </DropdownMenuItem>
-                                {user?.role === 'admin' && (
+                                {(user?.role === 'admin' || user?.role === 'superadmin') && (
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
@@ -286,7 +286,7 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
                                 <TooltipContent>View Details</TooltipContent>
                             </Tooltip>
                             
-                            {user?.role === 'admin' && (
+                            {(user?.role === 'admin' || user?.role === 'superadmin') && (
                                 <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Tooltip>
@@ -353,5 +353,3 @@ export function CustomerTable({ searchTerm }: { searchTerm: string }) {
     </TooltipProvider>
   );
 }
-
-    
