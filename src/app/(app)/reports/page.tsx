@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
-import { CollectionChart, ProfitChart, LoanStatusChart, CollectionCountChart, NewCustomersChart, ExpenseByTypeChart, CapitalFlowChart } from "@/components/reports/charts";
+import { CollectionChart, ProfitChart, LoanStatusChart, CollectionCountChart, NewCustomersChart, ExpenseByTypeChart, CapitalFlowChart, AgentCommissionChart } from "@/components/reports/charts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -60,6 +60,8 @@ export default function ReportsPage() {
       )
   }
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
   return (
     <>
       <PageHeader
@@ -97,7 +99,7 @@ export default function ReportsPage() {
                     <NewCustomersChart customers={customers} height={350} />
                 </CardContent>
             </Card>
-            {(user?.role === 'admin' || user?.role === 'superadmin') && expenses && expenses.length > 0 && (
+            {isAdmin && expenses && expenses.length > 0 && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Expenses by Type</CardTitle>
@@ -116,7 +118,7 @@ export default function ReportsPage() {
                     <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ProfitChart customers={customers} expenses={expenses} isAdmin={user?.role === 'admin' || user?.role === 'superadmin'} height={300} />
+                    <ProfitChart customers={customers} expenses={expenses} isAdmin={isAdmin} height={300} />
                 </CardContent>
             </Card>
             <Card>
@@ -129,6 +131,17 @@ export default function ReportsPage() {
                 </CardContent>
             </Card>
          </div>
+         {isAdmin && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Monthly Agent Commissions</CardTitle>
+                    <CardDescription>Total commission amounts paid out to agents each month.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <AgentCommissionChart customers={customers} height={350} />
+                </CardContent>
+            </Card>
+         )}
         <Card>
             <CardHeader>
                 <CardTitle>Capital Reinvestment Flow</CardTitle>
@@ -142,3 +155,5 @@ export default function ReportsPage() {
     </>
   );
 }
+
+    

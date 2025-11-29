@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
-import { useFirestore } from "@/firebase";
+import { useDoc, useFirestore } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { Customer } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -57,6 +57,9 @@ export function AddCustomerForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const firestore = useFirestore();
+
+  const settingsRef = doc(firestore, 'settings', 'defaults');
+  const { data: defaultSettings, isLoading: settingsLoading } = useDoc(settingsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -126,6 +129,7 @@ export function AddCustomerForm() {
     const newCustomerDocRef = doc(firestore, "customers", customerId);
     
     const finalMonthlyEMI = Math.round(monthlyEMI);
+    const agentCommissionRate = defaultSettings?.agentCommissionRate || 10;
 
     const newCustomer: Customer = {
       customerId: customerId,
@@ -149,7 +153,9 @@ export function AddCustomerForm() {
           uid: user.uid,
           name: user.name,
           email: user.email,
-      }
+      },
+      agentCommissionRate: agentCommissionRate,
+      commissionSettled: false,
     };
 
     setDoc(newCustomerDocRef, newCustomer)
@@ -276,7 +282,7 @@ export function AddCustomerForm() {
                 </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+              <Button type="submit" size="lg" className="w-full" disabled={isLoading || settingsLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit for Approval
               </Button>
@@ -286,3 +292,5 @@ export function AddCustomerForm() {
     </Form>
   );
 }
+
+    

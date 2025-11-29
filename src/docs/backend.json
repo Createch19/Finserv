@@ -1,0 +1,378 @@
+
+{
+  "entities": {
+    "Company": {
+      "title": "Company",
+      "type": "object",
+      "description": "Represents a tenant company in the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the company."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the company account.",
+          "enum": ["active", "inactive", "setup_complete"]
+        },
+        "ownerUID": {
+          "type": "string",
+          "description": "The UID of the user who owns this company."
+        },
+        "createdAt": {
+            "type": "string",
+            "description": "The creation date of the company.",
+            "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "status", "ownerUID", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the FINSERV application, storing their basic profile information and role.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier for the user, matching the Firebase Auth UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within their specific company.",
+          "enum": ["admin", "agent", "superadmin"]
+        },
+        "companyId": {
+          "type": "string",
+          "description": "The ID of the company this user belongs to."
+        }
+      },
+      "required": [
+        "uid",
+        "name",
+        "email",
+        "role",
+        "companyId"
+      ]
+    },
+    "Customer": {
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a financed customer, storing their personal details, loan information, and agent assignment.",
+      "properties": {
+        "customerId": {
+          "type": "string",
+          "description": "The unique identifier for the customer, matching the Firestore document ID."
+        },
+        "companyId": {
+            "type": "string",
+            "description": "The ID of the company this customer belongs to."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the customer."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the customer."
+        },
+        "aadhar": {
+          "type": "string",
+          "description": "The Aadhar number of the customer."
+        },
+        "phoneModel": {
+          "type": "string",          "description": "The phone model purchased by the customer."
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "The total price of the phone."
+        },
+        "downPayment": {
+          "type": "number",
+          "description": "The down payment made by the customer."
+        },
+        "financedAmount": {
+          "type": "number",
+          "description": "The amount financed for the customer."
+        },
+        "interestAmount": {
+          "type": "number",
+          "description": "The total interest amount for the loan."
+        },
+        "totalPayable": {
+          "type": "number",
+          "description": "The total amount payable (financed amount + interest)."
+        },
+        "duration": {
+          "type": "number",
+          "description": "The duration of the loan in months."
+        },
+        "monthlyEMI": {
+          "type": "number",
+          "description": "The monthly EMI amount."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the loan.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the loan (active, completed, overdue).",
+          "enum": ["active", "completed", "overdue"]
+        },
+        "payments": {
+            "type": "array",
+            "description": "An array of payments made by the customer.",
+            "items": {
+                "$ref": "#/entities/Payment"
+            }
+        },
+        "agent": {
+            "$ref": "#/entities/Agent"
+        },
+        "agentCommissionRate": {
+            "type": "number",
+            "description": "The commission rate for the agent on this loan."
+        },
+        "commissionSettled": {
+            "type": "boolean",
+            "description": "Whether the agent's commission for this loan has been paid."
+        }
+      },
+      "required": [
+        "customerId",
+        "companyId",
+        "name",
+        "phone",
+        "address",
+        "aadhar",
+        "phoneModel",
+        "totalPrice",
+        "downPayment",
+        "financedAmount",
+        "interestAmount",
+        "totalPayable",
+        "duration",
+        "monthlyEMI",
+        "startDate",
+        "status",
+        "agent",
+        "agentCommissionRate",
+        "commissionSettled"
+      ]
+    },
+    "Payment": {
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made by a customer towards their loan. This is embedded within a Customer document.",
+      "properties": {
+        "paymentId": {
+          "type": "string",
+          "description": "Unique identifier for the payment."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the payment was made.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount paid."
+        },
+        "mode": {
+          "type": "string",
+          "description": "The mode of payment (cash, UPI, etc.)."
+        },
+        "remainingBalance": {
+          "type": "number",
+          "description": "The remaining balance after the payment."
+        }
+      },
+      "required": [
+        "paymentId",
+        "date",
+        "amount",
+        "mode",
+        "remainingBalance"
+      ]
+    },
+    "Agent": {
+      "title": "Agent",
+      "type": "object",
+      "description": "Represents an agent user, embedded within customer documents.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The UID of the agent."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the agent."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the agent.",
+          "format": "email"
+        }
+      },
+      "required": ["uid", "name", "email"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "type": "object",
+      "description": "Represents a business expense.",
+      "properties": {
+        "expenseId": {
+          "type": "string",
+          "description": "The unique identifier for the expense."
+        },
+        "companyId": {
+            "type": "string",
+            "description": "The ID of the company this expense belongs to."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the expense was incurred.",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string",
+          "description": "A description of the expense."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the expense."
+        },
+        "type": {
+          "type": "string",
+          "description": "The category or type of the expense."
+        },
+        "adminId": {
+          "type": "string",
+          "description": "The UID of the admin who created the expense."
+        }
+      },
+      "required": [
+        "expenseId",
+        "companyId",
+        "date",
+        "notes",
+        "amount",
+        "type",
+        "adminId"
+      ]
+    },
+    "ExpenseType": {
+      "title": "Expense Type",
+      "type": "object",
+      "description": "Represents a category for expenses.",
+      "properties": {
+        "id": {
+            "type": "string",
+            "description": "Unique identifier for the expense type."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the expense type (e.g., 'Office Rent', 'Utilities')."
+        },
+        "createdAt": {
+            "type": "string",
+            "description": "The creation date of the expense type.",
+            "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
+    "WithdrawalRequest": {
+        "title": "Withdrawal Request",
+        "type": "object",
+        "description": "Represents a request by a company admin to withdraw funds.",
+        "properties": {
+            "id": { "type": "string", "description": "Unique ID for the request." },
+            "companyId": { "type": "string", "description": "The ID of the company requesting the withdrawal." },
+            "companyName": { "type": "string", "description": "The name of the company." },
+            "adminId": { "type": "string", "description": "The UID of the admin making the request." },
+            "adminName": { "type": "string", "description": "The name of the admin." },
+            "amount": { "type": "number", "description": "The amount requested for withdrawal." },
+            "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "The status of the request." },
+            "notes": { "type": "string", "description": "Notes or reason for the withdrawal." },
+            "requestedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the request was made." },
+            "processedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the request was processed." },
+            "processedBy": { "type": "string", "description": "UID of the super admin who processed the request." }
+        },
+        "required": ["id", "companyId", "companyName", "adminId", "adminName", "amount", "status", "requestedAt"]
+    },
+    "AppSettings": {
+        "title": "Application Settings",
+        "type": "object",
+        "description": "Stores global application settings.",
+        "properties": {
+            "defaultInterestRate": {
+                "type": "number",
+                "description": "The default interest rate percentage for new loans."
+            },
+            "agentCommissionRate": {
+                "type": "number",
+                "description": "The default commission rate percentage for agents."
+            }
+        },
+        "required": ["defaultInterestRate", "agentCommissionRate"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "collections": {
+      "companies": {
+        "schema": "#/entities/Company",
+        "description": "A top-level collection of all tenant companies."
+      },
+      "users": {
+        "schema": "#/entities/User",
+        "description": "A top-level collection of all application users (admins and agents)."
+      },
+      "customers": {
+        "schema": "#/entities/Customer",
+        "description": "A top-level collection of all customers. Admins can access all customer data, while agents can only access customers they created."
+      },
+      "expenses": {
+        "schema": "#/entities/Expense",
+        "description": "A top-level collection of all business expenses. Only accessible by admins."
+      },
+      "expenseTypes": {
+        "schema": "#/entities/ExpenseType",
+        "description": "A top-level collection for managing expense categories. Only accessible by admins."
+      },
+      "withdrawalRequests": {
+          "schema": "#/entities/WithdrawalRequest",
+          "description": "A top-level collection for managing fund withdrawal requests."
+      },
+      "settings": {
+          "schema": "#/entities/AppSettings",
+          "description": "A collection for storing global application settings. Should contain a single document with ID 'defaults'."
+      }
+    }
+  }
+}
+
+    

@@ -135,6 +135,9 @@ export function ProfitChart({ customers, expenses, isAdmin, height = 300 }: { cu
     const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
     const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
     const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
+    const totalCommission = (customers || [])
+        .filter(c => c.status === 'completed')
+        .reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
 
     const profitChartData = [
         {
@@ -142,6 +145,7 @@ export function ProfitChart({ customers, expenses, isAdmin, height = 300 }: { cu
             principal: totalFinanced,
             interest: totalInterest,
             expenses: isAdmin ? totalExpenses : 0,
+            commission: isAdmin ? totalCommission : 0,
         }
     ];
 
@@ -149,6 +153,7 @@ export function ProfitChart({ customers, expenses, isAdmin, height = 300 }: { cu
         principal: { label: 'Principal', color: 'hsl(var(--chart-1))' },
         interest: { label: 'Interest', color: 'hsl(var(--chart-2))' },
         expenses: { label: 'Expenses', color: 'hsl(var(--destructive))' },
+        commission: { label: 'Commissions', color: 'hsl(var(--chart-4))' },
     };
 
     return (
@@ -165,6 +170,7 @@ export function ProfitChart({ customers, expenses, isAdmin, height = 300 }: { cu
                 <Bar dataKey="principal" fill="var(--color-principal)" radius={4} />
                 <Bar dataKey="interest" fill="var(--color-interest)" radius={4} />
                 {isAdmin && <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />}
+                {isAdmin && <Bar dataKey="commission" fill="var(--color-commission)" radius={4} />}
             </BarChart>
         </ChartContainer>
     )
@@ -309,6 +315,49 @@ export function NewCustomersChart({ customers, height = 350 }: { customers: With
     </ChartContainer>
   );
 }
+
+// --- Agent Commission Chart ---
+export function AgentCommissionChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {
+  const monthlyCommissions = (customers || [])
+    .filter(c => c.status === 'completed' && c.commissionSettled && c.payments.length > 0)
+    .reduce((acc, customer) => {
+        const lastPayment = customer.payments[customer.payments.length - 1];
+        const monthKey = format(startOfMonth(parseISO(lastPayment.date)), "MMM yyyy");
+        const commissionAmount = customer.interestAmount * (customer.agentCommissionRate || 0) / 100;
+        acc[monthKey] = (acc[monthKey] || 0) + commissionAmount;
+        return acc;
+    }, {} as Record<string, number>);
+    
+  const commissionChartData = Object.entries(monthlyCommissions)
+    .map(([month, amount]) => ({ month, amount }))
+    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+  const chartConfig = {
+    amount: { label: "Commission Paid", color: "hsl(var(--chart-4))" },
+  };
+
+  return (
+    <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+      <BarChart accessibilityLayer data={commissionChartData}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          tickMargin={10}
+          axisLine={false}
+          tickFormatter={(value) => value.slice(0, 3)}
+        />
+        <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
+        <ChartTooltip
+          cursor={false}
+          content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString()}`} />}
+        />
+        <Bar dataKey="amount" fill="var(--color-amount)" radius={4} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
+
 
 // --- Capital Flow Chart ---
 export function CapitalFlowChart({ customers, height = 350 }: { customers: WithId<Customer>[], height?: number }) {

@@ -3,7 +3,7 @@ import { getFirestore, collection, writeBatch } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { subMonths, formatISO } from 'date-fns';
-import type { Company, User, Customer, Payment, Expense, ExpenseType } from '@/types';
+import type { Company, User, Customer, Payment, Expense, ExpenseType, AppSettings } from '@/types';
 
 // --- Hardcoded Demo Data ---
 
@@ -15,6 +15,7 @@ const SUPER_ADMIN_UID = 'WkxEkKrs8fTm2dIsiYLz6OpAlx32';
 const ADMIN_UID = 'Oj6wlYl66YgTGpM1YZtIAWy1CVl1';
 const AGENT_UID = 'kriAJh27x3aZ5Pz2yI4tWxYg2Vb2';
 
+const DEFAULT_COMMISSION_RATE = 10;
 
 const company: Company = {
     id: FINSERV_COMPANY_ID,
@@ -54,7 +55,7 @@ const agentForCustomers = {
     email: 'agent@finserv.com',
 };
 
-const customers: Customer[] = [
+const customers: Omit<Customer, 'agentCommissionRate' | 'commissionSettled'>[] = [
     {
         customerId: 'cust_001',
         companyId: FINSERV_COMPANY_ID,
@@ -156,6 +157,12 @@ const expenses: Expense[] = [
     },
 ];
 
+const defaultSettings: AppSettings = {
+    defaultInterestRate: 10,
+    agentCommissionRate: DEFAULT_COMMISSION_RATE,
+};
+
+
 /**
  * Seeds the database with initial data.
  * This function is idempotent and will overwrite existing documents with the same ID.
@@ -201,16 +208,20 @@ export async function seedDatabase() {
     // 3. Set User documents in Firestore
     console.log('Setting user documents in Firestore...');
     for (const user of users) {
-        const { password, ...userData } = user; // Exclude password from Firestore doc
         const userRef = db.collection('users').doc(user.uid);
-        batch.set(userRef, userData);
+        batch.set(userRef, user);
     }
     
-    // 4. Set Customer documents
+    // 4. Set Customer documents with new commission fields
     console.log('Setting customer documents...');
     for (const customer of customers) {
         const customerRef = db.collection('customers').doc(customer.customerId);
-        batch.set(customerRef, customer);
+        const fullCustomerData: Customer = {
+            ...customer,
+            agentCommissionRate: DEFAULT_COMMISSION_RATE,
+            commissionSettled: customer.status === 'completed', // Settle completed loans by default
+        }
+        batch.set(customerRef, fullCustomerData);
     }
     
     // 5. Set Expense Type documents
@@ -227,6 +238,11 @@ export async function seedDatabase() {
         batch.set(expenseRef, expense);
     }
 
+    // 7. Set default settings document
+    console.log('Setting default settings document...');
+    const settingsRef = db.collection('settings').doc('defaults');
+    batch.set(settingsRef, defaultSettings);
+
     // Commit the batch
     try {
         await batch.commit();
@@ -236,3 +252,5 @@ export async function seedDatabase() {
         throw new Error('Database seeding failed during batch commit.');
     }
 }
+
+    

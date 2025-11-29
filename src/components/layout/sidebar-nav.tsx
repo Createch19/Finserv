@@ -25,6 +25,7 @@ import {
   CalendarCheck,
   Landmark,
   Building,
+  Award,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -36,6 +37,7 @@ const menuItems = [
   { href: '/emis', label: 'EMI Tracker', icon: CalendarClock },
   { href: '/collection', label: 'Collection', icon: CalendarCheck },
   { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
+  { href: '/commissions', label: 'Commissions', icon: Award, adminOnly: true },
   { href: '/reports', label: 'Reports', icon: LineChart },
   { href: '/reminder', label: 'EMI Reminder', icon: Bot },
   { href: '/withdrawals', label: 'Withdrawals', icon: Landmark, adminOnly: true },
@@ -90,6 +92,13 @@ export function SidebarNav() {
               <Link href="/withdrawals" passHref onClick={handleLinkClick}>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/withdrawals')} tooltip="Withdrawals">
                   <div><Landmark /><span>Withdrawals</span></div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/commissions" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/commissions')} tooltip="Commissions">
+                  <div><Award /><span>Commissions</span></div>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
@@ -161,3 +170,5 @@ export function SidebarNav() {
     </>
   );
 }
+
+    

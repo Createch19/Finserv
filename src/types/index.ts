@@ -49,6 +49,8 @@ export type Customer = {
   status: 'pending' | 'active' | 'completed' | 'overdue';
   payments: Payment[];
   agent: Agent;
+  agentCommissionRate: number;
+  commissionSettled: boolean;
 };
 
 export type Expense = {
@@ -81,4 +83,10 @@ export type WithdrawalRequest = {
   processedBy?: string; // Super Admin UID
 };
 
+export type AppSettings = {
+    agentCommissionRate: number;
+}
+
 export type WithId<T> = T & { id: string };
+
+    

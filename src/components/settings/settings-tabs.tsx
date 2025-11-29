@@ -21,9 +21,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, Loader2, Palette, PlusCircle, Trash2 } from "lucide-react";
-import { useCollection, useFirestore } from "@/firebase";
-import { collection, addDoc, doc, deleteDoc, query, where, orderBy } from "firebase/firestore";
-import type { Customer, WithId, User, ExpenseType } from "@/types";
+import { useCollection, useDoc, useFirestore } from "@/firebase";
+import { collection, addDoc, doc, deleteDoc, query, where, orderBy, setDoc } from "firebase/firestore";
+import type { Customer, WithId, User, ExpenseType, AppSettings } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/hooks/use-toast";
@@ -189,9 +189,55 @@ const ManageExpenseTypes = () => {
 export function SettingsTabs() {
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  
+  const settingsRef = useMemo(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'settings', 'defaults');
+  }, [firestore]);
+
+  const { data: defaultSettings, isLoading: settingsLoading } = useDoc<AppSettings>(settingsRef);
+  
+  const [interestRate, setInterestRate] = useState(10);
+  const [commissionRate, setCommissionRate] = useState(10);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  useEffect(() => {
+    if (defaultSettings) {
+        setInterestRate(defaultSettings.defaultInterestRate || 10);
+        setCommissionRate(defaultSettings.agentCommissionRate || 10);
+    }
+  }, [defaultSettings]);
+
+  const handleSaveDefaults = () => {
+    if (!settingsRef) return;
+    setIsSaving(true);
+    const newSettings = {
+        defaultInterestRate: interestRate,
+        agentCommissionRate: commissionRate
+    };
+    setDoc(settingsRef, newSettings, { merge: true })
+      .then(() => {
+        toast({ title: 'Settings Saved', description: 'Default values have been updated.' });
+      })
+      .catch((err) => {
+        const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: "write",
+            requestResourceData: newSettings,
+        });
+        errorEmitter.emit("permission-error", permissionError);
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
+  };
+
   
   const [colors, setColors] = useState({
     primary: '#1d7874',
@@ -259,7 +305,7 @@ export function SettingsTabs() {
     <Tabs defaultValue="defaults" className="w-full">
       <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="defaults">Defaults</TabsTrigger>
-        <TabsTrigger value="expense-types">Expense Types</TabsTrigger>
+        {isAdmin && <TabsTrigger value="expense-types">Expense Types</TabsTrigger>}
         <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
       </TabsList>
@@ -272,19 +318,34 @@ export function SettingsTabs() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="interest">Default Interest Rate (%)</Label>
-              <Input id="interest" defaultValue="10" />
-            </div>
+            {settingsLoading ? <Loader2 className="animate-spin" /> : (
+                <>
+                    <div className="space-y-2">
+                        <Label htmlFor="interest">Default Interest Rate (%)</Label>
+                        <Input id="interest" type="number" value={interestRate} onChange={(e) => setInterestRate(Number(e.target.value))} disabled={!isAdmin} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="commission">Default Agent Commission Rate (%)</Label>
+                        <Input id="commission" type="number" value={commissionRate} onChange={(e) => setCommissionRate(Number(e.target.value))} disabled={!isAdmin} />
+                    </div>
+                </>
+            )}
           </CardContent>
-          <CardFooter>
-            <Button>Save Changes</Button>
-          </CardFooter>
+          {isAdmin && (
+            <CardFooter>
+                <Button onClick={handleSaveDefaults} disabled={isSaving || settingsLoading}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                </Button>
+            </CardFooter>
+          )}
         </Card>
       </TabsContent>
-      <TabsContent value="expense-types">
-        <ManageExpenseTypes />
-      </TabsContent>
+      {isAdmin && (
+        <TabsContent value="expense-types">
+            <ManageExpenseTypes />
+        </TabsContent>
+      )}
       <TabsContent value="appearance">
         <Card>
             <CardHeader>
@@ -325,4 +386,4 @@ export function SettingsTabs() {
   );
 }
 
-
+    

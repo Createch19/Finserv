@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
@@ -174,7 +174,11 @@ export default function DashboardPage() {
   const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
   const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
   const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
-  const profit = totalInterest - totalExpenses;
+  const totalCommission = (customers || [])
+        .filter(c => c.status === 'completed' && c.commissionSettled)
+        .reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
+
+  const profit = totalInterest - totalExpenses - totalCommission;
 
   const activeLoans = (customers || []).filter(c => c.status === 'active' || c.status === 'overdue').length;
 
@@ -214,6 +218,7 @@ export default function DashboardPage() {
 
   if (user?.role === 'admin' || user?.role === 'superadmin') {
       finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
+      finalStats.push({ title: "Commissions Paid", value: formatValue(totalCommission), icon: Award });
   }
   
   const isAllCompaniesSelected = userRole === 'superadmin' && selectedCompanyId === 'all';
@@ -294,3 +299,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
