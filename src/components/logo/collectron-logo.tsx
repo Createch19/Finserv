@@ -8,34 +8,47 @@ const CollectronLogo = ({ className }: { className?: string }) => {
     <div className={cn("relative h-12 w-12", className)}>
       <style>
         {`
-          @keyframes orbit-cw {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+          @keyframes draw-path {
+            from {
+              stroke-dashoffset: 65;
+            }
+            to {
+              stroke-dashoffset: 0;
+            }
           }
-          @keyframes orbit-ccw {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(-360deg); }
+          @keyframes move-coin {
+            0% {
+              offset-distance: 0%;
+              opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+              offset-distance: 100%;
+              opacity: 0;
+            }
           }
-          @keyframes pulse-subtle {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.95; }
+          @keyframes pulse-center {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
           }
-          .collectron-dollar-symbol {
-            animation: pulse-subtle 6s ease-in-out infinite;
+          .collectron-path {
+            stroke-dasharray: 65;
+            animation: draw-path 3s ease-out infinite;
           }
-          .collectron-orbit-1 {
-            animation: orbit-cw 12s linear infinite;
-          }
-          .collectron-orbit-2 {
-            animation: orbit-ccw 18s linear infinite;
-          }
-           @keyframes sparkle-pulse {
-            0%, 100% { transform: scale(1); fill-opacity: 0.7; }
-            50% { transform: scale(1.3); fill-opacity: 1; }
-          }
-          .collectron-sparkle {
-            animation: sparkle-pulse 2s ease-in-out infinite;
+          .collectron-coin {
+            offset-path: path("M 65,50 A 15,15 0 1 1 50,35");
+            animation: move-coin 3s ease-in-out infinite;
             transform-origin: center;
+          }
+          .collectron-center-pulse {
+             animation-delay: 2.5s;
+             animation: pulse-center 0.5s ease-out infinite;
+             transform-origin: center;
           }
         `}
       </style>
@@ -45,19 +58,27 @@ const CollectronLogo = ({ className }: { className?: string }) => {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Orbits */}
-        <g className="collectron-orbit-1" style={{ transformOrigin: '50% 50%' }}>
-            <ellipse cx="50" cy="50" rx="40" ry="20" stroke="hsl(var(--primary) / 0.3)" strokeWidth="1.5"/>
-        </g>
-        <g className="collectron-orbit-2" style={{ transformOrigin: '50% 50%' }}>
-            <ellipse cx="50" cy="50" rx="25" ry="45" stroke="hsl(var(--accent) / 0.4)" strokeWidth="1.5"/>
-            <path d="M72 38 L74 36 L76 38 L74 40 Z" fill="hsl(var(--secondary))" className="collectron-sparkle" />
-        </g>
+        {/* The circular path */}
+        <path 
+            d="M 65,50 A 15,15 0 1 1 50,35 L 50,42" 
+            stroke="hsl(var(--primary) / 0.4)" 
+            strokeWidth="2"
+        />
+        <path
+            d="M 45 40 L 50 35 L 55 40"
+            stroke="hsl(var(--primary) / 0.4)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
 
-        {/* Dollar Symbol */}
-        <g className="collectron-dollar-symbol" style={{ transformOrigin: '50% 50%' }} stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M50 32 V 68" />
-            <path d="M59 45 C 59 38 53 36 49 40 C 45 44 41 50 41 55 C 41 62 47 64 51 60" />
+        {/* The moving coin */}
+        <circle className="collectron-coin" cx="0" cy="0" r="3" fill="hsl(var(--secondary))" />
+
+        {/* Central Dollar Symbol */}
+        <g stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="collectron-center-pulse">
+            <path d="M50 58 V 72" />
+            <path d="M56 62 C 56 59 52 58 50 60 C 48 62 44 65 44 68 C 44 71 48 72 50 70" />
         </g>
       </svg>
     </div>
