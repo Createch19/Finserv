@@ -42,10 +42,13 @@ const CollectronLogo = ({ className }: { className?: string }) => {
             <circle cx="50" cy="50" r="28" fill="hsl(var(--primary) / 0.2)" />
             <circle cx="50" cy="50" r="28" stroke="hsl(var(--primary))" strokeWidth="4" />
             
-            {/* Abstract Currency Symbol */}
-            <path d="M50 38V62" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
-            <path d="M44 45H56" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
-            <path d="M44 55H56" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
+            {/* Indian Rupee Symbol (₹) */}
+            <g stroke="hsl(var(--primary))" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M38 42H62" />
+                <path d="M38 52H62" />
+                <path d="M43 62C43 62 43 52 50 52C57 52 57 62 57 62" />
+                <path d="M50 52V38" />
+            </g>
         </g>
         
         {/* Orbiting Coins */}
