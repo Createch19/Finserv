@@ -20,7 +20,7 @@ const CollectronLogo = ({ className }: { className?: string }) => {
             0%, 100% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.05); opacity: 0.95; }
           }
-          .collectron-rupee-symbol {
+          .collectron-dollar-symbol {
             animation: pulse-subtle 6s ease-in-out infinite;
           }
           .collectron-orbit-1 {
@@ -54,14 +54,11 @@ const CollectronLogo = ({ className }: { className?: string }) => {
             <path d="M72 38 L74 36 L76 38 L74 40 Z" fill="hsl(var(--secondary))" className="collectron-sparkle" />
         </g>
 
-        {/* Rupee Symbol */}
-        <g className="collectron-rupee-symbol" style={{ transformOrigin: '50% 50%' }} stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M38 40H62" />
-            <path d="M38 50H62" />
-            <path d="M44 68C44 68 44 50 51 50C58 50 64 55 64 62" />
-            <path d="M51 50V32" />
+        {/* Dollar Symbol */}
+        <g className="collectron-dollar-symbol" style={{ transformOrigin: '50% 50%' }} stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M50 32 V 68" />
+            <path d="M59 45 C 59 38 53 36 49 40 C 45 44 41 50 41 55 C 41 62 47 64 51 60" />
         </g>
-
       </svg>
     </div>
   );
