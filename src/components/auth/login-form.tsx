@@ -37,7 +37,7 @@ export function LoginForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      password: "Finserve@123",
+      password: "",
     },
   });
 
@@ -75,7 +75,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="admin@finserv.com" {...field} />
+                    <Input placeholder="Enter email" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -91,7 +91,7 @@ export function LoginForm() {
                     <div className="relative">
                       <Input
                         type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        placeholder="Enter password"
                         {...field}
                       />
                       <Button
