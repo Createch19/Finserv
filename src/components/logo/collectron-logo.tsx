@@ -8,26 +8,34 @@ const CollectronLogo = ({ className }: { className?: string }) => {
     <div className={cn("relative h-12 w-12", className)}>
       <style>
         {`
-          @keyframes orbit-1 {
+          @keyframes orbit-cw {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
-          @keyframes orbit-2 {
+          @keyframes orbit-ccw {
             from { transform: rotate(0deg); }
             to { transform: rotate(-360deg); }
           }
-           @keyframes pulse-in {
+          @keyframes pulse-subtle {
             0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(0.95); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 0.95; }
           }
-          .collectron-main-coin {
-            animation: pulse-in 5s ease-in-out infinite;
+          .collectron-rupee-symbol {
+            animation: pulse-subtle 6s ease-in-out infinite;
           }
           .collectron-orbit-1 {
-            animation: orbit-1 10s linear infinite;
+            animation: orbit-cw 12s linear infinite;
           }
           .collectron-orbit-2 {
-            animation: orbit-2 15s linear infinite;
+            animation: orbit-ccw 18s linear infinite;
+          }
+           @keyframes sparkle-pulse {
+            0%, 100% { transform: scale(1); fill-opacity: 0.7; }
+            50% { transform: scale(1.3); fill-opacity: 1; }
+          }
+          .collectron-sparkle {
+            animation: sparkle-pulse 2s ease-in-out infinite;
+            transform-origin: center;
           }
         `}
       </style>
@@ -37,27 +45,21 @@ const CollectronLogo = ({ className }: { className?: string }) => {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <g className="collectron-main-coin" style={{ transformOrigin: '50% 50%' }}>
-            {/* Main Coin Body */}
-            <circle cx="50" cy="50" r="28" fill="hsl(var(--primary) / 0.2)" />
-            <circle cx="50" cy="50" r="28" stroke="hsl(var(--primary))" strokeWidth="4" />
-            
-            {/* Indian Rupee Symbol (₹) */}
-            <g stroke="hsl(var(--primary))" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M38 40H62" />
-                <path d="M38 50H55" />
-                <path d="M43 65C43 65 43 50 50 50C57 50 62 55 62 60" />
-                <path d="M50 50V35" />
-            </g>
-        </g>
-        
-        {/* Orbiting Coins */}
+        {/* Orbits */}
         <g className="collectron-orbit-1" style={{ transformOrigin: '50% 50%' }}>
-            <circle cx="15" cy="50" r="5" fill="hsl(var(--accent))" />
-            <circle cx="85" cy="50" r="5" fill="hsl(var(--accent))" opacity="0.6" />
+            <ellipse cx="50" cy="50" rx="40" ry="20" stroke="hsl(var(--primary) / 0.3)" strokeWidth="1.5"/>
         </g>
-         <g className="collectron-orbit-2" style={{ transformOrigin: '50% 50%' }}>
-            <circle cx="50" cy="8" r="7" fill="hsl(var(--secondary))" />
+        <g className="collectron-orbit-2" style={{ transformOrigin: '50% 50%' }}>
+            <ellipse cx="50" cy="50" rx="25" ry="45" stroke="hsl(var(--accent) / 0.4)" strokeWidth="1.5"/>
+            <path d="M72 38 L74 36 L76 38 L74 40 Z" fill="hsl(var(--secondary))" className="collectron-sparkle" />
+        </g>
+
+        {/* Rupee Symbol */}
+        <g className="collectron-rupee-symbol" style={{ transformOrigin: '50% 50%' }} stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M38 40H62" />
+            <path d="M38 50H62" />
+            <path d="M44 68C44 68 44 50 51 50C58 50 64 55 64 62" />
+            <path d="M51 50V32" />
         </g>
 
       </svg>
