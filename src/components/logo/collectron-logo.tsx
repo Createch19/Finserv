@@ -44,10 +44,10 @@ const CollectronLogo = ({ className }: { className?: string }) => {
             
             {/* Indian Rupee Symbol (₹) */}
             <g stroke="hsl(var(--primary))" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M38 42H62" />
-                <path d="M38 52H62" />
-                <path d="M43 62C43 62 43 52 50 52C57 52 57 62 57 62" />
-                <path d="M50 52V38" />
+                <path d="M38 40H62" />
+                <path d="M38 50H55" />
+                <path d="M43 65C43 65 43 50 50 50C57 50 62 55 62 60" />
+                <path d="M50 50V35" />
             </g>
         </g>
         
