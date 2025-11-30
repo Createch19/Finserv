@@ -119,9 +119,6 @@ export function LoginForm() {
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Demo users: `admin@finserv.com` or `agent@finserv.com`. Password is `Finserve@123`.
-            </p>
           </CardFooter>
         </form>
       </Form>
