@@ -53,8 +53,7 @@ export function LoginForm() {
         title: "Login Failed",
         description: (error as Error).message || "An unexpected error occurred. Please try again.",
       });
-    } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 
