@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -26,9 +27,13 @@ import {
   Landmark,
   Building,
   Award,
+  Loader2,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
+import { useDoc, useFirestore } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { Company } from '@/types';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -46,12 +51,30 @@ const menuItems = [
 export function SidebarNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const firestore = useFirestore();
   const { setOpenMobile, isMobile } = useSidebar();
+
+  const companyRef = useMemo(() => {
+    if (!firestore || !user?.companyId) return null;
+    return doc(firestore, 'companies', user.companyId);
+  }, [firestore, user?.companyId]);
+
+  const { data: company, isLoading: companyLoading } = useDoc<Company>(companyRef);
 
   const handleLinkClick = () => {
     if (isMobile) {
         setOpenMobile(false);
     }
+  }
+
+  const getDisplayName = () => {
+    if (user?.role === 'superadmin') {
+      return "Admin Panel";
+    }
+    if (company) {
+      return company.name;
+    }
+    return <Loader2 className="h-5 w-5 animate-spin" />;
   }
 
   if (user?.role === 'superadmin') {
@@ -62,7 +85,7 @@ export function SidebarNav() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <CreditCard className="h-5 w-5" />
               </div>
-              <span className="font-headline text-lg font-semibold text-sidebar-foreground">FINSERV</span>
+              <span className="font-headline text-lg font-semibold text-sidebar-foreground">{getDisplayName()}</span>
           </div>
         </SidebarHeader>
         <SidebarContent className="p-2 flex flex-col justify-between">
@@ -127,7 +150,7 @@ export function SidebarNav() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <CreditCard className="h-5 w-5" />
             </div>
-            <span className="font-headline text-lg font-semibold text-sidebar-foreground">FINSERV</span>
+            <div className="font-headline text-lg font-semibold text-sidebar-foreground truncate">{getDisplayName()}</div>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2 flex flex-col justify-between">
@@ -170,5 +193,3 @@ export function SidebarNav() {
     </>
   );
 }
-
-    
