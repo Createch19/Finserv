@@ -8,42 +8,26 @@ const CollectronLogo = ({ className }: { className?: string }) => {
     <div className={cn("relative h-12 w-12", className)}>
       <style>
         {`
-          @keyframes draw-in {
-            from {
-              stroke-dashoffset: 100;
-            }
-            to {
-              stroke-dashoffset: 0;
-            }
+          @keyframes orbit-1 {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
           }
-          @keyframes grow-bar {
-              from {
-                  transform: scaleY(0);
-              }
-              to {
-                  transform: scaleY(1);
-              }
+          @keyframes orbit-2 {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
           }
-          @keyframes fade-in {
-              from { opacity: 0; }
-              to { opacity: 1; }
+           @keyframes pulse-in {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.95); opacity: 0.9; }
           }
-
-          .collectron-circle {
-              stroke-dasharray: 100;
-              animation: draw-in 1.5s ease-out forwards;
+          .collectron-main-coin {
+            animation: pulse-in 5s ease-in-out infinite;
           }
-          .collectron-bar-1 {
-              transform-origin: bottom;
-              animation: grow-bar 0.8s ease-out 0.5s forwards;
+          .collectron-orbit-1 {
+            animation: orbit-1 10s linear infinite;
           }
-           .collectron-bar-2 {
-              transform-origin: bottom;
-              animation: grow-bar 1s ease-out 0.7s forwards;
-          }
-           .collectron-bar-3 {
-              transform-origin: bottom;
-              animation: grow-bar 1.2s ease-out 0.9s forwards;
+          .collectron-orbit-2 {
+            animation: orbit-2 15s linear infinite;
           }
         `}
       </style>
@@ -53,46 +37,26 @@ const CollectronLogo = ({ className }: { className?: string }) => {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Enclosing Circle */}
-        <circle 
-            cx="50" 
-            cy="50" 
-            r="45" 
-            stroke="hsl(var(--primary) / 0.7)" 
-            strokeWidth="5" 
-            className="collectron-circle"
-        />
-
-        {/* Growing Bars */}
-        <g>
-            <rect 
-                x="25" 
-                y="50" 
-                width="12" 
-                height="25" 
-                fill="hsl(var(--secondary))" 
-                className="collectron-bar-1"
-                rx="2"
-            />
-            <rect 
-                x="44" 
-                y="35" 
-                width="12" 
-                height="40" 
-                fill="hsl(var(--primary))" 
-                className="collectron-bar-2"
-                 rx="2"
-            />
-            <rect 
-                x="63" 
-                y="25" 
-                width="12" 
-                height="50" 
-                fill="hsl(var(--accent))" 
-                className="collectron-bar-3"
-                 rx="2"
-            />
+        <g className="collectron-main-coin" style={{ transformOrigin: '50% 50%' }}>
+            {/* Main Coin Body */}
+            <circle cx="50" cy="50" r="28" fill="hsl(var(--primary) / 0.2)" />
+            <circle cx="50" cy="50" r="28" stroke="hsl(var(--primary))" strokeWidth="4" />
+            
+            {/* Abstract Currency Symbol */}
+            <path d="M50 38V62" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
+            <path d="M44 45H56" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
+            <path d="M44 55H56" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinecap="round" />
         </g>
+        
+        {/* Orbiting Coins */}
+        <g className="collectron-orbit-1" style={{ transformOrigin: '50% 50%' }}>
+            <circle cx="15" cy="50" r="5" fill="hsl(var(--accent))" />
+            <circle cx="85" cy="50" r="5" fill="hsl(var(--accent))" opacity="0.6" />
+        </g>
+         <g className="collectron-orbit-2" style={{ transformOrigin: '50% 50%' }}>
+            <circle cx="50" cy="8" r="7" fill="hsl(var(--secondary))" />
+        </g>
+
       </svg>
     </div>
   );
