@@ -7,6 +7,9 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   title: 'FINSERV - Local Finance Manager',
   description: 'A modern, mobile-responsive web application for managing local mobile financing.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
