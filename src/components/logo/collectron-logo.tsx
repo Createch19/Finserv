@@ -5,36 +5,32 @@ import { cn } from "@/lib/utils";
 
 const CollectronLogo = ({ className }: { className?: string }) => {
   return (
-    <div className={cn("relative h-12 w-12", className)}>
+    <div className={cn("relative h-24 w-24", className)}>
       <style>
         {`
-          @keyframes draw-path {
-            from {
-              stroke-dashoffset: 65;
-            }
+          .collectron-bar {
+            transform-origin: bottom;
+            animation: grow-bar 1.5s ease-out forwards;
+          }
+          #collectron-bar-1 { animation-delay: 0s; }
+          #collectron-bar-2 { animation-delay: 0.2s; }
+          #collectron-bar-3 { animation-delay: 0.4s; }
+
+          @keyframes grow-bar {
+            from { transform: scaleY(0); }
+            to { transform: scaleY(1); }
+          }
+
+          .collectron-trend-line {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: draw-line 1s ease-out forwards 0.8s;
+          }
+
+          @keyframes draw-line {
             to {
               stroke-dashoffset: 0;
             }
-          }
-          @keyframes move-coin {
-            0% {
-              offset-distance: 0%;
-              opacity: 0;
-            }
-            20% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-              offset-distance: 100%;
-              opacity: 0;
-            }
-          }
-          @keyframes pulse-center {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
           }
         `}
       </style>
@@ -44,29 +40,29 @@ const CollectronLogo = ({ className }: { className?: string }) => {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* The circular path */}
-        <path 
-            d="M 65,50 A 15,15 0 1 1 50,35 L 50,42" 
-            stroke="hsl(var(--primary) / 0.4)" 
-            strokeWidth="2"
-        />
+        {/* Bars */}
+        <rect id="collectron-bar-1" className="collectron-bar" x="20" y="50" width="15" height="30" rx="3" fill="hsl(var(--primary) / 0.7)" />
+        <rect id="collectron-bar-2" className="collectron-bar" x="42.5" y="35" width="15" height="45" rx="3" fill="hsl(var(--primary))" />
+        <rect id="collectron-bar-3" className="collectron-bar" x="65" y="20" width="15" height="60" rx="3" fill="hsl(var(--primary) / 0.7)" />
+
+        {/* Trend Line */}
         <path
-            d="M 45 40 L 50 35 L 55 40"
-            stroke="hsl(var(--primary) / 0.4)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          className="collectron-trend-line"
+          d="M 15 65 L 50 30 L 85 45"
+          stroke="hsl(var(--secondary))"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
-
-        {/* The moving coin */}
-        <circle className="collectron-coin" cx="0" cy="0" r="3" fill="hsl(var(--secondary))" />
-
-        {/* Central Rupee Symbol */}
-        <g stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="collectron-center-pulse">
-            <path d="M50 58 V 72" />
-            <path d="M44 65 H 56" />
-            <path d="M44 70 H 56" />
-        </g>
+        {/* Arrow Head for the trend line */}
+        <path
+           className="collectron-trend-line"
+           d="M 78 41 L 85 45 L 81 52"
+           stroke="hsl(var(--secondary))"
+           strokeWidth="5"
+           strokeLinecap="round"
+           strokeLinejoin="round"
+        />
       </svg>
     </div>
   );
