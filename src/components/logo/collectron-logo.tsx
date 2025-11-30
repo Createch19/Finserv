@@ -36,20 +36,6 @@ const CollectronLogo = ({ className }: { className?: string }) => {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
           }
-          .collectron-path {
-            stroke-dasharray: 65;
-            animation: draw-path 3s ease-out infinite;
-          }
-          .collectron-coin {
-            offset-path: path("M 65,50 A 15,15 0 1 1 50,35");
-            animation: move-coin 3s ease-in-out infinite;
-            transform-origin: center;
-          }
-          .collectron-center-pulse {
-             animation-delay: 2.5s;
-             animation: pulse-center 0.5s ease-out infinite;
-             transform-origin: center;
-          }
         `}
       </style>
       <svg
@@ -75,10 +61,11 @@ const CollectronLogo = ({ className }: { className?: string }) => {
         {/* The moving coin */}
         <circle className="collectron-coin" cx="0" cy="0" r="3" fill="hsl(var(--secondary))" />
 
-        {/* Central Dollar Symbol */}
+        {/* Central Rupee Symbol */}
         <g stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="collectron-center-pulse">
             <path d="M50 58 V 72" />
-            <path d="M56 62 C 56 59 52 58 50 60 C 48 62 44 65 44 68 C 44 71 48 72 50 70" />
+            <path d="M44 65 H 56" />
+            <path d="M44 70 H 56" />
         </g>
       </svg>
     </div>
