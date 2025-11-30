@@ -7,43 +7,65 @@ const CollectronLogo = ({ className }: { className?: string }) => {
     <div className={cn("relative h-12 w-12", className)}>
       <style>
         {`
-          @keyframes float-up {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
+          @keyframes rotate-one {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
           }
-          @keyframes float-down {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(5px); }
-            100% { transform: translateY(0px); }
+          @keyframes rotate-two {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
           }
-          .shape-1 { animation: float-up 4s ease-in-out infinite; }
-          .shape-2 { animation: float-down 4s ease-in-out infinite 1s; }
-          .shape-3 { animation: float-up 4s ease-in-out infinite 2s; }
+          @keyframes rotate-three {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          .ring-1 { animation: rotate-one 20s linear infinite; transform-origin: center; }
+          .ring-2 { animation: rotate-two 30s linear infinite; transform-origin: center; }
+          .ring-3 { animation: rotate-three 40s linear infinite; transform-origin: center; }
         `}
       </style>
       <svg
         className="w-full h-full"
-        viewBox="0 0 48 48"
+        viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <path
-          className="shape-1"
-          d="M8 26.5L8 13L21.5 6L35 13L35 26.5L21.5 33.5L8 26.5Z"
-          fill="hsl(var(--primary) / 0.8)"
-        />
-        <path
-          className="shape-2"
-          d="M21.5 42L8 35V31L21.5 38L35 31V35L21.5 42Z"
-          fill="hsl(var(--accent) / 0.9)"
-        />
-         <path
-          className="shape-3"
-          d="M40 24.5L40 11L26.5 4L13 11L13 24.5L26.5 31.5L40 24.5Z"
-          fill="hsl(var(--secondary))"
-          style={{ mixBlendMode: "multiply", opacity: 0.8 }}
-        />
+        <g className="ring-1">
+          <circle
+            cx="50"
+            cy="50"
+            r="45"
+            stroke="hsl(var(--primary) / 0.8)"
+            strokeWidth="6"
+            strokeDasharray="180 101.06"
+            strokeLinecap="round"
+            transform="rotate(-45 50 50)"
+          />
+        </g>
+        <g className="ring-2">
+          <circle
+            cx="50"
+            cy="50"
+            r="35"
+            stroke="hsl(var(--secondary))"
+            strokeWidth="6"
+            strokeDasharray="130 89.54"
+            strokeLinecap="round"
+            transform="rotate(60 50 50)"
+          />
+        </g>
+        <g className="ring-3">
+          <circle
+            cx="50"
+            cy="50"
+            r="25"
+            stroke="hsl(var(--accent) / 0.9)"
+            strokeWidth="6"
+            strokeDasharray="80 77.12"
+            strokeLinecap="round"
+            transform="rotate(-90 50 50)"
+          />
+        </g>
       </svg>
     </div>
   );
