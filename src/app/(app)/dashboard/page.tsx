@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight } from "lucide-react";
-import { MonthlyCollectionPieChart, MonthlyEmisPieChart } from "@/components/reports/charts";
+import { MonthlyCollectionChart, MonthlyCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -305,19 +305,19 @@ export default function DashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Monthly Collection Amount</CardTitle>
-                  <CardDescription>Collected vs. Pending amount for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
+                  <CardDescription>Collected vs. Expected amount for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
-                  <MonthlyCollectionPieChart stats={monthlyStats} />
+                  <MonthlyCollectionChart stats={monthlyStats} />
                 </CardContent>
               </Card>
               <Card>
                   <CardHeader>
                       <CardTitle>Monthly EMI Count</CardTitle>
-                      <CardDescription>Collected vs. Pending EMIs for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
+                      <CardDescription>Collected vs. Expected EMIs for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-2">
-                      <MonthlyEmisPieChart stats={monthlyStats} />
+                      <MonthlyCountChart stats={monthlyStats} />
                   </CardContent>
               </Card>
             </div>
