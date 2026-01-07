@@ -147,9 +147,25 @@ export function CollectionList() {
     const filteredEmis = useMemo(() => {
         if (!monthlyEmis) return [];
         const lowercasedFilter = searchTerm.toLowerCase();
-        return monthlyEmis.filter(emi => 
-            emi.customerName.toLowerCase().includes(lowercasedFilter)
-        );
+        
+        const statusOrder: Record<EmiStatus, number> = {
+            overdue: 1,
+            due: 2,
+            pending: 3,
+            upcoming: 4,
+            paid: 5,
+        };
+
+        return monthlyEmis
+            .filter(emi => 
+                emi.customerName.toLowerCase().includes(lowercasedFilter)
+            )
+            .sort((a, b) => {
+                const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+                if (statusDiff !== 0) return statusDiff;
+                // For same status, sort by due date (overdue first)
+                return a.dueDate.getTime() - b.dueDate.getTime();
+            });
     }, [monthlyEmis, searchTerm]);
 
     const monthlyStats = useMemo(() => {
@@ -477,4 +493,3 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
-
