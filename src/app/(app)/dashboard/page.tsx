@@ -139,10 +139,9 @@ export default function DashboardPage() {
         loanMonths.forEach((_, index) => {
             const emiDueDate = addMonths(startDate, index + 1);
             if (isWithinInterval(emiDueDate, { start: startOfSelectedMonth, end: endOfSelectedMonth })) {
-                if (customer.status === 'active' || customer.status === 'overdue') {
-                    expectedAmount += customer.monthlyEMI;
-                    expectedCount += 1;
-                }
+                // Include all statuses (active, overdue, completed) for accurate historical data.
+                expectedAmount += customer.monthlyEMI;
+                expectedCount += 1;
             }
         });
     });
