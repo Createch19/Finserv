@@ -498,7 +498,7 @@ export function MonthlyEmisPieChart({ stats }: { stats: { collectedCount: number
           content={<ChartTooltipContent nameKey="name" formatter={(value) => `${value} EMIs`} />}
         />
         <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, value, index }) => {
-            if (value === 0) return null;
+            if (!expectedCount || value === 0) return null;
             const RADIAN = Math.PI / 180;
             const radius = 25 + innerRadius + (outerRadius - innerRadius);
             const x = cx + radius * Math.cos(-midAngle * RADIAN);

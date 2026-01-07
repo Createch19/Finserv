@@ -316,7 +316,7 @@ export default function DashboardPage() {
                       <CardTitle>Monthly EMI Count</CardTitle>
                       <CardDescription>Collected vs. Pending EMIs for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pl-2">
                       <MonthlyEmisPieChart stats={monthlyStats} />
                   </CardContent>
               </Card>
