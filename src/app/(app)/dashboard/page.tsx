@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight } from "lucide-react";
-import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
+import { MonthlyCollectionPieChart, MonthlyEmisPieChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
@@ -304,20 +304,20 @@ export default function DashboardPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Monthly Collection</CardTitle>
-                  <CardDescription>Total EMI amount collected vs expected.</CardDescription>
+                  <CardTitle>Monthly Collection Amount</CardTitle>
+                  <CardDescription>Collected vs. Pending amount for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
-                  <CollectionChart customers={customers || []} selectedMonth={currentMonth} />
+                  <MonthlyCollectionPieChart stats={monthlyStats} />
                 </CardContent>
               </Card>
               <Card>
                   <CardHeader>
-                      <CardTitle>Monthly EMI Collection Count</CardTitle>
-                      <CardDescription>Number of EMIs collected vs expected.</CardDescription>
+                      <CardTitle>Monthly EMI Count</CardTitle>
+                      <CardDescription>Collected vs. Pending EMIs for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                      <CollectionCountChart customers={customers || []} selectedMonth={currentMonth} />
+                      <MonthlyEmisPieChart stats={monthlyStats} />
                   </CardContent>
               </Card>
             </div>

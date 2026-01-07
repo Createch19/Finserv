@@ -434,4 +434,87 @@ export function CapitalFlowChart({ customers, height = 350 }: { customers: WithI
   );
 }
 
-    
+// --- Monthly Collection Pie Chart (Amount) ---
+export function MonthlyCollectionPieChart({ stats }: { stats: { collectedAmount: number; expectedAmount: number } }) {
+  const { collectedAmount, expectedAmount } = stats;
+  const pendingAmount = Math.max(0, expectedAmount - collectedAmount);
+
+  const data = [
+    { name: 'Collected', value: collectedAmount, color: 'hsl(var(--chart-1))' },
+    { name: 'Pending', value: pendingAmount, color: 'hsl(var(--chart-2))' }
+  ];
+
+  const chartConfig = {
+    Collected: { label: 'Collected', color: data[0].color },
+    Pending: { label: 'Pending', color: data[1].color },
+  };
+
+  return (
+    <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[250px]">
+      <PieChart>
+        <ChartTooltip
+          content={<ChartTooltipContent nameKey="name" formatter={(value) => `₹${(Number(value)).toLocaleString()}`} />}
+        />
+        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, value, index }) => {
+            const RADIAN = Math.PI / 180;
+            const radius = 25 + innerRadius + (outerRadius - innerRadius);
+            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+            return (
+              <text x={x} y={y} fill={data[index].color} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-bold">
+                {`${((value / expectedAmount) * 100).toFixed(0)}%`}
+              </text>
+            );
+          }}>
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={entry.color} />
+          ))}
+        </Pie>
+        <ChartLegend content={<ChartLegendContent />} />
+      </PieChart>
+    </ChartContainer>
+  );
+}
+
+// --- Monthly EMI Pie Chart (Count) ---
+export function MonthlyEmisPieChart({ stats }: { stats: { collectedCount: number; expectedCount: number } }) {
+  const { collectedCount, expectedCount } = stats;
+  const pendingCount = Math.max(0, expectedCount - collectedCount);
+
+  const data = [
+    { name: 'Collected', value: collectedCount, color: 'hsl(var(--chart-1))' },
+    { name: 'Pending', value: pendingCount, color: 'hsl(var(--chart-2))' }
+  ];
+
+  const chartConfig = {
+    Collected: { label: 'Collected', color: data[0].color },
+    Pending: { label: 'Pending', color: data[1].color },
+  };
+
+  return (
+    <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[250px]">
+      <PieChart>
+        <ChartTooltip
+          content={<ChartTooltipContent nameKey="name" formatter={(value) => `${value} EMIs`} />}
+        />
+        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, value, index }) => {
+            if (value === 0) return null;
+            const RADIAN = Math.PI / 180;
+            const radius = 25 + innerRadius + (outerRadius - innerRadius);
+            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+            return (
+              <text x={x} y={y} fill={data[index].color} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-bold">
+                {`${((value / expectedCount) * 100).toFixed(0)}%`}
+              </text>
+            );
+          }}>
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={entry.color} />
+          ))}
+        </Pie>
+        <ChartLegend content={<ChartLegendContent />} />
+      </PieChart>
+    </ChartContainer>
+  );
+}
