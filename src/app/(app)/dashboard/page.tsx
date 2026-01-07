@@ -121,33 +121,27 @@ export default function DashboardPage() {
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0 };
     
-    const startOfSelectedMonth = startOfMonth(currentMonth);
-    const endOfSelectedMonth = endOfMonth(currentMonth);
-
     let expectedAmount = 0;
     let expectedCount = 0;
+    let collectedAmount = 0;
     let collectedCount = 0;
 
     customers.forEach(customer => {
         if (!customer.startDate || customer.duration <= 0) return;
-        const paymentsCount = customer.payments?.length || 0;
+        const paymentsMade = customer.payments?.length || 0;
         
         for (let i = 0; i < customer.duration; i++) {
           const dueDate = addMonths(new Date(customer.startDate), i + 1);
           if (isSameMonth(dueDate, currentMonth)) {
             expectedAmount += customer.monthlyEMI;
             expectedCount += 1;
-            if (i < paymentsCount) {
+            if (i < paymentsMade) {
                 collectedCount += 1;
+                collectedAmount += customer.monthlyEMI;
             }
           }
         }
     });
-
-    const collectedAmount = (customers || [])
-        .flatMap(c => c.payments || [])
-        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfSelectedMonth, end: endOfSelectedMonth }))
-        .reduce((acc, p) => acc + p.amount, 0);
 
     const pendingAmount = expectedAmount - collectedAmount;
 
@@ -338,3 +332,6 @@ export default function DashboardPage() {
 
     
 
+
+
+    
