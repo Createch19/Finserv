@@ -452,7 +452,7 @@ export function MonthlyCollectionChart({ stats }: { stats: { collectedAmount: nu
         <YAxis type="category" dataKey="name" hide />
         <XAxis type="number" tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
         <ChartTooltip
-          content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString()}`} />}
+          content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString(undefined, {maximumFractionDigits: 0})}`} />}
         />
         <ChartLegend />
         <Bar dataKey="collected" fill="var(--color-collected)" radius={4} />
