@@ -195,32 +195,15 @@ export default function DashboardPage() {
     return `₹${roundedValue.toLocaleString('en-IN')}`;
   };
 
-  const stats = [
+  const overallStats = [
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
       { title: "Active Loans", value: activeLoans, icon: Users },
       { title: (user?.role === 'admin' || user?.role === 'superadmin') ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
   ];
   
-  const collectionStat = {
-    title: "Monthly Collection",
-    value: `${formatValue(monthlyStats.collectedAmount)} / ${formatValue(monthlyStats.expectedAmount)}`,
-    icon: HandCoins,
-  };
-
-  const emiCountStat = {
-    title: "Monthly EMIs",
-    value: `${monthlyStats.collectedCount} / ${monthlyStats.expectedCount} EMIs`,
-    icon: ListChecks,
-  };
-  
-  let finalStats = [...stats];
-  finalStats.splice(1, 0, collectionStat);
-  finalStats.splice(2, 0, emiCountStat);
-
-
   if (user?.role === 'admin' || user?.role === 'superadmin') {
-      finalStats.splice(4, 0, { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
-      finalStats.push({ title: "Commissions Paid", value: formatValue(totalCommission), icon: Award });
+      overallStats.push({ title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
+      overallStats.push({ title: "Commissions Paid", value: formatValue(totalCommission), icon: Award });
   }
   
   const isAllCompaniesSelected = userRole === 'superadmin' && selectedCompanyId === 'all';
@@ -245,20 +228,11 @@ export default function DashboardPage() {
                 </SelectContent>
             </Select>
             )}
-            <div className="flex items-center gap-2 p-1 border rounded-md">
-                <Button variant="ghost" size="icon" onClick={() => changeMonth(-1)}>
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="text-sm font-semibold text-center w-28 text-primary">{format(currentMonth, "MMMM yyyy")}</div>
-                <Button variant="ghost" size="icon" onClick={() => changeMonth(1)}>
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
         </div>
       </PageHeader>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
-        {finalStats.map((stat, index) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mt-6">
+        {overallStats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -287,26 +261,69 @@ export default function DashboardPage() {
         </>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Collection</CardTitle>
-             <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <CollectionChart customers={customers || []} selectedMonth={currentMonth} />
-          </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>Monthly EMI Collection Count</CardTitle>
-                <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <CollectionCountChart customers={customers || []} selectedMonth={currentMonth} />
-            </CardContent>
-        </Card>
-      </div>
+      <Card className="border-primary/20">
+        <CardHeader>
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
+                <div>
+                    <CardTitle>Monthly Overview</CardTitle>
+                    <CardDescription>Performance metrics for the selected month.</CardDescription>
+                </div>
+                 <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
+                    <Button variant="ghost" size="icon" onClick={() => changeMonth(-1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="text-sm font-semibold text-center w-28 text-primary">{format(currentMonth, "MMMM yyyy")}</div>
+                    <Button variant="ghost" size="icon" onClick={() => changeMonth(1)}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </CardHeader>
+        <CardContent>
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
+                    <HandCoins className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                    <div className="text-xl font-bold">{`${formatValue(monthlyStats.collectedAmount)} / ${formatValue(monthlyStats.expectedAmount)}`}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Monthly EMIs</CardTitle>
+                    <ListChecks className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                    <div className="text-xl font-bold">{`${monthlyStats.collectedCount} / ${monthlyStats.expectedCount} EMIs`}</div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Collection</CardTitle>
+                  <CardDescription>Total EMI amount collected vs expected.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-2">
+                  <CollectionChart customers={customers || []} selectedMonth={currentMonth} />
+                </CardContent>
+              </Card>
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Monthly EMI Collection Count</CardTitle>
+                      <CardDescription>Number of EMIs collected vs expected.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <CollectionCountChart customers={customers || []} selectedMonth={currentMonth} />
+                  </CardContent>
+              </Card>
+            </div>
+        </CardContent>
+      </Card>
+      
       <Separator className="my-6 md:my-8" />
       <CapitalFlowTable customers={customers || []} withdrawals={withdrawals || []} />
     </>
