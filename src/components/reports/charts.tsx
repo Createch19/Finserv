@@ -4,10 +4,10 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart, Label } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import type { Customer, Expense, WithId } from "@/types"
-import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore } from "date-fns"
+import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore, isSameMonth } from "date-fns"
 
 // --- Monthly Collection Chart ---
-export function CollectionChart({ customers, height }: { customers: WithId<Customer>[], height?: number }) {
+export function CollectionChart({ customers, height, selectedMonth }: { customers: WithId<Customer>[], height?: number, selectedMonth?: Date }) {
   const monthlyData = (customers || []).reduce((acc, customer) => {
     const startDate = parseISO(customer.startDate);
     const endDate = addMonths(startDate, customer.duration);
@@ -62,7 +62,11 @@ export function CollectionChart({ customers, height }: { customers: WithId<Custo
             content={<ChartTooltipContent formatter={(value) => `₹${(Number(value)).toLocaleString(undefined, {maximumFractionDigits: 0})}`} />}
          />
         <ChartLegend />
-        <Bar dataKey="actual" fill="var(--color-actual)" radius={4} />
+        <Bar dataKey="actual" fill="var(--color-actual)" radius={4}>
+           {collectionChartData.map((entry, index) => (
+             <Cell key={`cell-${index}`} fill={selectedMonth && isSameMonth(new Date(entry.month), selectedMonth) ? "hsl(var(--secondary))" : "hsl(var(--chart-1))"} />
+          ))}
+        </Bar>
         <Bar dataKey="expected" fill="var(--color-expected)" radius={4} />
       </BarChart>
     </ChartContainer>
@@ -70,7 +74,7 @@ export function CollectionChart({ customers, height }: { customers: WithId<Custo
 }
 
 // --- Monthly Collection Count Chart ---
-export function CollectionCountChart({ customers, height }: { customers: WithId<Customer>[], height?: number }) {
+export function CollectionCountChart({ customers, height, selectedMonth }: { customers: WithId<Customer>[], height?: number, selectedMonth?: Date }) {
   const monthlyData = (customers || []).reduce((acc, customer) => {
     const startDate = parseISO(customer.startDate);
     const endDate = addMonths(startDate, customer.duration);
@@ -122,7 +126,11 @@ export function CollectionCountChart({ customers, height }: { customers: WithId<
             content={<ChartTooltipContent formatter={(value, name) => `${value} EMIs`} />}
          />
         <ChartLegend />
-        <Bar dataKey="actual" fill="var(--color-actual)" radius={4} />
+        <Bar dataKey="actual" fill="var(--color-actual)" radius={4}>
+           {collectionChartData.map((entry, index) => (
+             <Cell key={`cell-${index}`} fill={selectedMonth && isSameMonth(new Date(entry.month), selectedMonth) ? "hsl(var(--secondary))" : "hsl(var(--chart-1))"} />
+          ))}
+        </Bar>
         <Bar dataKey="expected" fill="var(--color-expected)" radius={4} />
       </BarChart>
     </ChartContainer>

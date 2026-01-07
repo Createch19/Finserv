@@ -10,16 +10,17 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight } from "lucide-react";
 import { CollectionChart, CollectionCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where, Query } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths } from "date-fns";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths, subMonths, format } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -34,12 +35,12 @@ export default function DashboardPage() {
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
-  // New state for super admin's company selection
+  // State for company and month selection
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
 
   // --- START: Data Fetching ---
 
-  // Queries for Super Admin data overview and company selector
   const allCompaniesQuery = useMemo(() => {
     if (firestore && userRole === 'superadmin') {
       return collection(firestore, 'companies');
@@ -56,7 +57,6 @@ export default function DashboardPage() {
   }, [firestore, userRole, selectedCompanyId]);
   const { data: allUsers, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
 
-  // General data fetching logic based on role and selection
   const customersQuery = useMemo(() => {
     if (!firestore || !userRole) return null;
     const baseQuery = collection(firestore, 'customers');
@@ -106,7 +106,6 @@ export default function DashboardPage() {
   }, [firestore, userRole, userCompanyId, selectedCompanyId]);
   const { data: withdrawals, isLoading: withdrawalsLoading } = useCollection<WithId<WithdrawalRequest>>(withdrawalsQuery);
   
-  // Data for the 'all companies' overview table doesn't need to be re-fetched, just filtered.
   const allCustomers = useCollection<WithId<Customer>>(useMemo(() => (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') ? collection(firestore, 'customers') : null, [firestore, userRole, selectedCompanyId]));
   const allExpenses = useCollection<WithId<Expense>>(useMemo(() => (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') ? collection(firestore, 'expenses') : null, [firestore, userRole, selectedCompanyId]));
 
@@ -119,12 +118,15 @@ export default function DashboardPage() {
     return rawCustomers.filter(c => c.status !== 'pending');
   }, [rawCustomers]);
 
+  const changeMonth = (amount: number) => {
+    setCurrentMonth(prev => addMonths(prev, amount));
+  };
+
 
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
-    const today = new Date();
-    const startOfCurrentMonth = startOfMonth(today);
-    const endOfCurrentMonth = endOfMonth(today);
+    const startOfSelectedMonth = startOfMonth(currentMonth);
+    const endOfSelectedMonth = endOfMonth(currentMonth);
     let expectedAmount = 0;
     let expectedCount = 0;
 
@@ -136,7 +138,7 @@ export default function DashboardPage() {
 
         loanMonths.forEach((_, index) => {
             const emiDueDate = addMonths(startDate, index + 1);
-            if (isWithinInterval(emiDueDate, { start: startOfCurrentMonth, end: endOfCurrentMonth })) {
+            if (isWithinInterval(emiDueDate, { start: startOfSelectedMonth, end: endOfSelectedMonth })) {
                 if (customer.status === 'active' || customer.status === 'overdue') {
                     expectedAmount += customer.monthlyEMI;
                     expectedCount += 1;
@@ -147,12 +149,12 @@ export default function DashboardPage() {
 
     const collectedAmount = (customers || [])
         .flatMap(c => c.payments || [])
-        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
+        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfSelectedMonth, end: endOfSelectedMonth }))
         .reduce((acc, p) => acc + p.amount, 0);
 
     const collectedCount = (customers || [])
         .flatMap(c => c.payments || [])
-        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfCurrentMonth, end: endOfCurrentMonth }))
+        .filter(p => isWithinInterval(parseISO(p.date), { start: startOfSelectedMonth, end: endOfSelectedMonth }))
         .length;
 
     return {
@@ -161,7 +163,7 @@ export default function DashboardPage() {
         collectedAmount,
         collectedCount
     };
-}, [customers]);
+}, [customers, currentMonth]);
 
   if (isLoading || !user) {
       return (
@@ -229,19 +231,30 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Here's a high-level overview of your financing business."
       >
-        {userRole === 'superadmin' && allCompanies && (
-          <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select a company" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {allCompanies.map(company => (
-                <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex items-center gap-2">
+            {userRole === 'superadmin' && allCompanies && (
+            <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select a company" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {allCompanies.map(company => (
+                    <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
+            )}
+            <div className="flex items-center gap-2 p-1 border rounded-md">
+                <Button variant="ghost" size="icon" onClick={() => changeMonth(-1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="text-sm font-semibold text-center w-28 text-primary">{format(currentMonth, "MMMM yyyy")}</div>
+                <Button variant="ghost" size="icon" onClick={() => changeMonth(1)}>
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
       </PageHeader>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
@@ -281,7 +294,7 @@ export default function DashboardPage() {
              <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <CollectionChart customers={customers || []} />
+            <CollectionChart customers={customers || []} selectedMonth={currentMonth} />
           </CardContent>
         </Card>
         <Card>
@@ -290,7 +303,7 @@ export default function DashboardPage() {
                 <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
             </CardHeader>
             <CardContent>
-                <CollectionCountChart customers={customers || []} />
+                <CollectionCountChart customers={customers || []} selectedMonth={currentMonth} />
             </CardContent>
         </Card>
       </div>
