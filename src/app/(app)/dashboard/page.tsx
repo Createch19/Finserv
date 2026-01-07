@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight, Hourglass } from "lucide-react";
 import { MonthlyCollectionChart, MonthlyCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
@@ -124,7 +124,7 @@ export default function DashboardPage() {
 
 
   const monthlyStats = useMemo(() => {
-    if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0 };
+    if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0 };
     const startOfSelectedMonth = startOfMonth(currentMonth);
     const endOfSelectedMonth = endOfMonth(currentMonth);
     let expectedAmount = 0;
@@ -139,7 +139,6 @@ export default function DashboardPage() {
         loanMonths.forEach((_, index) => {
             const emiDueDate = addMonths(startDate, index + 1);
             if (isWithinInterval(emiDueDate, { start: startOfSelectedMonth, end: endOfSelectedMonth })) {
-                // Include all statuses (active, overdue, completed) for accurate historical data.
                 expectedAmount += customer.monthlyEMI;
                 expectedCount += 1;
             }
@@ -156,11 +155,14 @@ export default function DashboardPage() {
         .filter(p => isWithinInterval(parseISO(p.date), { start: startOfSelectedMonth, end: endOfSelectedMonth }))
         .length;
 
+    const pendingAmount = expectedAmount - collectedAmount;
+
     return {
         expectedAmount,
         expectedCount,
         collectedAmount,
-        collectedCount
+        collectedCount,
+        pendingAmount
     };
 }, [customers, currentMonth]);
 
@@ -291,6 +293,15 @@ export default function DashboardPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
+                        <Hourglass className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{formatValue(monthlyStats.pendingAmount)}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Monthly EMIs</CardTitle>
                     <ListChecks className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -328,5 +339,7 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
 
     
