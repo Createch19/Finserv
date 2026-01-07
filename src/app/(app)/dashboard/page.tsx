@@ -17,7 +17,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where, Query } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths, subMonths, format, isSameMonth } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export default function DashboardPage() {
     return null;
   }, [firestore, userRole, userCompanyId, selectedCompanyId]);
   
-  const { data: rawCustomers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
+  const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const expensesQuery = useMemo(() => {
     if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
@@ -112,11 +112,6 @@ export default function DashboardPage() {
   const isLoading = customersLoading || expensesLoading || withdrawalsLoading || allCompaniesLoading || (userRole === 'superadmin' && selectedCompanyId === 'all' && (allCustomers.isLoading || allUsersLoading || allExpenses.isLoading));
   
   // --- END: Data Fetching ---
-  
-  const customers = useMemo(() => {
-    if (!rawCustomers) return [];
-    return rawCustomers.filter(c => c.status !== 'pending');
-  }, [rawCustomers]);
 
   const changeMonth = (amount: number) => {
     setCurrentMonth(prev => addMonths(prev, amount));
@@ -127,22 +122,22 @@ export default function DashboardPage() {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0 };
     const startOfSelectedMonth = startOfMonth(currentMonth);
     const endOfSelectedMonth = endOfMonth(currentMonth);
+    
     let expectedAmount = 0;
     let expectedCount = 0;
 
     customers.forEach(customer => {
-        if (!customer.startDate) return; 
+        if (!customer.startDate || customer.duration <= 0) return;
+        
         const startDate = parseISO(customer.startDate);
-        if (customer.duration <= 0) return;
-        const loanMonths = eachMonthOfInterval({ start: startDate, end: addMonths(startDate, customer.duration - 1) });
-
-        loanMonths.forEach((_, index) => {
-            const emiDueDate = addMonths(startDate, index + 1);
-            if (isWithinInterval(emiDueDate, { start: startOfSelectedMonth, end: endOfSelectedMonth })) {
-                expectedAmount += customer.monthlyEMI;
-                expectedCount += 1;
-            }
-        });
+        
+        for (let i = 0; i < customer.duration; i++) {
+          const dueDate = addMonths(startDate, i + 1);
+          if (isSameMonth(dueDate, currentMonth)) {
+            expectedAmount += customer.monthlyEMI;
+            expectedCount += 1;
+          }
+        }
     });
 
     const collectedAmount = (customers || [])
