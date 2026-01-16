@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
@@ -100,11 +99,12 @@ export const AuthProvider = ({ children, auth, firestore }: AuthProviderProps) =
       await signInWithEmailAndPassword(auth, email, pass);
       // onAuthStateChanged will handle fetching user doc and claims.
     } catch (error: any) {
-        // Don't attempt to create user on client-side anymore
+        setLoading(false);
         console.error("Sign in failed:", error);
-        throw error;
-    } finally {
-        // We let onAuthStateChanged handle the final loading state
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+            throw new Error("Invalid email or password. Please try again.");
+        }
+        throw new Error("An unexpected error occurred during login.");
     }
   };
 
