@@ -38,9 +38,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, Award } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useDoc, useFirestore } from "@/firebase";
 import { collection, doc, query, updateDoc, where } from "firebase/firestore";
-import type { Customer, WithId } from "@/types";
+import type { Customer, WithId, AppSettings } from "@/types";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
 
@@ -65,6 +65,12 @@ export function CommissionList() {
   const [selectedCommission, setSelectedCommission] = useState<CommissionEntry | null>(null);
   const { toast } = useToast();
 
+  const settingsRef = useMemo(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'settings', 'defaults');
+  }, [firestore]);
+  const { data: defaultSettings, isLoading: settingsLoading } = useDoc<AppSettings>(settingsRef);
+
   const completedCustomersQuery = useMemo(() => {
     if (!firestore || !user || (user.role !== 'admin' && user.role !== 'superadmin')) {
         return null;
@@ -83,13 +89,18 @@ export function CommissionList() {
     return null;
   }, [firestore, user]);
 
-  const { data: completedCustomers, isLoading } = useCollection<WithId<Customer>>(completedCustomersQuery);
+  const { data: completedCustomers, isLoading: customersLoading } = useCollection<WithId<Customer>>(completedCustomersQuery);
   
+  const isLoading = customersLoading || settingsLoading;
+
   const { pending, history } = useMemo(() => {
     if (!completedCustomers) return { pending: [], history: [] };
 
+    const fallbackCommissionRate = defaultSettings?.agentCommissionRate || 10;
+
     const commissions: CommissionEntry[] = completedCustomers.map(customer => {
-        const commissionAmount = customer.interestAmount * (customer.agentCommissionRate || 0) / 100;
+        const commissionRate = customer.agentCommissionRate ?? fallbackCommissionRate;
+        const commissionAmount = customer.interestAmount * commissionRate / 100;
         const lastPaymentDate = customer.payments.length > 0
             ? customer.payments[customer.payments.length - 1].date
             : customer.startDate;
@@ -110,7 +121,7 @@ export function CommissionList() {
 
     return { pending, history };
 
-  }, [completedCustomers]);
+  }, [completedCustomers, defaultSettings]);
   
 
   const handleSettleCommission = async (commission: CommissionEntry | null) => {
@@ -242,5 +253,3 @@ export function CommissionList() {
     </>
   );
 }
-
-    
