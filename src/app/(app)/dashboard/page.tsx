@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight, Hourglass } from "lucide-react";
+import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight, Hourglass, FilePlus } from "lucide-react";
 import { MonthlyCollectionChart, MonthlyCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
@@ -119,25 +119,44 @@ export default function DashboardPage() {
 
 
   const monthlyStats = useMemo(() => {
-    if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0 };
+    if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0, newFiles: 0, completingFiles: 0, completedFiles: 0 };
     
     let expectedAmount = 0;
     let expectedCount = 0;
     let collectedAmount = 0;
     let collectedCount = 0;
+    let newFiles = 0;
+    let completingFiles = 0;
+    let completedFiles = 0;
 
     customers.forEach(customer => {
         if (!customer.startDate || customer.duration <= 0) return;
         const paymentsMade = customer.payments?.length || 0;
+        
+        // Check for new files starting EMI this month
+        const firstEmiDueDate = addMonths(new Date(customer.startDate), 1);
+        if (isSameMonth(firstEmiDueDate, currentMonth)) {
+            newFiles++;
+        }
         
         for (let i = 0; i < customer.duration; i++) {
           const dueDate = addMonths(new Date(customer.startDate), i + 1);
           if (isSameMonth(dueDate, currentMonth)) {
             expectedAmount += customer.monthlyEMI;
             expectedCount += 1;
-            if (i < paymentsMade) {
+            const isPaid = i < paymentsMade;
+
+            if (isPaid) {
                 collectedCount += 1;
                 collectedAmount += customer.monthlyEMI;
+            }
+
+            // Check if it's the last EMI for this customer
+            if (i + 1 === customer.duration) {
+                completingFiles++;
+                if (isPaid) {
+                    completedFiles++;
+                }
             }
           }
         }
@@ -150,7 +169,10 @@ export default function DashboardPage() {
         expectedCount,
         collectedAmount,
         collectedCount,
-        pendingAmount
+        pendingAmount,
+        newFiles,
+        completingFiles,
+        completedFiles,
     };
 }, [customers, currentMonth]);
 
@@ -269,7 +291,7 @@ export default function DashboardPage() {
             </div>
         </CardHeader>
         <CardContent>
-             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
@@ -295,6 +317,24 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                     <div className="text-xl font-bold">{`${monthlyStats.collectedCount} / ${monthlyStats.expectedCount} EMIs`}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Files Completed</CardTitle>
+                        <Award className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-xl font-bold">{`${monthlyStats.completedFiles} / ${monthlyStats.completingFiles} Files`}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">New Files</CardTitle>
+                        <FilePlus className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{monthlyStats.newFiles}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -327,11 +367,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
-
-    
-
-
-
-    
