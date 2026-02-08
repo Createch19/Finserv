@@ -336,7 +336,7 @@ export function CollectionList() {
                 />
             </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="border-primary">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
@@ -364,22 +364,13 @@ export function CollectionList() {
                     <div className="text-2xl font-bold">{monthlyStats.collectedCount} / <span className="text-muted-foreground">{monthlyStats.expectedCount} EMIs</span></div>
                 </CardContent>
             </Card>
-            <Card className="border-primary">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Files Completing</CardTitle>
-                    <Goal className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{monthlyStats.completingFiles}</div>
-                </CardContent>
-            </Card>
-            <Card className="border-primary">
+             <Card className="border-primary">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Files Completed</CardTitle>
                     <Award className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{monthlyStats.completedFiles}</div>
+                    <div className="text-2xl font-bold">{monthlyStats.completedFiles} / <span className="text-muted-foreground">{monthlyStats.completingFiles} Files</span></div>
                 </CardContent>
             </Card>
         </div>
