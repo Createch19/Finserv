@@ -19,9 +19,17 @@ export function ProfitLossReport({ customers, expenses, dateRange }: ReportProps
     const reportData = useMemo(() => {
         const dateFilter = (date: string) => !dateRange?.from || isWithinInterval(parseISO(date), { start: dateRange.from, end: dateRange.to || new Date() });
 
-        const totalInterest = customers.flatMap(c => c.payments)
-            .filter(p => dateFilter(p.date))
-            .reduce((sum, p) => sum + (p.amount * (c.interestAmount / c.totalPayable))), 0);
+        const totalInterest = customers.reduce((customerSum, c) => {
+            const interestPortionOfPayments = c.payments
+                .filter(p => dateFilter(p.date))
+                .reduce((paymentSum, p) => {
+                    if (c.totalPayable > 0) {
+                        return paymentSum + (p.amount * (c.interestAmount / c.totalPayable));
+                    }
+                    return paymentSum;
+                }, 0);
+            return customerSum + interestPortionOfPayments;
+        }, 0);
         
         const totalExpenses = expenses
             .filter(e => dateFilter(e.date))
