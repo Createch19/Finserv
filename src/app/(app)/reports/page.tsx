@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from "react";
@@ -10,6 +9,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, Expense, WithId, User } from "@/types";
 import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DetailedReportList } from "@/components/reports/detailed-report-list";
 
 function getCustomersQuery(firestore: any, user: User | null) {
     if (!firestore || !user) return null;
@@ -66,94 +67,103 @@ export default function ReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        description="Visualize your business performance with insightful charts."
+        description="Visualize performance with charts or create detailed, filterable reports."
       />
-      <div className="grid gap-6">
-        <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Monthly Collection Trend</CardTitle>
-                    <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <CollectionChart customers={customers} />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Monthly EMI Collection Count</CardTitle>
-                    <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <CollectionCountChart customers={customers} />
-                </CardContent>
-            </Card>
-        </div>
-        <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>New Customers by Month</CardTitle>
-                    <CardDescription>Count of new customers approved each month.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <NewCustomersChart customers={customers} height={350} />
-                </CardContent>
-            </Card>
-            {isAdmin && expenses && expenses.length > 0 && (
+      <Tabs defaultValue="visual" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="visual">Visual Reports</TabsTrigger>
+            <TabsTrigger value="detailed">Detailed Reports</TabsTrigger>
+        </TabsList>
+        <TabsContent value="visual" className="mt-6">
+            <div className="grid gap-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Monthly Collection Trend</CardTitle>
+                            <CardDescription>Total EMI amount collected each month vs expected.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <CollectionChart customers={customers} />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Monthly EMI Collection Count</CardTitle>
+                            <CardDescription>Number of EMIs collected each month vs expected.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <CollectionCountChart customers={customers} />
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>New Customers by Month</CardTitle>
+                            <CardDescription>Count of new customers approved each month.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <NewCustomersChart customers={customers} height={350} />
+                        </CardContent>
+                    </Card>
+                    {isAdmin && expenses && expenses.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Expenses by Type</CardTitle>
+                                <CardDescription>Breakdown of expenses by category.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ExpenseByTypeChart expenses={expenses} height={300} />
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Profit vs Principal</CardTitle>
+                            <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ProfitChart customers={customers} expenses={expenses} isAdmin={isAdmin} height={300} />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Loan Status</CardTitle>
+                            <CardDescription>Distribution of active, completed, and overdue loans.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <LoanStatusChart customers={customers} height={300} />
+                        </CardContent>
+                    </Card>
+                </div>
+                {isAdmin && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Monthly Agent Commissions</CardTitle>
+                            <CardDescription>Total commission amounts paid out to agents each month.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <AgentCommissionChart customers={customers} height={350} />
+                        </CardContent>
+                    </Card>
+                )}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Expenses by Type</CardTitle>
-                        <CardDescription>Breakdown of expenses by category.</CardDescription>
+                        <CardTitle>Capital Reinvestment Flow</CardTitle>
+                        <CardDescription>Tracks the flow of collected EMIs being reinvested into new loans.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ExpenseByTypeChart expenses={expenses} height={300} />
+                        <CapitalFlowChart customers={customers} height={350} />
                     </CardContent>
                 </Card>
-            )}
-        </div>
-         <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Profit vs Principal</CardTitle>
-                    <CardDescription>Comparison of interest earned against the principal amount collected.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ProfitChart customers={customers} expenses={expenses} isAdmin={isAdmin} height={300} />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Loan Status</CardTitle>
-                    <CardDescription>Distribution of active, completed, and overdue loans.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <LoanStatusChart customers={customers} height={300} />
-                </CardContent>
-            </Card>
-         </div>
-         {isAdmin && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Monthly Agent Commissions</CardTitle>
-                    <CardDescription>Total commission amounts paid out to agents each month.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <AgentCommissionChart customers={customers} height={350} />
-                </CardContent>
-            </Card>
-         )}
-        <Card>
-            <CardHeader>
-                <CardTitle>Capital Reinvestment Flow</CardTitle>
-                <CardDescription>Tracks the flow of collected EMIs being reinvested into new loans.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <CapitalFlowChart customers={customers} height={350} />
-            </CardContent>
-        </Card>
-      </div>
+            </div>
+        </TabsContent>
+        <TabsContent value="detailed" className="mt-6">
+            <DetailedReportList />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
-
-    
