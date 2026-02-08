@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, subMonths } from "date-fns";
 import Link from 'next/link';
 import { Button, buttonVariants } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks, Search, Hourglass } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks, Search, Hourglass, Goal, Award } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -175,12 +175,17 @@ export function CollectionList() {
         const collectedCount = monthlyEmis.filter(e => e.isPaid).length;
         const pendingAmount = expectedAmount - collectedAmount;
         
+        const completingFiles = monthlyEmis.filter(e => e.emiNumber === e.totalEmis).length;
+        const completedFiles = monthlyEmis.filter(e => e.emiNumber === e.totalEmis && e.isPaid).length;
+        
         return {
             expectedAmount,
             collectedAmount,
             expectedCount,
             collectedCount,
-            pendingAmount
+            pendingAmount,
+            completingFiles,
+            completedFiles,
         }
     }, [monthlyEmis]);
 
@@ -331,7 +336,7 @@ export function CollectionList() {
                 />
             </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
             <Card className="border-primary">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
@@ -357,6 +362,24 @@ export function CollectionList() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{monthlyStats.collectedCount} / <span className="text-muted-foreground">{monthlyStats.expectedCount} EMIs</span></div>
+                </CardContent>
+            </Card>
+            <Card className="border-primary">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Files Completing</CardTitle>
+                    <Goal className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{monthlyStats.completingFiles}</div>
+                </CardContent>
+            </Card>
+            <Card className="border-primary">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Files Completed</CardTitle>
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{monthlyStats.completedFiles}</div>
                 </CardContent>
             </Card>
         </div>
