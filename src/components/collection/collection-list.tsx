@@ -106,6 +106,7 @@ export function CollectionList() {
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
+        // EMI #1 is month AFTER start
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = startOfMonth(addMonths(startDate, i));
             if (isBefore(dueDate, monthStart)) {
@@ -190,7 +191,7 @@ export function CollectionList() {
 
   const handleRecordPayment = async () => {
     const amount = Math.round(parseFloat(paymentAmount));
-    if (!selectedEmiForPayment || isNaN(amount) || amount <= 0 || !paymentDate) return;
+    if (!selectedEmiForPayment || isNaN(amount) || amount < 0 || !paymentDate) return;
 
     const customer = customersData?.find(c => c.id === selectedEmiForPayment.customerId);
     if (!customer) return;
@@ -350,17 +351,35 @@ export function CollectionList() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Record Payment: {selectedEmiForPayment?.customerName}</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Enter the amount collected. Previous missed payments (arrears) will be cleared first (FIFO).
+                    Review the debt breakdown below. Payments clear historical arrears first (FIFO).
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Due Now</Label>
-                    <div className="col-span-3 font-semibold text-primary">{formatCurrency(selectedEmiForPayment?.totalNetTarget || 0)}</div>
+                    <Label className="text-right">Past Arrears</Label>
+                    <div className="col-span-3 font-medium text-destructive">{formatCurrency(selectedEmiForPayment?.openingArrears || 0)}</div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Current Due</Label>
+                    <div className="col-span-3 font-medium">{formatCurrency(selectedEmiForPayment?.monthlyTarget || 0)}</div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4 border-t pt-2">
+                    <Label className="text-right font-bold">Total Amount</Label>
+                    <div className="col-span-3 font-bold text-primary">{formatCurrency(selectedEmiForPayment?.totalNetTarget || 0)}</div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Collect (₹)</Label>
-                    <Input className="col-span-3" type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} />
+                    <Input 
+                        className="col-span-3" 
+                        type="number" 
+                        min="0"
+                        value={paymentAmount} 
+                        onChange={e => {
+                            const val = e.target.value;
+                            if (parseFloat(val) < 0) return;
+                            setPaymentAmount(val);
+                        }} 
+                    />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Date</Label>
