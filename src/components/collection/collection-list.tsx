@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth } from "date-fns";
 import { Button } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, Search, History, AlertCircle } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -91,7 +91,7 @@ export function CollectionList() {
         const totalPayable = Math.round(customer.totalPayable);
         
         const payments = customer.payments || [];
-        const totalPaidToDate = Math.round(payments.reduce((s, p) => s + Math.round(p.amount), 0));
+        const totalPaidToDate = Math.round(payments.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         
         const paidThisMonth = Math.round(payments.filter(p => {
             const pDate = parseISO(p.date);
@@ -104,7 +104,6 @@ export function CollectionList() {
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        // Logic: EMI #1 is due 1 month after start
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = startOfMonth(addMonths(startDate, i));
             if (isBefore(dueDate, monthStart)) {
@@ -122,14 +121,13 @@ export function CollectionList() {
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const totalNetTarget = openingArrears + monthlyTarget;
 
-        // Cumulative FIFO Status check
         const isPaidInFullForMonth = totalPaidToDate >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidToDate > expectedBeforeThisMonth;
         
         const shortfallAtEndOfMonth = Math.max(0, expectedByEndOfMonth - totalPaidByEndOfSelectedMonth);
 
         const isEmiDueByNow = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
-        const hasRemainingBalance = paidBeforeThisMonth < totalPayable;
+        const hasRemainingBalance = totalPaidToDate < totalPayable;
 
         if (isEmiDueByNow && (hasRemainingBalance || paidThisMonth > 0)) {
             totalActualCollectedInMonth += paidThisMonth;
@@ -243,9 +241,9 @@ export function CollectionList() {
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:px-6 md:pt-6 border-b">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><History className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
                 <h2 className="text-xl font-bold text-primary w-48 text-center">{format(currentMonth, "MMMM yyyy")}</h2>
-                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}><CalendarIcon className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}><ChevronRight className="h-4 w-4" /></Button>
             </div>
             <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
