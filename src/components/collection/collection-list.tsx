@@ -72,12 +72,12 @@ export function CollectionList() {
   const customers = useMemo(() => customersData?.filter(c => c.status !== 'pending') || [], [customersData]);
 
   const monthlyData = useMemo(() => {
-    if (!customers) return { emis: [], stats: { expected: 0, actual: 0, pending: 0, collectedCount: 0, expectedCount: 0, totalArrears: 0 } };
+    if (!customers) return { emis: [], stats: { expected: 0, actual: 0, shortfall: 0, collectedCount: 0, expectedCount: 0, totalArrears: 0 } };
     
     const allEntries: EmiEntry[] = [];
     let totalMonthlyTarget = 0;
     let totalActualCollectedInMonth = 0;
-    let totalShortfall = 0;
+    let totalShortfallForCurrentEMIs = 0;
     let collectedCount = 0;
     let expectedCount = 0;
     let totalArrearsCarriedForward = 0;
@@ -90,19 +90,14 @@ export function CollectionList() {
         const monthlyEmi = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        // Cashflow: How much was actually received WITHIN this specific calendar month
         const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        
-        // Total Paid Ever: Used to determine current standing for this month's target
         const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        
-        // Paid Before This Month: For calculating Arrears at the start of the month
         const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        // Loop from Month 1 based on strict business logic: EMI #1 is due the month AFTER start.
+        // EMI #1 is due month AFTER start
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = addMonths(startDate, i);
             const dueMonthStart = startOfMonth(dueDate);
@@ -120,12 +115,9 @@ export function CollectionList() {
 
         const arrearsAtStart = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
         const netTargetForMonth = Math.max(0, expectedByEndOfMonth - paidBeforeThisMonth);
-        const currentMonthEmi = Math.max(0, netTargetForMonth - arrearsAtStart);
+        const currentMonthEmiComponent = Math.max(0, netTargetForMonth - arrearsAtStart);
 
-        // A month is "Settled" if the Total Paid Ever covers the Target up to that month
         const isPaidInFullForMonth = totalPaidAllTime >= expectedByEndOfMonth;
-        
-        // Partial means they have paid more than arrears but haven't reached the full target
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidAllTime > expectedBeforeThisMonth;
 
         const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(addMonths(startDate, 1), monthEnd);
@@ -135,8 +127,11 @@ export function CollectionList() {
             if (netTargetForMonth > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += netTargetForMonth;
                 totalActualCollectedInMonth += paidThisMonth;
-                totalShortfall += Math.max(0, netTargetForMonth - paidThisMonth);
                 totalArrearsCarriedForward += arrearsAtStart;
+                
+                // Shortfall is what was due this month (Arrears + Current) minus what was paid this month
+                const individualShortfall = Math.max(0, netTargetForMonth - paidThisMonth);
+                totalShortfallForCurrentEMIs += individualShortfall;
                 
                 if (netTargetForMonth > 0) {
                     expectedCount++;
@@ -148,7 +143,7 @@ export function CollectionList() {
                     customerId: customer.id,
                     emiAmount: monthlyEmi,
                     arrears: arrearsAtStart,
-                    currentDue: currentMonthEmi,
+                    currentDue: currentMonthEmiComponent,
                     totalDue: netTargetForMonth,
                     isPaidInFullForMonth,
                     isPartiallyPaid,
@@ -164,7 +159,7 @@ export function CollectionList() {
         stats: {
             expected: totalMonthlyTarget,
             actual: totalActualCollectedInMonth,
-            pending: totalShortfall,
+            shortfall: totalShortfallForCurrentEMIs,
             collectedCount,
             expectedCount,
             totalArrears: totalArrearsCarriedForward
@@ -258,7 +253,7 @@ export function CollectionList() {
                 <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Carry Forward (Arrears)</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1">
                     <div className="text-xl font-bold text-primary">{formatCurrency(monthlyData.stats.totalArrears)}</div>
-                    <div className="text-[10px] text-muted-foreground">Unpaid from previous months</div>
+                    <div className="text-[10px] text-muted-foreground">Debt from previous months</div>
                 </CardContent>
             </Card>
             <Card className="border-primary/20">
@@ -271,15 +266,15 @@ export function CollectionList() {
             <Card className="border-destructive/20">
                 <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Pending Shortfall</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1 text-destructive">
-                    <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.pending)}</div>
-                    <div className="text-xs">Remaining for this month</div>
+                    <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.shortfall)}</div>
+                    <div className="text-xs">Unpaid for this period</div>
                 </CardContent>
             </Card>
             <Card className="border-primary/20">
                 <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Files Settled</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1">
                     <div className="text-xl font-bold">{monthlyData.stats.collectedCount} / {monthlyData.stats.expectedCount}</div>
-                    <div className="text-xs text-muted-foreground">Active files this month</div>
+                    <div className="text-xs text-muted-foreground">Target reached this month</div>
                 </CardContent>
             </Card>
             <div className="hidden xl:block">
@@ -287,7 +282,7 @@ export function CollectionList() {
                     <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase text-muted-foreground">Status</CardTitle></CardHeader>
                     <CardContent className="p-3 pt-1">
                         <div className="text-sm font-medium">{isPastMonth ? "Historical View" : "Current Collection"}</div>
-                        <div className="text-[10px] text-muted-foreground">{isPastMonth ? "Payments disabled for past months" : "Active period"}</div>
+                        <div className="text-[10px] text-muted-foreground">{isPastMonth ? "Payments disabled" : "Active period"}</div>
                     </CardContent>
                 </Card>
             </div>

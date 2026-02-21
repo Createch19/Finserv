@@ -87,7 +87,7 @@ export default function DashboardPage() {
     
     let totalMonthlyTarget = 0;
     let totalActualCollectedInMonth = 0;
-    let totalShortfall = 0;
+    let totalShortfallForMonth = 0;
     let expectedCount = 0;
     let collectedCount = 0;
     let totalArrears = 0;
@@ -102,13 +102,12 @@ export default function DashboardPage() {
         const totalPayable = Math.round(customer.totalPayable);
         
         const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        // Loop from Month 1 based on strict business logic: EMI #1 is due the month AFTER start.
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = addMonths(startDate, i);
             const dueMonthStart = startOfMonth(dueDate);
@@ -135,11 +134,10 @@ export default function DashboardPage() {
                 totalMonthlyTarget += netTargetForMonth;
                 totalActualCollectedInMonth += paidThisMonth;
                 totalArrears += arrearsAtStart;
-                totalShortfall += Math.max(0, netTargetForMonth - paidThisMonth);
+                totalShortfallForMonth += Math.max(0, netTargetForMonth - paidThisMonth);
                 
                 if (netTargetForMonth > 0) {
                     expectedCount++;
-                    // Settled if Total Paid Ever covers Target up to end of this month
                     if (totalPaidAllTime >= expectedByEndOfMonth) collectedCount++;
                 }
             }
@@ -153,7 +151,7 @@ export default function DashboardPage() {
         expectedCount,
         collectedAmount: Math.round(totalActualCollectedInMonth),
         collectedCount,
-        pendingAmount: Math.round(totalShortfall),
+        pendingAmount: Math.round(totalShortfallForMonth),
         totalArrears: Math.round(totalArrears),
         newFiles,
     };
@@ -212,7 +210,7 @@ export default function DashboardPage() {
       <Card className="border-primary/20 shadow-sm">
         <CardHeader>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance tracking with Carry Forward Arrears logic.</CardDescription></div>
+                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance tracking with Split Arrears logic.</CardDescription></div>
                 <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
                     <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
                     <div className="text-sm font-semibold w-32 text-center text-primary">{format(currentMonth, "MMMM yyyy")}</div>
