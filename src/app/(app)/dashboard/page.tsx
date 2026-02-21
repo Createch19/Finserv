@@ -15,9 +15,9 @@ import { MonthlyCollectionChart, MonthlyCountChart } from "@/components/reports/
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, Query } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, isWithinInterval, parseISO, eachMonthOfInterval, addMonths, subMonths, format, isSameMonth } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format, isSameMonth, parseISO, differenceInMonths } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 import { Button } from "@/components/ui/button";
@@ -35,74 +35,45 @@ export default function DashboardPage() {
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
-  // State for company and month selection
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
 
-  // --- START: Data Fetching ---
-
-  const allCompaniesQuery = useMemo(() => {
-    if (firestore && userRole === 'superadmin') {
-      return collection(firestore, 'companies');
-    }
-    return null;
-  }, [firestore, userRole]);
+  const allCompaniesQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'companies') : null, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
   
-  const allUsersQuery = useMemo(() => {
-    if (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') {
-      return collection(firestore, 'users');
-    }
-    return null;
-  }, [firestore, userRole, selectedCompanyId]);
+  const allUsersQuery = useMemo(() => (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') ? collection(firestore, 'users') : null, [firestore, userRole, selectedCompanyId]);
   const { data: allUsers, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
 
   const customersQuery = useMemo(() => {
     if (!firestore || !userRole) return null;
     const baseQuery = collection(firestore, 'customers');
-
     if (userRole === 'superadmin') {
       if (selectedCompanyId === 'all') return baseQuery;
       return query(baseQuery, where("companyId", "==", selectedCompanyId));
     }
-    
-    if (userCompanyId) {
-      return query(baseQuery, where("companyId", "==", userCompanyId));
-    }
-    return null;
+    return userCompanyId ? query(baseQuery, where("companyId", "==", userCompanyId)) : null;
   }, [firestore, userRole, userCompanyId, selectedCompanyId]);
-  
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const expensesQuery = useMemo(() => {
     if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
     const baseQuery = collection(firestore, 'expenses');
-    
     if (userRole === 'superadmin') {
       if (selectedCompanyId === 'all') return baseQuery;
       return query(baseQuery, where("companyId", "==", selectedCompanyId));
     }
-    
-    if (userCompanyId) {
-      return query(baseQuery, where("companyId", "==", userCompanyId));
-    }
-    return null;
+    return userCompanyId ? query(baseQuery, where("companyId", "==", userCompanyId)) : null;
   }, [firestore, userRole, userCompanyId, selectedCompanyId]);
   const { data: expenses, isLoading: expensesLoading } = useCollection<WithId<Expense>>(expensesQuery);
 
   const withdrawalsQuery = useMemo(() => {
     if (!firestore || (userRole !== 'admin' && userRole !== 'superadmin')) return null;
-    const baseQuery = collection(firestore, "withdrawalRequests");
-    const approvedQuery = query(baseQuery, where('status', '==', 'approved'));
-
+    const baseQuery = query(collection(firestore, "withdrawalRequests"), where('status', '==', 'approved'));
     if (userRole === 'superadmin') {
-      if (selectedCompanyId === 'all') return approvedQuery;
-      return query(approvedQuery, where("companyId", "==", selectedCompanyId));
+      if (selectedCompanyId === 'all') return baseQuery;
+      return query(baseQuery, where("companyId", "==", selectedCompanyId));
     }
-    if (userCompanyId) {
-      return query(approvedQuery, where("companyId", "==", userCompanyId));
-    }
-    return null;
+    return userCompanyId ? query(baseQuery, where("companyId", "==", userCompanyId)) : null;
   }, [firestore, userRole, userCompanyId, selectedCompanyId]);
   const { data: withdrawals, isLoading: withdrawalsLoading } = useCollection<WithId<WithdrawalRequest>>(withdrawalsQuery);
   
@@ -110,13 +81,6 @@ export default function DashboardPage() {
   const allExpenses = useCollection<WithId<Expense>>(useMemo(() => (firestore && userRole === 'superadmin' && selectedCompanyId === 'all') ? collection(firestore, 'expenses') : null, [firestore, userRole, selectedCompanyId]));
 
   const isLoading = customersLoading || expensesLoading || withdrawalsLoading || allCompaniesLoading || (userRole === 'superadmin' && selectedCompanyId === 'all' && (allCustomers.isLoading || allUsersLoading || allExpenses.isLoading));
-  
-  // --- END: Data Fetching ---
-
-  const changeMonth = (amount: number) => {
-    setCurrentMonth(prev => addMonths(prev, amount));
-  };
-
 
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0, newFiles: 0, completingFiles: 0, completedFiles: 0 };
@@ -129,240 +93,133 @@ export default function DashboardPage() {
     let completingFiles = 0;
     let completedFiles = 0;
 
-    customers.forEach(customer => {
-        if (!customer.startDate || customer.duration <= 0) return;
-        const paymentsMade = customer.payments?.length || 0;
+    customers.filter(c => c.status !== 'pending').forEach(customer => {
+        const startDate = parseISO(customer.startDate);
+        const monthlyEmi = customer.monthlyEMI;
+        const totalPaid = customer.payments?.reduce((s, p) => s + p.amount, 0) || 0;
         
-        // Check for new files starting EMI this month
-        const firstEmiDueDate = addMonths(new Date(customer.startDate), 1);
-        if (isSameMonth(firstEmiDueDate, currentMonth)) {
-            newFiles++;
-        }
+        // Calculate cumulative target by END of selected month
+        const monthsUntilEnd = Math.max(0, differenceInMonths(endOfMonth(currentMonth), startDate));
+        const cumulativeTarget = Math.min(customer.totalPayable, monthsUntilEnd * monthlyEmi);
         
-        for (let i = 0; i < customer.duration; i++) {
-          const dueDate = addMonths(new Date(customer.startDate), i + 1);
-          if (isSameMonth(dueDate, currentMonth)) {
-            expectedAmount += customer.monthlyEMI;
+        // Calculate cumulative target by START of selected month (to find arrears)
+        const monthsUntilStart = Math.max(0, differenceInMonths(startOfMonth(currentMonth), startDate));
+        const pastTarget = Math.min(customer.totalPayable, monthsUntilStart * monthlyEmi);
+        
+        const arrears = Math.max(0, pastTarget - totalPaid);
+        const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, customer.totalPayable - totalPaid - arrears));
+        const totalDueThisMonth = arrears + currentMonthTarget;
+
+        if (totalDueThisMonth > 0 || totalPaid >= pastTarget + currentMonthTarget) {
+            expectedAmount += totalDueThisMonth;
             expectedCount += 1;
-            const isPaid = i < paymentsMade;
+            
+            const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - pastTarget));
+            collectedAmount += paidTowardsThisMonth;
+            if (paidTowardsThisMonth >= totalDueThisMonth) collectedCount++;
+        }
 
-            if (isPaid) {
-                collectedCount += 1;
-                collectedAmount += customer.monthlyEMI;
-            }
+        // New Files: First EMI due this month
+        if (isSameMonth(addMonths(startDate, 1), currentMonth)) newFiles++;
 
-            // Check if it's the last EMI for this customer
-            if (i + 1 === customer.duration) {
-                completingFiles++;
-                if (isPaid) {
-                    completedFiles++;
-                }
-            }
-          }
+        // Completing Files
+        const isLastMonth = monthsUntilEnd >= customer.duration;
+        if (isLastMonth) {
+            completingFiles++;
+            if (totalPaid >= customer.totalPayable) completedFiles++;
         }
     });
-
-    const pendingAmount = expectedAmount - collectedAmount;
 
     return {
         expectedAmount,
         expectedCount,
         collectedAmount,
         collectedCount,
-        pendingAmount,
+        pendingAmount: expectedAmount - collectedAmount,
         newFiles,
         completingFiles,
         completedFiles,
     };
-}, [customers, currentMonth]);
+  }, [customers, currentMonth]);
 
-  if (isLoading || !user) {
-      return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )
-  }
+  if (isLoading || !user) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
   const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
   const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
-  const totalCommission = (customers || [])
-        .filter(c => c.status === 'completed' && c.commissionSettled)
-        .reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
-
+  const totalCommission = (customers || []).filter(c => c.status === 'completed' && c.commissionSettled).reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
   const profit = totalInterest - totalExpenses - totalCommission;
-
   const activeLoans = (customers || []).filter(c => c.status === 'active' || c.status === 'overdue').length;
 
-  const formatValue = (value: number) => {
-    const roundedValue = Math.round(value);
-    if (roundedValue >= 10000000) {
-      return `₹${(roundedValue / 10000000).toFixed(2)}Cr`;
-    }
-    if (roundedValue >= 100000) {
-      return `₹${(roundedValue / 100000).toFixed(2)}L`;
-    }
-    return `₹${roundedValue.toLocaleString('en-IN')}`;
+  const formatValue = (v: number) => {
+    const val = Math.round(v);
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
+    return `₹${val.toLocaleString('en-IN')}`;
   };
 
   const overallStats = [
       { title: "Total Financed", value: formatValue(totalFinanced), icon: TrendingUp },
       { title: "Active Loans", value: activeLoans, icon: Users },
-      { title: (user?.role === 'admin' || user?.role === 'superadmin') ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
+      { title: (userRole === 'admin' || userRole === 'superadmin') ? "Net Profit" : "Potential Profit", value: formatValue(profit), icon: DollarSign },
+      { title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt },
+      { title: "Commissions Paid", icon: Award, value: formatValue(totalCommission) }
   ];
-  
-  if (user?.role === 'admin' || user?.role === 'superadmin') {
-      overallStats.push({ title: "Total Expenses", value: formatValue(totalExpenses), icon: Receipt });
-      overallStats.push({ title: "Commissions Paid", value: formatValue(totalCommission), icon: Award });
-  }
-  
-  const isAllCompaniesSelected = userRole === 'superadmin' && selectedCompanyId === 'all';
   
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description="Here's a high-level overview of your financing business."
-      >
-        <div className="flex items-center gap-2">
-            {userRole === 'superadmin' && allCompanies && (
+      <PageHeader title="Dashboard" description="Overview of your financing business.">
+        {userRole === 'superadmin' && allCompanies && (
             <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select a company" />
-                </SelectTrigger>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select a company" /></SelectTrigger>
                 <SelectContent>
-                <SelectItem value="all">All Companies</SelectItem>
-                {allCompanies.map(company => (
-                    <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-                ))}
+                    <SelectItem value="all">All Companies</SelectItem>
+                    {allCompanies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
             </Select>
-            )}
-        </div>
+        )}
       </PageHeader>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mt-6">
-        {overallStats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
+        {overallStats.slice(0, (userRole === 'admin' || userRole === 'superadmin') ? 5 : 3).map((stat, index) => (
+          <Card key={index}><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">{stat.title}</CardTitle><stat.icon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-xl font-bold">{stat.value}</div></CardContent></Card>
         ))}
       </div>
 
-      <Separator className="my-6 md:my-8" />
+      <Separator className="my-8" />
       
-      {isAllCompaniesSelected && (
-        <>
-          <CompanyDataOverview
-            companies={allCompanies}
-            customers={allCustomers.data}
-            users={allUsers}
-            expenses={allExpenses.data}
-          />
-          <Separator className="my-6 md:my-8" />
-        </>
+      {userRole === 'superadmin' && selectedCompanyId === 'all' && (
+        <><CompanyDataOverview companies={allCompanies} customers={allCustomers.data} users={allUsers} expenses={allExpenses.data} /><Separator className="my-8" /></>
       )}
 
-      <Card className="border-primary/20">
+      <Card className="border-primary/20 shadow-sm">
         <CardHeader>
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
-                <div>
-                    <CardTitle>Monthly Overview</CardTitle>
-                    <CardDescription>Performance metrics for the selected month.</CardDescription>
-                </div>
-                 <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
-                    <Button variant="ghost" size="icon" onClick={() => changeMonth(-1)}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="text-sm font-semibold text-center w-28 text-primary">{format(currentMonth, "MMMM yyyy")}</div>
-                    <Button variant="ghost" size="icon" onClick={() => changeMonth(1)}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance based on dynamic arrears calculation.</CardDescription></div>
+                <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
+                    <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
+                    <div className="text-sm font-semibold w-32 text-center text-primary">{format(currentMonth, "MMMM yyyy")}</div>
+                    <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
             </div>
         </CardHeader>
         <CardContent>
              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-6">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
-                    <HandCoins className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                    <div className="text-xl font-bold">{`${formatValue(monthlyStats.collectedAmount)} / ${formatValue(monthlyStats.expectedAmount)}`}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
-                        <Hourglass className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatValue(monthlyStats.pendingAmount)}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Monthly EMIs</CardTitle>
-                    <ListChecks className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                    <div className="text-xl font-bold">{`${monthlyStats.collectedCount} / ${monthlyStats.expectedCount} EMIs`}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Files Completed</CardTitle>
-                        <Award className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-xl font-bold">{`${monthlyStats.completedFiles} / ${monthlyStats.completingFiles} Files`}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">New Files</CardTitle>
-                        <FilePlus className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{monthlyStats.newFiles}</div>
-                    </CardContent>
-                </Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Monthly Collection</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{formatValue(monthlyStats.collectedAmount)} / {formatValue(monthlyStats.expectedAmount)}</div></CardContent></Card>
+                <Card className="bg-destructive/5 border-destructive/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Pending Balance</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-destructive"><div className="text-lg font-bold">{formatValue(monthlyStats.pendingAmount)}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">EMIs Collected</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.collectedCount} / {monthlyStats.expectedCount}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Files Completed</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.completedFiles} / {monthlyStats.completingFiles}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">New Files Start</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.newFiles}</div></CardContent></Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monthly Collection Amount</CardTitle>
-                  <CardDescription>Collected vs. Expected amount for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
-                </CardHeader>
-                <CardContent className="pl-2">
-                  <MonthlyCollectionChart stats={monthlyStats} />
-                </CardContent>
-              </Card>
-              <Card>
-                  <CardHeader>
-                      <CardTitle>Monthly EMI Count</CardTitle>
-                      <CardDescription>Collected vs. Expected EMIs for {format(currentMonth, "MMMM yyyy")}.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pl-2">
-                      <MonthlyCountChart stats={monthlyStats} />
-                  </CardContent>
-              </Card>
+              <Card><CardHeader><CardTitle className="text-sm">Collection Trend</CardTitle></CardHeader><CardContent><MonthlyCollectionChart stats={monthlyStats} /></CardContent></Card>
+              <Card><CardHeader><CardTitle className="text-sm">EMI Volume</CardTitle></CardHeader><CardContent><MonthlyCountChart stats={monthlyStats} /></CardContent></Card>
             </div>
         </CardContent>
       </Card>
       
-      <Separator className="my-6 md:my-8" />
+      <Separator className="my-8" />
       <CapitalFlowTable customers={customers || []} withdrawals={withdrawals || []} />
     </>
   );

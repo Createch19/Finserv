@@ -4,10 +4,10 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, subMonths } from "date-fns";
+import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, endOfMonth, startOfMonth, differenceInMonths } from "date-fns";
 import Link from 'next/link';
-import { Button, buttonVariants } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Undo2, Check, ChevronLeft, ChevronRight, MoreVertical, Banknote, ListChecks, Search, Hourglass, Goal, Award } from "lucide-react";
+import { Button } from "../ui/button";
+import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Search, Banknote, ListChecks, Hourglass, Award, Info, History, ArrowUpRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -22,488 +22,310 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Payment, WithId, User } from "@/types";
+import type { Customer, Payment, WithId } from "@/types";
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, query, where } from "firebase/firestore";
+import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-type EmiStatus = "paid" | "due" | "overdue" | "upcoming" | "pending";
-
 type EmiEntry = {
   customerName: string;
   customerId: string;
   emiAmount: number;
-  dueDate: Date;
-  status: EmiStatus;
-  emiNumber: number;
+  arrears: number;
+  currentDue: number;
+  totalDue: number;
+  totalPaidForThisFile: number;
+  isPaidInFullForMonth: boolean;
+  isPartiallyPaid: boolean;
+  remainingBalance: number;
+  nextEmiNumber: number;
   totalEmis: number;
-  isPaid: boolean;
-  isLastPaid: boolean;
-  canBePaid: boolean;
-  paidDate?: Date | null;
-  overdueDays?: number;
 };
-
-const getEmiStatus = (dueDate: Date, isPaid: boolean, canBePaid: boolean): EmiStatus => {
-  if (isPaid) return "paid";
-  if (!canBePaid) return "pending"; // Not the next due EMI
-  const today = startOfDay(new Date());
-  if (isBefore(startOfDay(dueDate), today)) return "overdue";
-  if (isSameMonth(startOfDay(dueDate), today)) return "due";
-  return "upcoming";
-};
-
-const getStatusAttributes = (status: EmiStatus) => {
-    switch (status) {
-        case "paid": return { icon: <CheckCircle2 />, className: "text-green-500", variant: "secondary", text: "Paid" };
-        case "overdue": return { icon: <XCircle />, className: "text-destructive", variant: "destructive", text: "Overdue" };
-        case "due": return { icon: <Clock />, className: "text-primary", variant: "default", text: "Due" };
-        case "upcoming": return { icon: <CalendarDays />, className: "text-muted-foreground", variant: "outline", text: "Upcoming" };
-        case "pending": return { icon: <MoreVertical />, className: "text-muted-foreground", variant: "outline", text: "Pending" };
-    }
-}
 
 const formatCurrency = (amount: number) => amount.toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
-
 
 export function CollectionList() {
   const { user, loading: userLoading } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
-
-    if (user.role === 'superadmin') {
-      return collection(firestore, 'customers');
-    }
-
+    if (user.role === 'superadmin') return collection(firestore, 'customers');
     if (!user.companyId) return null;
     return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
   }, [user, firestore]);
 
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
-  const customers = useMemo(() => customersData?.filter(c => c.status !== 'pending') || [], [customersData]);
+  const customers = useMemo(() => customersData?.filter(c => c.status !== 'pending' && c.status !== 'completed') || [], [customersData]);
 
-  const [currentMonth, setCurrentMonth] = useState(startOfDay(new Date()));
-  const [selectedEmiForPayment, setSelectedEmiForPayment] = useState<EmiEntry | null>(null);
-  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
-  const [selectedEmiForRevoke, setSelectedEmiForRevoke] = useState<EmiEntry | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const { toast } = useToast();
-
-  const isLoading = userLoading || customersLoading;
-
-  const monthlyEmis = useMemo(() => {
-    if (!customers) return [];
+  const monthlyData = useMemo(() => {
+    if (!customers) return { emis: [], stats: { expected: 0, actual: 0, pending: 0, collectedCount: 0, expectedCount: 0, completingFiles: 0, completedFiles: 0 } };
     
-    const allEmis: EmiEntry[] = [];
+    const allEntries: EmiEntry[] = [];
+    let totalExpected = 0;
+    let totalActual = 0;
+    let collectedCount = 0;
+    let completingFiles = 0;
+    let completedFiles = 0;
+
     customers.forEach(customer => {
-        const paymentsCount = customer.payments?.length || 0;
-        for (let i = 0; i < customer.duration; i++) {
-          const dueDate = addMonths(new Date(customer.startDate), i + 1);
+        const startDate = parseISO(customer.startDate);
+        const monthlyEmi = customer.monthlyEMI;
+        const totalPaid = customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        
+        // Calculate cumulative expectation up to the end of the selected month
+        const monthsFromStart = Math.max(0, differenceInMonths(endOfMonth(currentMonth), startDate));
+        const cumulativeTarget = Math.min(customer.totalPayable, monthsFromStart * monthlyEmi);
+        
+        // Calculation for the START of the selected month (to find Arrears)
+        const monthsUntilLastMonth = Math.max(0, differenceInMonths(startOfMonth(currentMonth), startDate));
+        const pastTarget = Math.min(customer.totalPayable, monthsUntilLastMonth * monthlyEmi);
+        
+        const arrears = Math.max(0, pastTarget - totalPaid);
+        const currentEmiTarget = Math.min(monthlyEmi, Math.max(0, customer.totalPayable - totalPaid - arrears));
+        const totalDueThisMonth = arrears + currentEmiTarget;
 
-          if (isSameMonth(dueDate, currentMonth)) {
-            const isPaid = i < paymentsCount;
-            const canBePaid = i === paymentsCount;
-            const status = getEmiStatus(dueDate, isPaid, canBePaid);
-            const isLastPaid = isPaid && i === paymentsCount - 1;
-            
-            let paidDate: Date | null = null;
-            if (isPaid && customer.payments && customer.payments[i]) {
-                paidDate = parseISO(customer.payments[i].date);
-            }
+        // How much of THIS month's target has been paid?
+        const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - pastTarget));
+        const isPaidInFullForMonth = paidTowardsThisMonth >= totalDueThisMonth && totalDueThisMonth > 0;
+        const isPartiallyPaid = paidTowardsThisMonth > 0 && paidTowardsThisMonth < totalDueThisMonth;
 
-            let overdueDays: number | undefined = undefined;
-            if (status === 'overdue') {
-                overdueDays = isBefore(startOfDay(dueDate), startOfDay(new Date())) ? Math.abs(Math.floor((startOfDay(dueDate).getTime() - startOfDay(new Date()).getTime()) / (1000 * 3600 * 24))) : 0;
-            }
+        // Stats tracking
+        totalExpected += totalDueThisMonth;
+        totalActual += paidTowardsThisMonth;
+        if (isPaidInFullForMonth) collectedCount++;
 
-            allEmis.push({
-              customerName: customer.name,
-              customerId: customer.id,
-              emiAmount: customer.monthlyEMI,
-              dueDate: dueDate,
-              status: status,
-              emiNumber: i + 1,
-              totalEmis: customer.duration,
-              isPaid,
-              isLastPaid,
-              canBePaid,
-              paidDate,
-              overdueDays,
+        // Completion logic
+        const isLastMonth = monthsFromStart >= customer.duration;
+        if (isLastMonth) {
+            completingFiles++;
+            if (totalPaid >= customer.totalPayable) completedFiles++;
+        }
+
+        if (totalDueThisMonth > 0 || isPaidInFullForMonth) {
+            allEntries.push({
+                customerName: customer.name,
+                customerId: customer.id,
+                emiAmount: monthlyEmi,
+                arrears,
+                currentDue: currentEmiTarget,
+                totalDue: totalDueThisMonth,
+                totalPaidForThisFile: totalPaid,
+                isPaidInFullForMonth,
+                isPartiallyPaid,
+                remainingBalance: customer.totalPayable - totalPaid,
+                nextEmiNumber: Math.floor(totalPaid / monthlyEmi) + 1,
+                totalEmis: customer.duration
             });
-          }
         }
     });
 
-    return allEmis;
-
+    return {
+        emis: allEntries,
+        stats: {
+            expected: totalExpected,
+            actual: totalActual,
+            pending: totalExpected - totalActual,
+            collectedCount,
+            expectedCount: allEntries.length,
+            completingFiles,
+            completedFiles
+        }
+    };
   }, [customers, currentMonth]);
 
-    const filteredEmis = useMemo(() => {
-        if (!monthlyEmis) return [];
-        const lowercasedFilter = searchTerm.toLowerCase();
-        
-        const statusOrder: Record<EmiStatus, number> = {
-            overdue: 1,
-            due: 2,
-            pending: 3,
-            upcoming: 4,
-            paid: 5,
-        };
+  const filteredEmis = useMemo(() => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return monthlyData.emis
+        .filter(e => e.customerName.toLowerCase().includes(lowerSearch))
+        .sort((a, b) => {
+            if (a.isPaidInFullForMonth !== b.isPaidInFullForMonth) return a.isPaidInFullForMonth ? 1 : -1;
+            return b.arrears - a.arrears;
+        });
+  }, [monthlyData.emis, searchTerm]);
 
-        return monthlyEmis
-            .filter(emi => 
-                emi.customerName.toLowerCase().includes(lowercasedFilter)
-            )
-            .sort((a, b) => {
-                const statusDiff = statusOrder[a.status] - statusOrder[b.status];
-                if (statusDiff !== 0) return statusDiff;
-                // For same status, sort by due date (overdue first)
-                return a.dueDate.getTime() - b.dueDate.getTime();
-            });
-    }, [monthlyEmis, searchTerm]);
-
-    const monthlyStats = useMemo(() => {
-        const expectedAmount = monthlyEmis.reduce((sum, emi) => sum + emi.emiAmount, 0);
-        const collectedAmount = monthlyEmis.filter(e => e.isPaid).reduce((sum, emi) => sum + emi.emiAmount, 0);
-        const expectedCount = monthlyEmis.length;
-        const collectedCount = monthlyEmis.filter(e => e.isPaid).length;
-        const pendingAmount = expectedAmount - collectedAmount;
-        
-        const completingFiles = monthlyEmis.filter(e => e.emiNumber === e.totalEmis).length;
-        const completedFiles = monthlyEmis.filter(e => e.emiNumber === e.totalEmis && e.isPaid).length;
-        
-        return {
-            expectedAmount,
-            collectedAmount,
-            expectedCount,
-            collectedCount,
-            pendingAmount,
-            completingFiles,
-            completedFiles,
-        }
-    }, [monthlyEmis]);
-
+  const handleOpenPayment = (emi: EmiEntry) => {
+    setSelectedEmiForPayment(emi);
+    setPaymentAmount(emi.totalDue.toString());
+  };
 
   const handleRecordPayment = async () => {
-    if (!selectedEmiForPayment || !user || !firestore || !paymentDate) return;
+    const amount = parseFloat(paymentAmount);
+    if (!selectedEmiForPayment || isNaN(amount) || amount <= 0 || !paymentDate) return;
 
-    const customer = customers?.find(c => c.id === selectedEmiForPayment.customerId);
+    const customer = customersData?.find(c => c.id === selectedEmiForPayment.customerId);
     if (!customer) return;
 
-    if (!selectedEmiForPayment.canBePaid) {
-        toast({
-            variant: "destructive",
-            title: "Invalid Payment",
-            description: "You can only pay the next due EMI for a customer.",
-        });
-        setSelectedEmiForPayment(null);
+    if (amount > selectedEmiForPayment.remainingBalance) {
+        toast({ variant: "destructive", title: "Invalid Amount", description: "You cannot collect more than the remaining loan balance." });
         return;
     }
 
-    const currentTotalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-
+    setIsSubmitting(true);
+    const customerDocRef = doc(firestore!, 'customers', customer.id);
+    
     const newPayment: Payment = {
-      paymentId: uuidv4(),
-      date: paymentDate.toISOString(),
-      amount: selectedEmiForPayment.emiAmount,
-      mode: 'cash',
-      remainingBalance: customer.totalPayable - currentTotalPaid - selectedEmiForPayment.emiAmount,
+        paymentId: uuidv4(),
+        date: paymentDate.toISOString(),
+        amount: amount,
+        mode: 'cash',
+        remainingBalance: customer.totalPayable - (customer.payments?.reduce((s, p) => s + p.amount, 0) || 0) - amount
     };
-    
-    const customerDocRef = doc(firestore, `customers`, selectedEmiForPayment.customerId);
-    
-    const newStatus = (customer.payments?.length || 0) + 1 === customer.duration ? 'completed' : 'active';
-    
+
+    const isFullyPaid = newPayment.remainingBalance <= 0;
     const updatePayload = {
-      payments: arrayUnion(newPayment),
-      status: newStatus
+        payments: arrayUnion(newPayment),
+        status: isFullyPaid ? 'completed' : (newPayment.remainingBalance < customer.totalPayable ? 'active' : customer.status)
     };
 
     updateDoc(customerDocRef, updatePayload).then(() => {
-        toast({
-            title: "Payment Recorded",
-            description: `Payment of ${formatCurrency(selectedEmiForPayment?.emiAmount)} for ${selectedEmiForPayment?.customerName} has been recorded.`,
-        });
-    }).catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-          path: customerDocRef.path,
-          operation: 'update',
-          requestResourceData: updatePayload,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }).finally(() => {
+        toast({ title: "Payment Recorded", description: `${formatCurrency(amount)} collected from ${customer.name}.` });
         setSelectedEmiForPayment(null);
-        setPaymentDate(new Date());
-    });
+    }).catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: customerDocRef.path,
+            operation: 'update',
+            requestResourceData: updatePayload
+        }));
+    }).finally(() => setIsSubmitting(false));
   };
 
-  const handleRevokePayment = async () => {
-    if (!selectedEmiForRevoke || !firestore) return;
-
-    const customer = customers?.find(c => c.id === selectedEmiForRevoke.customerId);
-    if (!customer || !customer.payments || customer.payments.length === 0) return;
-
-    const lastPayment = customer.payments[customer.payments.length - 1];
-    
-    const customerDocRef = doc(firestore, 'customers', selectedEmiForRevoke.customerId);
-    const newStatus = customer.status === 'completed' ? 'active' : customer.status;
-
-    const updatePayload = {
-      payments: arrayRemove(lastPayment),
-      status: newStatus,
-    };
-
-    updateDoc(customerDocRef, updatePayload).then(() => {
-      toast({
-        title: "Payment Revoked",
-        description: `Last payment for ${customer.name} has been successfully revoked.`,
-      });
-    }).catch(serverError => {
-      const permissionError = new FirestorePermissionError({
-        path: customerDocRef.path,
-        operation: 'update',
-        requestResourceData: updatePayload,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }).finally(() => {
-      setSelectedEmiForRevoke(null);
-    });
-  };
-  
-  const changeMonth = (amount: number) => {
-    setCurrentMonth(prev => addMonths(prev, amount));
-  }
-
-  const handleCardClick = (emi: EmiEntry) => {
-    if (emi.isPaid) {
-        if (emi.isLastPaid) {
-            setSelectedEmiForRevoke(emi);
-        } else {
-            toast({
-                variant: 'default',
-                title: "Payment Already Recorded",
-                description: "Only the most recent payment can be revoked.",
-            });
-        }
-    } else if (emi.canBePaid) {
-        setSelectedEmiForPayment(emi);
-    } else {
-        toast({
-            variant: 'default',
-            title: "Pending EMI",
-            description: "Previous EMIs must be paid first.",
-        });
-    }
-  }
-
-  if (isLoading) {
-      return (
-        <div className="flex-1 p-4 md:p-6">
-          <div className="flex h-64 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        </div>
-      )
+  if (userLoading || customersLoading) {
+    return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
     <TooltipProvider>
-    <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:px-6 md:pt-6 border-b">
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:px-6 md:pt-6 border-b">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-            <div className="flex justify-center items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => changeMonth(-1)}>
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <h2 className="text-xl font-semibold text-center w-48" style={{color: '#ffa200'}}>{format(currentMonth, "MMMM yyyy")}</h2>
-                <Button variant="outline" size="icon" onClick={() => changeMonth(1)}>
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><History className="h-4 w-4" /></Button>
+                <h2 className="text-xl font-bold text-primary w-48 text-center">{format(currentMonth, "MMMM yyyy")}</h2>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}><CalendarIcon className="h-4 w-4" /></Button>
             </div>
-            <div className="relative w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                    type="search"
-                    placeholder="Search by customer..."
-                    className="w-full rounded-lg bg-background pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <Input placeholder="Search customer..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
         </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-primary">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Monthly Collection</CardTitle>
-                    <Banknote className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(monthlyStats.collectedAmount)} / <span className="text-muted-foreground">{formatCurrency(monthlyStats.expectedAmount)}</span></div>
+            <Card className="border-primary/20">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Monthly Collection</CardTitle></CardHeader>
+                <CardContent className="p-3 pt-1">
+                    <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.actual)}</div>
+                    <div className="text-xs text-muted-foreground">Expected: {formatCurrency(monthlyData.stats.expected)}</div>
                 </CardContent>
             </Card>
-            <Card className="border-primary">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
-                    <Hourglass className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(monthlyStats.pendingAmount)}</div>
+            <Card className="border-destructive/20">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Pending Amount</CardTitle></CardHeader>
+                <CardContent className="p-3 pt-1 text-destructive">
+                    <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.pending)}</div>
+                    <div className="text-xs">Uncollected this month</div>
                 </CardContent>
             </Card>
-            <Card className="border-primary">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">EMIs Collected</CardTitle>
-                    <ListChecks className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{monthlyStats.collectedCount} / <span className="text-muted-foreground">{monthlyStats.expectedCount} EMIs</span></div>
+            <Card className="border-primary/20">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">EMIs Collected</CardTitle></CardHeader>
+                <CardContent className="p-3 pt-1">
+                    <div className="text-xl font-bold">{monthlyData.stats.collectedCount} / {monthlyData.stats.expectedCount}</div>
+                    <div className="text-xs text-muted-foreground">Customer files</div>
                 </CardContent>
             </Card>
-             <Card className="border-primary">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Files Completed</CardTitle>
-                    <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{monthlyStats.completedFiles} / <span className="text-muted-foreground">{monthlyStats.completingFiles} Files</span></div>
+            <Card className="border-primary/20">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Files Completed</CardTitle></CardHeader>
+                <CardContent className="p-3 pt-1">
+                    <div className="text-xl font-bold">{monthlyData.stats.completedFiles} / {monthlyData.stats.completingFiles}</div>
+                    <div className="text-xs text-muted-foreground">Reaching end of term</div>
                 </CardContent>
             </Card>
         </div>
-    </div>
-    <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredEmis.length > 0 ? filteredEmis.map((emi) => {
-                const statusInfo = getStatusAttributes(emi.status);
-                return (
-                <Card 
-                    key={`${emi.customerId}-${emi.emiNumber}`} 
-                    onClick={() => handleCardClick(emi)}
-                    className={cn(
-                        "flex flex-col justify-between overflow-hidden transition-all duration-200 cursor-pointer border-2 hover:border-[#ffa200] hover:-translate-y-1",
-                        emi.isPaid ? 'bg-white' : 'border-transparent'
-                    )}>
-                    <CardHeader className="p-3 pb-0 flex-row items-start justify-between">
-                         <div className="text-center bg-muted/50 p-2 rounded-lg">
-                            <p className={cn("text-xl font-bold", statusInfo.className)}>{format(emi.dueDate, 'dd')}</p>
-                            <p className="text-xs text-muted-foreground">{format(emi.dueDate, 'MMM')}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            {!emi.isPaid && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setSelectedEmiForPayment(emi); }}>
-                                            <Check className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Record Payment</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            )}
-                            {emi.isLastPaid && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setSelectedEmiForRevoke(emi); }}>
-                                            <Undo2 className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Revoke Payment</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            )}
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-3 text-center">
-                        <span className="font-semibold">{emi.customerName}</span>
-                        <p className="text-lg font-semibold text-primary">{formatCurrency(emi.emiAmount)}</p>
-                         <div className="text-xs text-muted-foreground mt-1">
-                            {`EMI ${emi.emiNumber}/${emi.totalEmis}`}
-                        </div>
-                    </CardContent>
-                    <CardFooter className={cn(
-                        "p-2 flex items-center justify-center gap-2 text-xs", 
-                        emi.isPaid ? 'bg-green-500/10 text-green-600' : 
-                        emi.status === 'overdue' ? 'bg-destructive/10 text-destructive' : 'bg-transparent text-muted-foreground'
-                    )}>
-                        {statusInfo.icon}
-                        <span className="font-medium">{statusInfo.text}</span>
-                        {emi.isPaid && emi.paidDate ? `on ${format(emi.paidDate, 'dd/MM')}` : ''}
-                        {emi.status === 'overdue' && emi.overdueDays ? `(${emi.overdueDays}d)`: ''}
-                    </CardFooter>
-                </Card>
-            )}) : (
-                 <div className="text-center py-20 text-muted-foreground col-span-full">
-                    <p>No EMIs for {format(currentMonth, "MMMM yyyy")} match your search.</p>
+      </div>
+
+      <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredEmis.map((emi) => (
+          <Card key={emi.customerId} className={cn("relative overflow-hidden transition-all hover:shadow-md", emi.isPaidInFullForMonth ? "bg-green-50/30 border-green-200" : "border-primary/10")}>
+            <CardHeader className="p-4 pb-2 flex-row items-start justify-between">
+                <div className="space-y-1">
+                    <CardTitle className="text-base uppercase truncate max-w-[150px]">{emi.customerName}</CardTitle>
+                    <div className="flex gap-2">
+                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal">EMI {emi.nextEmiNumber}/{emi.totalEmis}</Badge>
+                        {emi.isPaidInFullForMonth && <Badge className="bg-green-600 h-5 text-[10px]">Settled</Badge>}
+                        {emi.isPartiallyPaid && <Badge className="bg-orange-500 h-5 text-[10px]">Partial</Badge>}
+                    </div>
                 </div>
+                {!emi.isPaidInFullForMonth && (
+                    <Button size="sm" className="h-8 px-3" onClick={() => handleOpenPayment(emi)}>Pay</Button>
+                )}
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-2">
+                <div className="flex justify-between items-end">
+                    <div className="text-xs text-muted-foreground">Total Target</div>
+                    <div className="text-lg font-bold text-primary">{formatCurrency(emi.totalDue)}</div>
+                </div>
+                <div className="space-y-1 pt-2 border-t text-[11px]">
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Current EMI:</span>
+                        <span>{formatCurrency(emi.emiAmount)}</span>
+                    </div>
+                    {emi.arrears > 0 && (
+                        <div className="flex justify-between text-destructive font-medium">
+                            <span>Past Arrears:</span>
+                            <span>{formatCurrency(emi.arrears)}</span>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+            {emi.isPaidInFullForMonth && (
+                <div className="absolute top-0 right-0 p-1"><CheckCircle2 className="h-4 w-4 text-green-600" /></div>
             )}
-        </div>
-    </div>
+          </Card>
+        ))}
+        {filteredEmis.length === 0 && <div className="col-span-full py-20 text-center text-muted-foreground">No pending collections for this month.</div>}
+      </div>
 
-
-    <AlertDialog open={!!selectedEmiForPayment} onOpenChange={(open) => !open && setSelectedEmiForPayment(null)}>
+      <AlertDialog open={!!selectedEmiForPayment} onOpenChange={o => !o && setSelectedEmiForPayment(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-              <AlertDialogDescription>
-                  Record a payment of <strong>{formatCurrency(selectedEmiForPayment?.emiAmount || 0)}</strong> for <strong>{selectedEmiForPayment?.customerName}</strong>.
-              </AlertDialogDescription>
+                <AlertDialogTitle>Record Payment: {selectedEmiForPayment?.customerName}</AlertDialogTitle>
+                <AlertDialogDescription>Enter the amount collected. Arrears are prioritized first (FIFO).</AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="payment-date" className="text-right">
-                        Payment Date
-                    </Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                "col-span-3 justify-start text-left font-normal",
-                                !paymentDate && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {paymentDate ? format(paymentDate, "PPP") : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={paymentDate}
-                                onSelect={setPaymentDate}
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
+                    <Label className="text-right">Due Today</Label>
+                    <div className="col-span-3 font-semibold text-primary">{formatCurrency(selectedEmiForPayment?.totalDue || 0)}</div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Collect (₹)</Label>
+                    <Input className="col-span-3" type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Date</Label>
+                    <div className="col-span-3">
+                        <Popover>
+                            <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><CalendarIcon className="mr-2 h-4 w-4" />{paymentDate ? format(paymentDate, "PPP") : "Pick date"}</Button></PopoverTrigger>
+                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={paymentDate} onSelect={setPaymentDate} initialFocus /></PopoverContent>
+                        </Popover>
+                    </div>
                 </div>
             </div>
             <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRecordPayment}>Confirm Payment</AlertDialogAction>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRecordPayment} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Collection"}</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
-
-    <AlertDialog open={!!selectedEmiForRevoke} onOpenChange={(open) => !open && setSelectedEmiForRevoke(null)}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Revoke Payment</AlertDialogTitle>
-          <AlertDialogDescription>
-            Are you sure you want to revoke the last payment for <strong>{selectedEmiForRevoke?.customerName}</strong>? This will remove the payment record and update the loan status.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleRevokePayment} className={cn(buttonVariants({ variant: "destructive" }))}>Revoke</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      </AlertDialog>
     </TooltipProvider>
   );
 }

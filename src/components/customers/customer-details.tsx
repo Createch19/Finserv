@@ -1,42 +1,58 @@
 
 "use client";
 
+import { useMemo } from "react";
 import type { Customer, WithId } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, parseISO, differenceInMonths, startOfMonth } from "date-fns";
 
 const DetailItem = ({ label, value }: { label: string, value: React.ReactNode }) => (
     <div className="flex flex-col">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <span className="font-medium">{value}</span>
+        <span className="text-xs text-muted-foreground uppercase font-medium">{label}</span>
+        <span className="font-semibold">{value}</span>
     </div>
 );
 
-const getStatusBadgeVariant = (status: Customer['status']) => {
-  switch (status) {
-    case 'active': return 'default';
-    case 'completed': return 'secondary';
-    case 'overdue': return 'destructive';
-    case 'pending': return 'outline'
-    default: return 'outline';
-  }
-};
+const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
 export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
-    const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-    const remainingBalance = customer.totalPayable - totalPaid;
-    const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    const loanSummary = useMemo(() => {
+        const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+        const remainingBalance = customer.totalPayable - totalPaid;
+        
+        // Calculate Arrears
+        const startDate = parseISO(customer.startDate);
+        const monthsPassed = Math.max(0, differenceInMonths(startOfMonth(new Date()), startDate));
+        const targetToDate = Math.min(customer.totalPayable, monthsPassed * customer.monthlyEMI);
+        const arrears = Math.max(0, targetToDate - totalPaid);
+        const advance = Math.max(0, totalPaid - (targetToDate + customer.monthlyEMI));
+
+        return { totalPaid, remainingBalance, arrears, advance };
+    }, [customer]);
 
   return (
     <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="bg-primary/5 border-primary/20">
+                    <CardHeader className="p-4 pb-0"><CardTitle className="text-xs uppercase text-muted-foreground">Total Collected</CardTitle></CardHeader>
+                    <CardContent className="p-4 pt-1"><div className="text-2xl font-bold text-primary">{formatCurrency(loanSummary.totalPaid)}</div></CardContent>
+                </Card>
+                <Card className="bg-destructive/5 border-destructive/20">
+                    <CardHeader className="p-4 pb-0"><CardTitle className="text-xs uppercase text-muted-foreground">Arrears (Overdue)</CardTitle></CardHeader>
+                    <CardContent className="p-4 pt-1"><div className="text-2xl font-bold text-destructive">{formatCurrency(loanSummary.arrears)}</div></CardContent>
+                </Card>
+                <Card className="bg-green-50 border-green-200">
+                    <CardHeader className="p-4 pb-0"><CardTitle className="text-xs uppercase text-muted-foreground">Outstanding Balance</CardTitle></CardHeader>
+                    <CardContent className="p-4 pt-1"><div className="text-2xl font-bold text-green-700">{formatCurrency(loanSummary.remainingBalance)}</div></CardContent>
+                </Card>
+            </div>
+
             <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Financing Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <CardHeader><CardTitle>Financing Summary</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <DetailItem label="Phone Model" value={customer.phoneModel} />
                     <DetailItem label="Total Price" value={formatCurrency(customer.totalPrice)} />
                     <DetailItem label="Down Payment" value={formatCurrency(customer.downPayment)} />
@@ -45,39 +61,34 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                     <DetailItem label="Total Payable" value={formatCurrency(customer.totalPayable)} />
                     <DetailItem label="Monthly EMI" value={formatCurrency(customer.monthlyEMI)} />
                     <DetailItem label="Duration" value={`${customer.duration} months`} />
-                    <DetailItem label="Start Date" value={format(new Date(customer.startDate), 'PPP')} />
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline">Payment History</CardTitle>
-                    <CardDescription>
-                        {customer.payments?.length || 0} of {customer.duration} EMIs paid.
-                    </CardDescription>
+                    <CardTitle>Ledger / Payment History</CardTitle>
+                    <CardDescription>{customer.payments?.length || 0} installments recorded.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Date</TableHead>
-                                <TableHead>Amount</TableHead>
                                 <TableHead>Mode</TableHead>
-                                <TableHead className="text-right">Remaining</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right">Balance</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {customer.payments?.length > 0 ? customer.payments.map((p, index) => (
                                 <TableRow key={index}>
-                                    <TableCell>{format(new Date(p.date), 'PPP')}</TableCell>
-                                    <TableCell>{formatCurrency(p.amount)}</TableCell>
-                                    <TableCell className="capitalize">{p.mode}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(p.remainingBalance)}</TableCell>
+                                    <TableCell className="font-medium">{format(parseISO(p.date), 'dd MMM yyyy')}</TableCell>
+                                    <TableCell className="capitalize text-xs"><Badge variant="outline">{p.mode}</Badge></TableCell>
+                                    <TableCell className="text-right font-semibold text-primary">{formatCurrency(p.amount)}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">{formatCurrency(p.remainingBalance)}</TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center">No payments recorded yet.</TableCell>
-                                </TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No payments recorded yet.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -87,30 +98,19 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
 
         <div className="lg:col-span-1 space-y-6">
             <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Contact & Status</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Contact Information</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                    <DetailItem label="Phone Number" value={customer.phone} />
-                    <DetailItem label="Aadhar Number" value={customer.aadhar} />
-                    <DetailItem label="Address" value={customer.address} />
-                    <DetailItem label="Status" value={
-                        <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize text-sm">
-                            {customer.status}
-                        </Badge>}
-                    />
-                    <DetailItem label="Remaining Balance" value={
-                        <span className="text-lg font-bold text-primary">{formatCurrency(remainingBalance)}</span>
-                    } />
+                    <DetailItem label="Phone" value={customer.phone} />
+                    <DetailItem label="Aadhar" value={customer.aadhar} />
+                    <DetailItem label="Address" value={<p className="text-sm leading-relaxed">{customer.address}</p>} />
+                    <DetailItem label="Status" value={<Badge className="capitalize px-4">{customer.status}</Badge>} />
                 </CardContent>
             </Card>
              <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Agent Details</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Agent Information</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                    <DetailItem label="Agent Name" value={customer.agent.name} />
-                    <DetailItem label="Agent Email" value={customer.agent.email} />
+                    <DetailItem label="Name" value={customer.agent.name} />
+                    <DetailItem label="Email" value={customer.agent.email} />
                 </CardContent>
             </Card>
         </div>
