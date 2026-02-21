@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from "react";
@@ -6,7 +5,7 @@ import type { Customer, WithId } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO, differenceInMonths, startOfMonth } from "date-fns";
+import { format, parseISO, addMonths, isBefore, startOfMonth } from "date-fns";
 
 const DetailItem = ({ label, value }: { label: string, value: React.ReactNode }) => (
     <div className="flex flex-col">
@@ -15,19 +14,28 @@ const DetailItem = ({ label, value }: { label: string, value: React.ReactNode })
     </div>
 );
 
-const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+const formatCurrency = (amount: number) => `₹${Math.round(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
 export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const loanSummary = useMemo(() => {
-        const totalPaid = customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-        const remainingBalance = customer.totalPayable - totalPaid;
+        const totalPaid = Math.round(customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0);
+        const remainingBalance = Math.round(customer.totalPayable - totalPaid);
         
-        // Calculate Arrears
         const startDate = parseISO(customer.startDate);
-        const monthsPassed = Math.max(0, differenceInMonths(startOfMonth(new Date()), startDate));
-        const targetToDate = Math.min(customer.totalPayable, monthsPassed * customer.monthlyEMI);
-        const arrears = Math.max(0, targetToDate - totalPaid);
-        const advance = Math.max(0, totalPaid - (targetToDate + customer.monthlyEMI));
+        const today = new Date();
+        const monthStart = startOfMonth(today);
+
+        let expectedSoFar = 0;
+        for (let i = 1; i <= customer.duration; i++) {
+            const emiDate = addMonths(startDate, i);
+            if (isBefore(emiDate, monthStart)) {
+                expectedSoFar += customer.monthlyEMI;
+            }
+        }
+        
+        expectedSoFar = Math.min(expectedSoFar, customer.totalPayable);
+        const arrears = Math.max(0, expectedSoFar - totalPaid);
+        const advance = Math.max(0, totalPaid - expectedSoFar);
 
         return { totalPaid, remainingBalance, arrears, advance };
     }, [customer]);

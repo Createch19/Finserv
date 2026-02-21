@@ -1,13 +1,11 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, isBefore, startOfDay, addMonths, isSameMonth, parseISO, endOfMonth, startOfMonth, differenceInMonths } from "date-fns";
-import Link from 'next/link';
+import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { Button } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, XCircle, Clock, CalendarDays, Search, Banknote, ListChecks, Hourglass, Award, Info, History, ArrowUpRight } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, Search, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -29,7 +27,7 @@ import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/f
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 type EmiEntry = {
   customerName: string;
@@ -46,7 +44,7 @@ type EmiEntry = {
   totalEmis: number;
 };
 
-const formatCurrency = (amount: number) => amount.toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
+const formatCurrency = (amount: number) => Math.round(amount).toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
 
 export function CollectionList() {
   const { user, loading: userLoading } = useAuth();
@@ -83,38 +81,45 @@ export function CollectionList() {
     customers.forEach(customer => {
         const startDate = parseISO(customer.startDate);
         const monthlyEmi = customer.monthlyEMI;
-        const totalPaid = customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        const totalPaid = Math.round(customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0);
         
-        // Calculate cumulative expectation up to the end of the selected month
-        const monthsFromStart = Math.max(0, differenceInMonths(endOfMonth(currentMonth), startDate));
-        const cumulativeTarget = Math.min(customer.totalPayable, monthsFromStart * monthlyEmi);
-        
-        // Calculation for the START of the selected month (to find Arrears)
-        const monthsUntilLastMonth = Math.max(0, differenceInMonths(startOfMonth(currentMonth), startDate));
-        const pastTarget = Math.min(customer.totalPayable, monthsUntilLastMonth * monthlyEmi);
-        
-        const arrears = Math.max(0, pastTarget - totalPaid);
-        const currentEmiTarget = Math.min(monthlyEmi, Math.max(0, customer.totalPayable - totalPaid - arrears));
+        let expectedSoFar = 0;
+        let expectedBeforeThisMonth = 0;
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(currentMonth);
+
+        for (let i = 1; i <= customer.duration; i++) {
+            const emiDueDate = addMonths(startDate, i);
+            if (isBefore(emiDueDate, monthStart)) {
+                expectedBeforeThisMonth += monthlyEmi;
+            }
+            if (isBefore(emiDueDate, monthEnd)) {
+                expectedSoFar += monthlyEmi;
+            }
+        }
+
+        expectedSoFar = Math.min(expectedSoFar, customer.totalPayable);
+        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, customer.totalPayable);
+
+        const arrears = Math.max(0, expectedBeforeThisMonth - totalPaid);
+        const currentEmiTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - Math.max(totalPaid, expectedBeforeThisMonth)));
         const totalDueThisMonth = arrears + currentEmiTarget;
 
-        // How much of THIS month's target has been paid?
-        const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - pastTarget));
-        const isPaidInFullForMonth = paidTowardsThisMonth >= totalDueThisMonth && totalDueThisMonth > 0;
+        const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - (expectedBeforeThisMonth - arrears)));
+        const isPaidInFullForMonth = totalDueThisMonth > 0 && paidTowardsThisMonth >= totalDueThisMonth;
         const isPartiallyPaid = paidTowardsThisMonth > 0 && paidTowardsThisMonth < totalDueThisMonth;
 
-        // Stats tracking
         totalExpected += totalDueThisMonth;
         totalActual += paidTowardsThisMonth;
         if (isPaidInFullForMonth) collectedCount++;
 
-        // Completion logic
-        const isLastMonth = monthsFromStart >= customer.duration;
+        const isLastMonth = isBefore(addMonths(startDate, customer.duration), monthEnd);
         if (isLastMonth) {
             completingFiles++;
             if (totalPaid >= customer.totalPayable) completedFiles++;
         }
 
-        if (totalDueThisMonth > 0 || isPaidInFullForMonth) {
+        if (totalDueThisMonth > 0 || isPaidInFullForMonth || isPartiallyPaid) {
             allEntries.push({
                 customerName: customer.name,
                 customerId: customer.id,
@@ -125,7 +130,7 @@ export function CollectionList() {
                 totalPaidForThisFile: totalPaid,
                 isPaidInFullForMonth,
                 isPartiallyPaid,
-                remainingBalance: customer.totalPayable - totalPaid,
+                remainingBalance: Math.round(customer.totalPayable - totalPaid),
                 nextEmiNumber: Math.floor(totalPaid / monthlyEmi) + 1,
                 totalEmis: customer.duration
             });
@@ -158,11 +163,11 @@ export function CollectionList() {
 
   const handleOpenPayment = (emi: EmiEntry) => {
     setSelectedEmiForPayment(emi);
-    setPaymentAmount(emi.totalDue.toString());
+    setPaymentAmount(Math.round(emi.totalDue).toString());
   };
 
   const handleRecordPayment = async () => {
-    const amount = parseFloat(paymentAmount);
+    const amount = Math.round(parseFloat(paymentAmount));
     if (!selectedEmiForPayment || isNaN(amount) || amount <= 0 || !paymentDate) return;
 
     const customer = customersData?.find(c => c.id === selectedEmiForPayment.customerId);
@@ -176,18 +181,21 @@ export function CollectionList() {
     setIsSubmitting(true);
     const customerDocRef = doc(firestore!, 'customers', customer.id);
     
+    const currentTotalPaid = Math.round(customer.payments?.reduce((s, p) => s + p.amount, 0) || 0);
+    const newRemainingBalance = Math.round(customer.totalPayable - currentTotalPaid - amount);
+
     const newPayment: Payment = {
         paymentId: uuidv4(),
         date: paymentDate.toISOString(),
         amount: amount,
         mode: 'cash',
-        remainingBalance: customer.totalPayable - (customer.payments?.reduce((s, p) => s + p.amount, 0) || 0) - amount
+        remainingBalance: newRemainingBalance
     };
 
-    const isFullyPaid = newPayment.remainingBalance <= 0;
+    const isFullyPaid = newRemainingBalance <= 0;
     const updatePayload = {
         payments: arrayUnion(newPayment),
-        status: isFullyPaid ? 'completed' : (newPayment.remainingBalance < customer.totalPayable ? 'active' : customer.status)
+        status: isFullyPaid ? 'completed' : 'active'
     };
 
     updateDoc(customerDocRef, updatePayload).then(() => {
@@ -299,7 +307,7 @@ export function CollectionList() {
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Record Payment: {selectedEmiForPayment?.customerName}</AlertDialogTitle>
-                <AlertDialogDescription>Enter the amount collected. Arrears are prioritized first (FIFO).</AlertDialogDescription>
+                <AlertDialogDescription>Enter the amount collected. Arrears are prioritize first.</AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">

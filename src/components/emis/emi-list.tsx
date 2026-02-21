@@ -1,12 +1,9 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, parseISO, startOfMonth, isBefore } from "date-fns";
-import Link from 'next/link';
-import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -33,7 +30,7 @@ type EmiDetail = {
     status: EmiStatus;
 };
 
-const formatCurrency = (amount: number) => amount.toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
+const formatCurrency = (amount: number) => Math.round(amount).toLocaleString('en-IN', { maximumFractionDigits: 0, style: 'currency', currency: 'INR' });
 
 export function EmiList() {
   const { user } = useAuth();
@@ -54,7 +51,7 @@ export function EmiList() {
   const processedLoans = useMemo(() => {
     return customers.map(customer => {
         const emis: EmiDetail[] = [];
-        const totalPaid = customer.payments?.reduce((s, p) => s + p.amount, 0) || 0;
+        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + p.amount, 0) || 0);
         let remainingToAllocate = totalPaid;
 
         for (let i = 1; i <= customer.duration; i++) {

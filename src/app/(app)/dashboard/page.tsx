@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -10,14 +9,14 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, Users, TrendingUp, HandCoins, Loader2, Receipt, ListChecks, Award, ChevronLeft, ChevronRight, Hourglass, FilePlus } from "lucide-react";
+import { DollarSign, Users, TrendingUp, Loader2, Receipt, Award, ChevronLeft, ChevronRight } from "lucide-react";
 import { MonthlyCollectionChart, MonthlyCountChart } from "@/components/reports/charts";
 import { Separator } from "@/components/ui/separator";
 import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, addMonths, format, isSameMonth, parseISO, differenceInMonths } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 import { Button } from "@/components/ui/button";
@@ -93,28 +92,39 @@ export default function DashboardPage() {
     let completingFiles = 0;
     let completedFiles = 0;
 
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+
     customers.filter(c => c.status !== 'pending').forEach(customer => {
         const startDate = parseISO(customer.startDate);
         const monthlyEmi = customer.monthlyEMI;
-        const totalPaid = customer.payments?.reduce((s, p) => s + p.amount, 0) || 0;
+        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + p.amount, 0) || 0);
         
-        // Calculate cumulative target by END of selected month
-        const monthsUntilEnd = Math.max(0, differenceInMonths(endOfMonth(currentMonth), startDate));
-        const cumulativeTarget = Math.min(customer.totalPayable, monthsUntilEnd * monthlyEmi);
-        
-        // Calculate cumulative target by START of selected month (to find arrears)
-        const monthsUntilStart = Math.max(0, differenceInMonths(startOfMonth(currentMonth), startDate));
-        const pastTarget = Math.min(customer.totalPayable, monthsUntilStart * monthlyEmi);
-        
-        const arrears = Math.max(0, pastTarget - totalPaid);
-        const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, customer.totalPayable - totalPaid - arrears));
+        let expectedSoFar = 0;
+        let expectedBeforeThisMonth = 0;
+
+        for (let i = 1; i <= customer.duration; i++) {
+            const emiDueDate = addMonths(startDate, i);
+            if (isBefore(emiDueDate, monthStart)) {
+                expectedBeforeThisMonth += monthlyEmi;
+            }
+            if (isBefore(emiDueDate, monthEnd)) {
+                expectedSoFar += monthlyEmi;
+            }
+        }
+
+        expectedSoFar = Math.min(expectedSoFar, customer.totalPayable);
+        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, customer.totalPayable);
+
+        const arrears = Math.max(0, expectedBeforeThisMonth - totalPaid);
+        const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - Math.max(totalPaid, expectedBeforeThisMonth)));
         const totalDueThisMonth = arrears + currentMonthTarget;
 
-        if (totalDueThisMonth > 0 || totalPaid >= pastTarget + currentMonthTarget) {
+        if (totalDueThisMonth > 0) {
             expectedAmount += totalDueThisMonth;
             expectedCount += 1;
             
-            const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - pastTarget));
+            const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - (expectedBeforeThisMonth - arrears)));
             collectedAmount += paidTowardsThisMonth;
             if (paidTowardsThisMonth >= totalDueThisMonth) collectedCount++;
         }
@@ -123,7 +133,7 @@ export default function DashboardPage() {
         if (isSameMonth(addMonths(startDate, 1), currentMonth)) newFiles++;
 
         // Completing Files
-        const isLastMonth = monthsUntilEnd >= customer.duration;
+        const isLastMonth = isBefore(addMonths(startDate, customer.duration), monthEnd);
         if (isLastMonth) {
             completingFiles++;
             if (totalPaid >= customer.totalPayable) completedFiles++;
@@ -144,10 +154,10 @@ export default function DashboardPage() {
 
   if (isLoading || !user) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
-  const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
-  const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
-  const totalCommission = (customers || []).filter(c => c.status === 'completed' && c.commissionSettled).reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
+  const totalFinanced = Math.round((customers || []).reduce((acc, c) => acc + c.financedAmount, 0));
+  const totalInterest = Math.round((customers || []).reduce((acc, c) => acc + c.interestAmount, 0));
+  const totalExpenses = Math.round((expenses || []).reduce((acc, e) => acc + e.amount, 0));
+  const totalCommission = Math.round((customers || []).filter(c => c.status === 'completed' && c.commissionSettled).reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0));
   const profit = totalInterest - totalExpenses - totalCommission;
   const activeLoans = (customers || []).filter(c => c.status === 'active' || c.status === 'overdue').length;
 
