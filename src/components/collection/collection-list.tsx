@@ -4,9 +4,9 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth } from "date-fns";
+import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter } from "date-fns";
 import { Button } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -59,6 +59,8 @@ export function CollectionList() {
 
   const realCurrentMonth = startOfMonth(new Date());
   const isPastMonth = isBefore(currentMonth, realCurrentMonth);
+  const isCurrentMonth = isSameMonth(currentMonth, realCurrentMonth);
+  const isFutureMonth = isAfter(currentMonth, realCurrentMonth);
 
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -241,9 +243,9 @@ export function CollectionList() {
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 p-4 md:px-6 md:pt-6 border-b">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => startOfMonth(addMonths(prev, -1)))}><ChevronLeft className="h-4 w-4" /></Button>
                 <h2 className="text-xl font-bold text-primary w-48 text-center">{format(currentMonth, "MMMM yyyy")}</h2>
-                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}><ChevronRight className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => startOfMonth(addMonths(prev, 1)))}><ChevronRight className="h-4 w-4" /></Button>
             </div>
             <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -284,8 +286,8 @@ export function CollectionList() {
                 <Card className="bg-muted/50 border-none shadow-none">
                     <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase text-muted-foreground">Status</CardTitle></CardHeader>
                     <CardContent className="p-3 pt-1">
-                        <div className="text-sm font-medium">{isPastMonth ? "Historical View" : "Active Period"}</div>
-                        <div className="text-[10px] text-muted-foreground">{isPastMonth ? "Payments locked" : "Accepting payments"}</div>
+                        <div className="text-sm font-medium">{isPastMonth ? "Historical View" : isFutureMonth ? "Future Period" : "Active Period"}</div>
+                        <div className="text-[10px] text-muted-foreground">{isCurrentMonth ? "Accepting payments" : "Payments disabled"}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -304,13 +306,16 @@ export function CollectionList() {
                         {emi.isPartiallyPaid && <Badge className="bg-orange-500 h-5 text-[10px]">Partial</Badge>}
                     </div>
                 </div>
-                {!emi.isPaidInFullForMonth && !isPastMonth && (
+                {!emi.isPaidInFullForMonth && isCurrentMonth && (
                     <Button size="sm" className="h-8 px-3" onClick={() => handleOpenPayment(emi)}>Pay</Button>
                 )}
-                {isPastMonth && !emi.isPaidInFullForMonth && (
-                    <div className="text-[10px] font-bold text-destructive flex items-center gap-1 uppercase mt-2">
-                        <AlertCircle className="h-3 w-3" />
-                        Missed
+                {!emi.isPaidInFullForMonth && !isCurrentMonth && (
+                    <div className="text-[10px] font-bold flex items-center gap-1 uppercase mt-2">
+                        {isPastMonth ? (
+                            <span className="text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Missed</span>
+                        ) : (
+                            <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Upcoming</span>
+                        )}
                     </div>
                 )}
             </CardHeader>
