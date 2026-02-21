@@ -1,10 +1,9 @@
-
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell, Line, LineChart, Label } from "recharts"
 import { ChartTooltip, ChartTooltipContent, ChartContainer, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import type { Customer, Expense, WithId } from "@/types"
-import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore, isSameMonth } from "date-fns"
+import { format, parseISO, addMonths, eachMonthOfInterval, startOfMonth, endOfMonth, isBefore, isSameMonth, isAfter } from "date-fns"
 
 // --- Monthly Collection Chart ---
 export function CollectionChart({ customers, height, selectedMonth }: { customers: WithId<Customer>[], height?: number, selectedMonth?: Date }) {
@@ -15,19 +14,18 @@ export function CollectionChart({ customers, height, selectedMonth }: { customer
     // Calculate expected collections
     const loanMonths = eachMonthOfInterval({ start: startDate, end: endDate });
     loanMonths.forEach((monthDate, index) => {
-      // The first month in the interval is the start date's month, but the first EMI is due after one month.
       if (index > 0) { 
         const monthKey = format(monthDate, "MMM yyyy");
         acc[monthKey] = acc[monthKey] || { expected: 0, actual: 0 };
-        acc[monthKey].expected += customer.monthlyEMI;
+        acc[monthKey].expected += Math.round(customer.monthlyEMI);
       }
     });
 
-    // Calculate actual collections
+    // Calculate actual collections based on cashflow date
     (customer.payments || []).forEach(payment => {
       const monthKey = format(parseISO(payment.date), "MMM yyyy");
       acc[monthKey] = acc[monthKey] || { expected: 0, actual: 0 };
-      acc[monthKey].actual += payment.amount;
+      acc[monthKey].actual += Math.round(payment.amount);
     });
 
     return acc;
@@ -36,13 +34,12 @@ export function CollectionChart({ customers, height, selectedMonth }: { customer
   const collectionChartData = Object.entries(monthlyData)
     .map(([month, totals]) => ({ month, ...totals }))
     .sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime())
-    // Only show months that have occurred or are in progress
     .filter(d => isBefore(new Date(d.month), endOfMonth(new Date())));
 
 
   const chartConfig = {
-    actual: { label: "Actual", color: "hsl(var(--chart-1))" },
-    expected: { label: "Expected", color: "hsl(var(--chart-2))" },
+    actual: { label: "Actual Cashflow", color: "hsl(var(--chart-1))" },
+    expected: { label: "Target Amount", color: "hsl(var(--chart-2))" },
   };
 
   return (
@@ -79,7 +76,6 @@ export function CollectionCountChart({ customers, height, selectedMonth }: { cus
     const startDate = parseISO(customer.startDate);
     const endDate = addMonths(startDate, customer.duration);
 
-    // Calculate expected collection counts
     const loanMonths = eachMonthOfInterval({ start: startDate, end: endDate });
     loanMonths.forEach((monthDate, index) => {
       if (index > 0) {
@@ -89,11 +85,15 @@ export function CollectionCountChart({ customers, height, selectedMonth }: { cus
       }
     });
 
-    // Calculate actual collection counts
+    // Count customers who paid in this month
+    const paidInMonths = new Set<string>();
     (customer.payments || []).forEach(payment => {
-      const monthKey = format(parseISO(payment.date), "MMM yyyy");
-      acc[monthKey] = acc[monthKey] || { expected: 0, actual: 0 };
-      acc[monthKey].actual += 1;
+        paidInMonths.add(format(parseISO(payment.date), "MMM yyyy"));
+    });
+
+    paidInMonths.forEach(monthKey => {
+        acc[monthKey] = acc[monthKey] || { expected: 0, actual: 0 };
+        acc[monthKey].actual += 1;
     });
 
     return acc;
@@ -105,8 +105,8 @@ export function CollectionCountChart({ customers, height, selectedMonth }: { cus
     .filter(d => isBefore(new Date(d.month), endOfMonth(new Date())));
 
   const chartConfig = {
-    actual: { label: "Actual Count", color: "hsl(var(--chart-1))" },
-    expected: { label: "Expected Count", color: "hsl(var(--chart-2))" },
+    actual: { label: "Paying Customers", color: "hsl(var(--chart-1))" },
+    expected: { label: "Active Customers", color: "hsl(var(--chart-2))" },
   };
 
   return (
@@ -123,7 +123,7 @@ export function CollectionCountChart({ customers, height, selectedMonth }: { cus
         <YAxis tickFormatter={(value) => String(value)} />
         <ChartTooltip
             cursor={false}
-            content={<ChartTooltipContent formatter={(value, name) => `${value} EMIs`} />}
+            content={<ChartTooltipContent formatter={(value, name) => `${value} files`} />}
          />
         <ChartLegend />
         <Bar dataKey="actual" fill="var(--color-actual)" radius={4}>
@@ -140,12 +140,12 @@ export function CollectionCountChart({ customers, height, selectedMonth }: { cus
 
 // --- Profit Chart ---
 export function ProfitChart({ customers, expenses, isAdmin, height = 300 }: { customers: WithId<Customer>[], expenses?: WithId<Expense>[], isAdmin?: boolean, height?: number }) {
-    const totalInterest = (customers || []).reduce((acc, c) => acc + c.interestAmount, 0);
-    const totalFinanced = (customers || []).reduce((acc, c) => acc + c.financedAmount, 0);
-    const totalExpenses = (expenses || []).reduce((acc, e) => acc + e.amount, 0);
+    const totalInterest = (customers || []).reduce((acc, c) => acc + Math.round(c.interestAmount), 0);
+    const totalFinanced = (customers || []).reduce((acc, c) => acc + Math.round(c.financedAmount), 0);
+    const totalExpenses = (expenses || []).reduce((acc, e) => acc + Math.round(e.amount), 0);
     const totalCommission = (customers || [])
         .filter(c => c.status === 'completed')
-        .reduce((acc, c) => acc + (c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
+        .reduce((acc, c) => acc + Math.round(c.interestAmount * (c.agentCommissionRate || 0) / 100), 0);
 
     const profitChartData = [
         {
@@ -222,7 +222,7 @@ export function LoanStatusChart({ customers, height = 200 }: { customers: WithId
 // --- Expense by Type Chart ---
 export function ExpenseByTypeChart({ expenses, height = 300 }: { expenses: WithId<Expense>[], height?: number }) {
   const expenseData = (expenses || []).reduce((acc, expense) => {
-    acc[expense.type] = (acc[expense.type] || 0) + expense.amount;
+    acc[expense.type] = (acc[expense.type] || 0) + Math.round(expense.amount);
     return acc;
   }, {} as Record<string, number>);
 
@@ -331,7 +331,7 @@ export function AgentCommissionChart({ customers, height = 350 }: { customers: W
     .reduce((acc, customer) => {
         const lastPayment = customer.payments[customer.payments.length - 1];
         const monthKey = format(startOfMonth(parseISO(lastPayment.date)), "MMM yyyy");
-        const commissionAmount = customer.interestAmount * (customer.agentCommissionRate || 0) / 100;
+        const commissionAmount = Math.round(customer.interestAmount * (customer.agentCommissionRate || 0) / 100);
         acc[monthKey] = (acc[monthKey] || 0) + commissionAmount;
         return acc;
     }, {} as Record<string, number>);
@@ -373,13 +373,13 @@ export function CapitalFlowChart({ customers, height = 350 }: { customers: WithI
     // Outflow: New loan financed
     const startMonthKey = format(startOfMonth(parseISO(customer.startDate)), "MMM yyyy");
     acc[startMonthKey] = acc[startMonthKey] || { collected: 0, financed: 0 };
-    acc[startMonthKey].financed += customer.financedAmount;
+    acc[startMonthKey].financed += Math.round(customer.financedAmount);
 
-    // Inflow: Payments collected
+    // Inflow: Payments collected based on payment date
     (customer.payments || []).forEach(payment => {
       const paymentMonthKey = format(startOfMonth(parseISO(payment.date)), "MMM yyyy");
       acc[paymentMonthKey] = acc[paymentMonthKey] || { collected: 0, financed: 0 };
-      acc[paymentMonthKey].collected += payment.amount;
+      acc[paymentMonthKey].collected += Math.round(payment.amount);
     });
 
     return acc;
@@ -441,8 +441,8 @@ export function MonthlyCollectionChart({ stats }: { stats: { collectedAmount: nu
   ];
 
   const chartConfig = {
-    collected: { label: 'Collected', color: 'hsl(var(--chart-1))' },
-    expected: { label: 'Expected', color: 'hsl(var(--chart-2))' },
+    collected: { label: 'Cash Collected', color: 'hsl(var(--chart-1))' },
+    expected: { label: 'Total Target', color: 'hsl(var(--chart-2))' },
   };
 
   return (
@@ -465,12 +465,12 @@ export function MonthlyCollectionChart({ stats }: { stats: { collectedAmount: nu
 // --- Monthly EMI Bar Chart (Count) ---
 export function MonthlyCountChart({ stats }: { stats: { collectedCount: number; expectedCount: number } }) {
   const data = [
-    { name: 'EMIs', collected: stats.collectedCount, expected: stats.expectedCount },
+    { name: 'Files', collected: stats.collectedCount, expected: stats.expectedCount },
   ];
 
   const chartConfig = {
-    collected: { label: 'Collected', color: 'hsl(var(--chart-1))' },
-    expected: { label: 'Expected', color: 'hsl(var(--chart-2))' },
+    collected: { label: 'Files Settled', color: 'hsl(var(--chart-1))' },
+    expected: { label: 'Expected Files', color: 'hsl(var(--chart-2))' },
   };
 
   return (
@@ -480,7 +480,7 @@ export function MonthlyCountChart({ stats }: { stats: { collectedCount: number; 
         <YAxis type="category" dataKey="name" hide />
         <XAxis type="number" allowDecimals={false} />
         <ChartTooltip
-          content={<ChartTooltipContent formatter={(value) => `${value} EMIs`} />}
+          content={<ChartTooltipContent formatter={(value) => `${value} files`} />}
         />
         <ChartLegend />
         <Bar dataKey="collected" fill="var(--color-collected)" radius={4} />

@@ -16,7 +16,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth, isAfter } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 import { Button } from "@/components/ui/button";
@@ -99,8 +99,14 @@ export default function DashboardPage() {
         const startDate = parseISO(customer.startDate);
         const monthlyEmi = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
-        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         
+        // Cashflow calculation: money received in this month
+        const paidInThisMonth = Math.round(customer.payments?.filter(p => {
+            const pDate = parseISO(p.date);
+            return (isAfter(pDate, monthStart) || isSameMonth(pDate, monthStart)) && (isBefore(pDate, monthEnd) || isSameMonth(pDate, monthEnd));
+        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+
         let expectedSoFar = 0;
         let expectedBeforeThisMonth = 0;
 
@@ -117,27 +123,29 @@ export default function DashboardPage() {
         expectedSoFar = Math.min(expectedSoFar, totalPayable);
         expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
 
-        const arrears = Math.max(0, expectedBeforeThisMonth - totalPaid);
-        const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - Math.max(totalPaid, expectedBeforeThisMonth)));
+        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const arrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
+        const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - expectedBeforeThisMonth));
         const totalDueThisMonth = arrears + currentMonthTarget;
 
-        if (totalDueThisMonth > 0) {
+        if (totalDueThisMonth > 0 || paidInThisMonth > 0) {
             expectedAmount += totalDueThisMonth;
-            expectedCount += 1;
+            if (totalDueThisMonth > 0) expectedCount += 1;
             
-            const paidTowardsThisMonth = Math.max(0, Math.min(totalDueThisMonth, totalPaid - (expectedBeforeThisMonth - arrears)));
-            collectedAmount += paidTowardsThisMonth;
-            if (paidTowardsThisMonth >= totalDueThisMonth) collectedCount++;
+            collectedAmount += paidInThisMonth;
+            
+            // Ledger-based count: did the customer settle their debt for this month?
+            if (totalPaidAllTime >= expectedSoFar && totalDueThisMonth > 0) collectedCount++;
         }
 
-        // New Files: First EMI due this month
-        if (isSameMonth(addMonths(startDate, 1), currentMonth)) newFiles++;
+        // New Files: Start date within this month
+        if (isSameMonth(startDate, currentMonth)) newFiles++;
 
         // Completing Files
-        const isLastMonth = isBefore(addMonths(startDate, customer.duration), monthEnd);
-        if (isLastMonth) {
+        const isLastMonthOfTerm = isSameMonth(addMonths(startDate, customer.duration), currentMonth);
+        if (isLastMonthOfTerm) {
             completingFiles++;
-            if (totalPaid >= totalPayable) completedFiles++;
+            if (totalPaidAllTime >= totalPayable) completedFiles++;
         }
     });
 
@@ -206,7 +214,7 @@ export default function DashboardPage() {
       <Card className="border-primary/20 shadow-sm">
         <CardHeader>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance based on dynamic arrears calculation.</CardDescription></div>
+                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Collection performance based on cash received vs. total targets.</CardDescription></div>
                 <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
                     <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
                     <div className="text-sm font-semibold w-32 text-center text-primary">{format(currentMonth, "MMMM yyyy")}</div>
@@ -217,10 +225,10 @@ export default function DashboardPage() {
         <CardContent>
              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-6">
                 <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Monthly Collection</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{formatValue(monthlyStats.collectedAmount)} / {formatValue(monthlyStats.expectedAmount)}</div></CardContent></Card>
-                <Card className="bg-destructive/5 border-destructive/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Pending Balance</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-destructive"><div className="text-lg font-bold">{formatValue(monthlyStats.pendingAmount)}</div></CardContent></Card>
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">EMIs Collected</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.collectedCount} / {monthlyStats.expectedCount}</div></CardContent></Card>
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Files Completed</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.completedFiles} / {monthlyStats.completingFiles}</div></CardContent></Card>
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">New Files Start</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.newFiles}</div></CardContent></Card>
+                <Card className="bg-destructive/5 border-destructive/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Pending Shortfall</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-destructive"><div className="text-lg font-bold">{formatValue(monthlyStats.pendingAmount)}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Files Settled</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.collectedCount} / {monthlyStats.expectedCount}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Full Loans Completed</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.completedFiles} / {monthlyStats.completingFiles}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">New Files Started</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.newFiles}</div></CardContent></Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
