@@ -28,14 +28,15 @@ import {
 } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, Loader2, Info } from "lucide-react";
+import { format, addMonths } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { useDoc, useFirestore } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { Customer } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { errorEmitter, FirestorePermissionError } from "@/firebase";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   customerName: z.string().min(2, "Name must be at least 2 characters."),
@@ -78,9 +79,9 @@ export function AddCustomerForm() {
     },
   });
 
-  const [totalPrice, downPayment, interestType, interestValue, duration] = useWatch({
+  const [totalPrice, downPayment, interestType, interestValue, duration, watchedStartDate] = useWatch({
     control: form.control,
-    name: ["totalPrice", "downPayment", "interestType", "interestValue", "duration"],
+    name: ["totalPrice", "downPayment", "interestType", "interestValue", "duration", "startDate"],
   });
 
   const [financedAmount, setFinancedAmount] = useState(0);
@@ -180,6 +181,7 @@ export function AddCustomerForm() {
   }
 
   const interestTypeLabel = form.watch("interestType") === "percentage" ? "Interest (%)" : "Interest (₹)";
+  const firstEmiDate = watchedStartDate ? addMonths(watchedStartDate, 1) : null;
 
   return (
     <Form {...form}>
@@ -268,6 +270,14 @@ export function AddCustomerForm() {
                 <FormMessage />
               </FormItem>
             )} />
+            <div className="space-y-2">
+              <Label className="text-primary font-semibold">First EMI Date</Label>
+              <div className="h-10 px-3 py-2 rounded-md border border-primary/20 bg-primary/5 text-primary text-sm flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                {firstEmiDate ? format(firstEmiDate, "dd MMM yyyy") : "Select start date"}
+              </div>
+              <p className="text-[0.8rem] text-muted-foreground">The first EMI is automatically scheduled one month after start.</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -292,5 +302,3 @@ export function AddCustomerForm() {
     </Form>
   );
 }
-
-    
