@@ -28,8 +28,8 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
         const monthStart = startOfMonth(today);
 
         let expectedSoFar = 0;
-        // Loop from Month 0: EMI #1 is due in the month of start.
-        for (let i = 0; i < customer.duration; i++) {
+        // Loop from Month 1 based on latest logic: EMI #1 is due in the month AFTER start.
+        for (let i = 1; i <= customer.duration; i++) {
             const emiDate = addMonths(startDate, i);
             if (isBefore(startOfMonth(emiDate), monthStart)) {
                 expectedSoFar += monthlyEmi;

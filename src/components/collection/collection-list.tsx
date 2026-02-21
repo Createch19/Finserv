@@ -96,8 +96,8 @@ export function CollectionList() {
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        // Loop from Month 0 based on GANESAN logic: EMI #1 is due in the month of start.
-        for (let i = 0; i < customer.duration; i++) {
+        // Loop from Month 1: EMI #1 is due in the month AFTER start.
+        for (let i = 1; i <= customer.duration; i++) {
             const dueDate = addMonths(startDate, i);
             if (isBefore(startOfMonth(dueDate), monthStart)) expectedBeforeThisMonth += monthlyEmi;
             if (isBefore(startOfMonth(dueDate), monthEnd) || isSameMonth(dueDate, monthEnd)) expectedByEndOfMonth += monthlyEmi;
@@ -113,7 +113,8 @@ export function CollectionList() {
         const isPaidInFullForMonth = (paidBeforeThisMonth + paidThisMonth) >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && (paidBeforeThisMonth + paidThisMonth) > expectedBeforeThisMonth;
 
-        const wasActive = isBefore(startOfMonth(startDate), monthEnd) || isSameMonth(startDate, monthEnd);
+        // A loan was active for this collection period if Month 1 was on or before the current end of month
+        const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(addMonths(startDate, 1), monthEnd);
         const hasBalance = totalPaidAllTime < totalPayable;
 
         if (wasActive && (hasBalance || paidThisMonth > 0)) {

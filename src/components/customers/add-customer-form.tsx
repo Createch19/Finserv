@@ -180,8 +180,8 @@ export function AddCustomerForm() {
       });
   }
 
-  // Based on GANESAN logic: Month 0 is the first EMI month.
-  const firstEmiDate = watchedStartDate ? watchedStartDate : null;
+  // EMI #1 is due the month AFTER start.
+  const firstEmiDate = watchedStartDate ? addMonths(watchedStartDate, 1) : null;
 
   return (
     <Form {...form}>
@@ -253,7 +253,7 @@ export function AddCustomerForm() {
               <FormItem><FormLabel>Duration (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="startDate" render={({ field }) => (
-              <FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel>
+              <FormItem className="flex flex-col"><FormLabel>Financing Date (Start Month)</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
@@ -271,12 +271,12 @@ export function AddCustomerForm() {
               </FormItem>
             )} />
             <div className="space-y-2">
-              <Label className="text-primary font-semibold">First EMI Date</Label>
+              <Label className="text-primary font-semibold">First EMI Due Date</Label>
               <div className="h-10 px-3 py-2 rounded-md border border-primary/20 bg-primary/5 text-primary text-sm flex items-center gap-2">
                 <Info className="h-4 w-4" />
                 {firstEmiDate ? format(firstEmiDate, "dd MMM yyyy") : "Select start date"}
               </div>
-              <p className="text-[0.8rem] text-muted-foreground">The first EMI is scheduled within the month of financing.</p>
+              <p className="text-[0.8rem] text-muted-foreground">The first EMI is scheduled one month after financing.</p>
             </div>
           </CardContent>
         </Card>

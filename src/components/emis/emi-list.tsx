@@ -56,8 +56,8 @@ export function EmiList() {
         const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         let remainingToAllocate = totalPaid;
 
-        // Loop from Month 0: EMI #1 is due in the month of start.
-        for (let i = 0; i < customer.duration; i++) {
+        // Loop from Month 1 based on latest logic: EMI #1 is due in the month AFTER start.
+        for (let i = 1; i <= customer.duration; i++) {
             const dueDate = addMonths(parseISO(customer.startDate), i);
             const amount = monthlyEmi;
             const paidForThisEmi = Math.min(amount, Math.max(0, remainingToAllocate));
@@ -68,7 +68,7 @@ export function EmiList() {
             else if (paidForThisEmi > 0) status = "partial";
             else if (isBeforeToday(dueDate)) status = "due";
 
-            emis.push({ number: i + 1, dueDate, amount, paidAmount: paidForThisEmi, status });
+            emis.push({ number: i, dueDate, amount, paidAmount: paidForThisEmi, status });
         }
 
         return { ...customer, emis, totalPaid, totalPayable };
