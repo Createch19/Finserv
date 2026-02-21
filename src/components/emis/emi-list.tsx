@@ -51,12 +51,14 @@ export function EmiList() {
   const processedLoans = useMemo(() => {
     return customers.map(customer => {
         const emis: EmiDetail[] = [];
-        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + p.amount, 0) || 0);
+        const monthlyEmi = Math.round(customer.monthlyEMI);
+        const totalPayable = Math.round(customer.totalPayable);
+        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         let remainingToAllocate = totalPaid;
 
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = addMonths(parseISO(customer.startDate), i);
-            const amount = customer.monthlyEMI;
+            const amount = monthlyEmi;
             const paidForThisEmi = Math.min(amount, Math.max(0, remainingToAllocate));
             remainingToAllocate -= paidForThisEmi;
 
@@ -68,7 +70,7 @@ export function EmiList() {
             emis.push({ number: i, dueDate, amount, paidAmount: paidForThisEmi, status });
         }
 
-        return { ...customer, emis, totalPaid };
+        return { ...customer, emis, totalPaid, totalPayable };
     }).filter(loan => {
         const searchMatch = loan.name.toLowerCase().includes(searchTerm.toLowerCase()) || loan.phoneModel.toLowerCase().includes(searchTerm.toLowerCase());
         const statusMatch = statusFilter === 'all' || loan.status === statusFilter;

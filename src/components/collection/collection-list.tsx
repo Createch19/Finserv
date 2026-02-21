@@ -80,8 +80,9 @@ export function CollectionList() {
 
     customers.forEach(customer => {
         const startDate = parseISO(customer.startDate);
-        const monthlyEmi = customer.monthlyEMI;
-        const totalPaid = Math.round(customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0);
+        const monthlyEmi = Math.round(customer.monthlyEMI);
+        const totalPayable = Math.round(customer.totalPayable);
+        const totalPaid = Math.round(customer.payments?.reduce((sum, p) => sum + Math.round(p.amount), 0) || 0);
         
         let expectedSoFar = 0;
         let expectedBeforeThisMonth = 0;
@@ -98,8 +99,8 @@ export function CollectionList() {
             }
         }
 
-        expectedSoFar = Math.min(expectedSoFar, customer.totalPayable);
-        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, customer.totalPayable);
+        expectedSoFar = Math.min(expectedSoFar, totalPayable);
+        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
 
         const arrears = Math.max(0, expectedBeforeThisMonth - totalPaid);
         const currentEmiTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - Math.max(totalPaid, expectedBeforeThisMonth)));
@@ -116,7 +117,7 @@ export function CollectionList() {
         const isLastMonth = isBefore(addMonths(startDate, customer.duration), monthEnd);
         if (isLastMonth) {
             completingFiles++;
-            if (totalPaid >= customer.totalPayable) completedFiles++;
+            if (totalPaid >= totalPayable) completedFiles++;
         }
 
         if (totalDueThisMonth > 0 || isPaidInFullForMonth || isPartiallyPaid) {
@@ -130,7 +131,7 @@ export function CollectionList() {
                 totalPaidForThisFile: totalPaid,
                 isPaidInFullForMonth,
                 isPartiallyPaid,
-                remainingBalance: Math.round(customer.totalPayable - totalPaid),
+                remainingBalance: Math.max(0, totalPayable - totalPaid),
                 nextEmiNumber: Math.floor(totalPaid / monthlyEmi) + 1,
                 totalEmis: customer.duration
             });
@@ -140,9 +141,9 @@ export function CollectionList() {
     return {
         emis: allEntries,
         stats: {
-            expected: totalExpected,
-            actual: totalActual,
-            pending: totalExpected - totalActual,
+            expected: Math.round(totalExpected),
+            actual: Math.round(totalActual),
+            pending: Math.max(0, Math.round(totalExpected - totalActual)),
             collectedCount,
             expectedCount: allEntries.length,
             completingFiles,
@@ -173,7 +174,11 @@ export function CollectionList() {
     const customer = customersData?.find(c => c.id === selectedEmiForPayment.customerId);
     if (!customer) return;
 
-    if (amount > selectedEmiForPayment.remainingBalance) {
+    const totalPayable = Math.round(customer.totalPayable);
+    const currentTotalPaid = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+    const maxAllowed = Math.max(0, totalPayable - currentTotalPaid);
+
+    if (amount > maxAllowed) {
         toast({ variant: "destructive", title: "Invalid Amount", description: "You cannot collect more than the remaining loan balance." });
         return;
     }
@@ -181,8 +186,7 @@ export function CollectionList() {
     setIsSubmitting(true);
     const customerDocRef = doc(firestore!, 'customers', customer.id);
     
-    const currentTotalPaid = Math.round(customer.payments?.reduce((s, p) => s + p.amount, 0) || 0);
-    const newRemainingBalance = Math.round(customer.totalPayable - currentTotalPaid - amount);
+    const newRemainingBalance = Math.max(0, totalPayable - currentTotalPaid - amount);
 
     const newPayment: Payment = {
         paymentId: uuidv4(),
@@ -195,7 +199,7 @@ export function CollectionList() {
     const isFullyPaid = newRemainingBalance <= 0;
     const updatePayload = {
         payments: arrayUnion(newPayment),
-        status: isFullyPaid ? 'completed' : 'active'
+        status: isFullyPaid ? 'completed' : (customer.status === 'pending' ? 'active' : customer.status)
     };
 
     updateDoc(customerDocRef, updatePayload).then(() => {
@@ -307,7 +311,7 @@ export function CollectionList() {
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Record Payment: {selectedEmiForPayment?.customerName}</AlertDialogTitle>
-                <AlertDialogDescription>Enter the amount collected. Arrears are prioritize first.</AlertDialogDescription>
+                <AlertDialogDescription>Enter the amount collected. Arrears are prioritized first.</AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">

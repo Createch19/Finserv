@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -107,10 +106,10 @@ export function AddCustomerForm() {
     const payable = financed + totalInterest;
     const emi = numDuration > 0 ? payable / numDuration : 0;
 
-    setFinancedAmount(financed);
-    setInterestAmount(totalInterest);
-    setTotalPayable(payable);
-    setMonthlyEMI(emi);
+    setFinancedAmount(Math.round(financed));
+    setInterestAmount(Math.round(totalInterest));
+    setTotalPayable(Math.round(payable));
+    setMonthlyEMI(Math.round(emi));
   }, [totalPrice, downPayment, interestType, interestValue, duration]);
   
 
@@ -130,21 +129,22 @@ export function AddCustomerForm() {
     const newCustomerDocRef = doc(firestore, "customers", customerId);
     
     const finalMonthlyEMI = Math.round(monthlyEMI);
+    const finalTotalPayable = Math.round(totalPayable);
     const agentCommissionRate = defaultSettings?.agentCommissionRate || 10;
 
     const newCustomer: Customer = {
       customerId: customerId,
-      companyId: user.companyId, // Add companyId from logged-in user
+      companyId: user.companyId, 
       name: values.customerName,
       phone: values.phoneNumber,
       address: values.address,
       aadhar: values.aadhar,
       phoneModel: values.phoneModel,
-      totalPrice: values.totalPrice,
-      downPayment: values.downPayment,
-      financedAmount,
-      interestAmount,
-      totalPayable,
+      totalPrice: Math.round(values.totalPrice),
+      downPayment: Math.round(values.downPayment),
+      financedAmount: Math.round(financedAmount),
+      interestAmount: Math.round(interestAmount),
+      totalPayable: finalTotalPayable,
       duration: values.duration,
       monthlyEMI: finalMonthlyEMI,
       startDate: values.startDate.toISOString(),
@@ -285,10 +285,10 @@ export function AddCustomerForm() {
             <CardHeader><CardTitle className="font-headline">Summary</CardTitle></CardHeader>
             <CardContent>
                 <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span>Financed Amount:</span> <span className="font-medium">₹{financedAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
-                    <div className="flex justify-between"><span>Total Interest:</span> <span className="font-medium">₹{interestAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
-                    <div className="flex justify-between"><span>Total Payable:</span> <span className="font-medium">₹{totalPayable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
-                    <div className="flex justify-between text-base font-semibold text-primary"><span>Monthly EMI:</span> <span>₹{monthlyEMI.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                    <div className="flex justify-between"><span>Financed Amount:</span> <span className="font-medium">₹{financedAmount.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span>Total Interest:</span> <span className="font-medium">₹{interestAmount.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span>Total Payable:</span> <span className="font-medium">₹{totalPayable.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-base font-semibold text-primary"><span>Monthly EMI:</span> <span>₹{monthlyEMI.toLocaleString()}</span></div>
                 </div>
             </CardContent>
             <CardFooter>

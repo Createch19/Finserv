@@ -18,8 +18,10 @@ const formatCurrency = (amount: number) => `₹${Math.round(amount).toLocaleStri
 
 export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const loanSummary = useMemo(() => {
-        const totalPaid = Math.round(customer.payments?.reduce((acc, p) => acc + p.amount, 0) || 0);
-        const remainingBalance = Math.round(customer.totalPayable - totalPaid);
+        const monthlyEmi = Math.round(customer.monthlyEMI);
+        const totalPayable = Math.round(customer.totalPayable);
+        const totalPaid = Math.round(customer.payments?.reduce((acc, p) => acc + Math.round(p.amount), 0) || 0);
+        const remainingBalance = Math.max(0, totalPayable - totalPaid);
         
         const startDate = parseISO(customer.startDate);
         const today = new Date();
@@ -29,11 +31,11 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
         for (let i = 1; i <= customer.duration; i++) {
             const emiDate = addMonths(startDate, i);
             if (isBefore(emiDate, monthStart)) {
-                expectedSoFar += customer.monthlyEMI;
+                expectedSoFar += monthlyEmi;
             }
         }
         
-        expectedSoFar = Math.min(expectedSoFar, customer.totalPayable);
+        expectedSoFar = Math.min(expectedSoFar, totalPayable);
         const arrears = Math.max(0, expectedSoFar - totalPaid);
         const advance = Math.max(0, totalPaid - expectedSoFar);
 

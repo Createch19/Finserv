@@ -97,8 +97,9 @@ export default function DashboardPage() {
 
     customers.filter(c => c.status !== 'pending').forEach(customer => {
         const startDate = parseISO(customer.startDate);
-        const monthlyEmi = customer.monthlyEMI;
-        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + p.amount, 0) || 0);
+        const monthlyEmi = Math.round(customer.monthlyEMI);
+        const totalPayable = Math.round(customer.totalPayable);
+        const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         
         let expectedSoFar = 0;
         let expectedBeforeThisMonth = 0;
@@ -113,8 +114,8 @@ export default function DashboardPage() {
             }
         }
 
-        expectedSoFar = Math.min(expectedSoFar, customer.totalPayable);
-        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, customer.totalPayable);
+        expectedSoFar = Math.min(expectedSoFar, totalPayable);
+        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
 
         const arrears = Math.max(0, expectedBeforeThisMonth - totalPaid);
         const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - Math.max(totalPaid, expectedBeforeThisMonth)));
@@ -136,16 +137,16 @@ export default function DashboardPage() {
         const isLastMonth = isBefore(addMonths(startDate, customer.duration), monthEnd);
         if (isLastMonth) {
             completingFiles++;
-            if (totalPaid >= customer.totalPayable) completedFiles++;
+            if (totalPaid >= totalPayable) completedFiles++;
         }
     });
 
     return {
-        expectedAmount,
+        expectedAmount: Math.round(expectedAmount),
         expectedCount,
-        collectedAmount,
+        collectedAmount: Math.round(collectedAmount),
         collectedCount,
-        pendingAmount: expectedAmount - collectedAmount,
+        pendingAmount: Math.max(0, Math.round(expectedAmount - collectedAmount)),
         newFiles,
         completingFiles,
         completedFiles,
