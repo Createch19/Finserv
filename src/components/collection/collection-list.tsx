@@ -2,11 +2,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter } from "date-fns";
+import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth } from "date-fns";
 import { Button } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, Search, History, AlertCircle, Info } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, Search, History, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -86,34 +86,31 @@ export function CollectionList() {
     const monthEnd = endOfMonth(currentMonth);
 
     customers.forEach(customer => {
-        const startDate = parseISO(customer.startDate);
+        const startDate = startOfMonth(parseISO(customer.startDate));
         const emiAmount = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        // Cashflow received specifically within THIS calendar month
-        const paidThisMonth = Math.round(customer.payments?.filter(p => {
+        // Cumulative calculations
+        const payments = customer.payments || [];
+        const paidThisMonth = Math.round(payments.filter(p => {
             const pDate = parseISO(p.date);
             return (pDate >= monthStart && pDate <= monthEnd);
-        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        }).reduce((s, p) => s + Math.round(p.amount), 0));
 
-        // Total amount paid BEFORE the start of this month
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        
-        // Total amount paid up to END of this month
-        const totalPaidToDate = paidBeforeThisMonth + paidThisMonth;
+        const paidBeforeThisMonth = Math.round(payments.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0));
+        const totalPaidToDate = payments.reduce((s, p) => s + Math.round(p.amount), 0);
+        const totalPaidByEndOfSelectedMonth = paidBeforeThisMonth + paidThisMonth;
 
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        // Logic: EMI #1 is due month AFTER start
+        // Logic: EMI #1 is due 1 month after start
         for (let i = 1; i <= customer.duration; i++) {
-            const dueDate = addMonths(startDate, i);
-            const dueMonthStart = startOfMonth(dueDate);
-            
-            if (isBefore(dueMonthStart, monthStart)) {
+            const dueDate = startOfMonth(addMonths(startDate, i));
+            if (isBefore(dueDate, monthStart)) {
                 expectedBeforeThisMonth += emiAmount;
             }
-            if (isBefore(dueMonthStart, monthEnd) || isSameMonth(dueMonthStart, monthEnd)) {
+            if (isBefore(dueDate, monthEnd) || isSameMonth(dueDate, monthEnd)) {
                 expectedByEndOfMonth += emiAmount;
             }
         }
@@ -125,11 +122,13 @@ export function CollectionList() {
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const totalNetTarget = openingArrears + monthlyTarget;
 
+        // Use live Total Paid to date for the "Settled" status tag
         const isPaidInFullForMonth = totalPaidToDate >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidToDate > expectedBeforeThisMonth;
-        const shortfallForThisFile = Math.max(0, totalNetTarget - paidThisMonth);
+        
+        // For stats, look at shortfall relative to the end of the selected month
+        const shortfallAtEndOfMonth = Math.max(0, expectedByEndOfMonth - totalPaidByEndOfSelectedMonth);
 
-        // A file is "Active" if its first EMI was due by the end of this month
         const isEmiDueByNow = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
         const hasRemainingBalance = paidBeforeThisMonth < totalPayable;
 
@@ -139,11 +138,11 @@ export function CollectionList() {
             
             if (totalNetTarget > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += monthlyTarget;
-                totalShortfall += shortfallForThisFile;
+                totalShortfall += shortfallAtEndOfMonth;
                 
                 if (totalNetTarget > 0) {
                     expectedCount++;
-                    if (isPaidInFullForMonth) collectedCount++;
+                    if (totalPaidByEndOfSelectedMonth >= expectedByEndOfMonth) collectedCount++;
                 }
 
                 allEntries.push({

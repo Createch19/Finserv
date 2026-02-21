@@ -97,29 +97,28 @@ export default function DashboardPage() {
     const monthEnd = endOfMonth(currentMonth);
 
     customers.filter(c => c.status !== 'pending').forEach(customer => {
-        const startDate = parseISO(customer.startDate);
+        const startDate = startOfMonth(parseISO(customer.startDate));
         const emiAmount = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        const paidThisMonth = Math.round(customer.payments?.filter(p => {
+        const payments = customer.payments || [];
+        const paidThisMonth = Math.round(payments.filter(p => {
             const pDate = parseISO(p.date);
             return (pDate >= monthStart && pDate <= monthEnd);
-        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        }).reduce((s, p) => s + Math.round(p.amount), 0));
 
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        const totalPaidToDate = paidBeforeThisMonth + paidThisMonth;
+        const paidBeforeThisMonth = Math.round(payments.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0));
+        const totalPaidByEndOfSelectedMonth = paidBeforeThisMonth + paidThisMonth;
 
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
         for (let i = 1; i <= customer.duration; i++) {
-            const dueDate = addMonths(startDate, i);
-            const dueMonthStart = startOfMonth(dueDate);
-            
-            if (isBefore(dueMonthStart, monthStart)) {
+            const dueDate = startOfMonth(addMonths(startDate, i));
+            if (isBefore(dueDate, monthStart)) {
                 expectedBeforeThisMonth += emiAmount;
             }
-            if (isBefore(dueMonthStart, monthEnd) || isSameMonth(dueMonthStart, monthEnd)) {
+            if (isBefore(dueDate, monthEnd) || isSameMonth(dueDate, monthEnd)) {
                 expectedByEndOfMonth += emiAmount;
             }
         }
@@ -130,26 +129,27 @@ export default function DashboardPage() {
         const openingArrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const totalNetTarget = openingArrears + monthlyTarget;
+        const shortfallAtEndOfMonth = Math.max(0, expectedByEndOfMonth - totalPaidByEndOfSelectedMonth);
 
-        const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
+        const isEmiDueByNow = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
         const hasBalance = paidBeforeThisMonth < totalPayable;
 
-        if (wasActive && (hasBalance || paidThisMonth > 0)) {
+        if (isEmiDueByNow && (hasBalance || paidThisMonth > 0)) {
             totalActualCollectedInMonth += paidThisMonth;
             
             if (totalNetTarget > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += monthlyTarget;
                 totalOpeningArrears += openingArrears;
-                totalShortfall += Math.max(0, totalNetTarget - paidThisMonth);
+                totalShortfall += shortfallAtEndOfMonth;
                 
                 if (totalNetTarget > 0) {
                     expectedCount++;
-                    if (totalPaidToDate >= expectedByEndOfMonth) collectedCount++;
+                    if (totalPaidByEndOfSelectedMonth >= expectedByEndOfMonth) collectedCount++;
                 }
             }
         }
 
-        if (isSameMonth(startDate, currentMonth)) newFiles++;
+        if (isSameMonth(parseISO(customer.startDate), currentMonth)) newFiles++;
     });
 
     return {
