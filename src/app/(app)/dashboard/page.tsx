@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const monthlyStats = useMemo(() => {
     if (!customers) return { expectedAmount: 0, expectedCount: 0, collectedAmount: 0, collectedCount: 0, pendingAmount: 0, newFiles: 0, totalArrears: 0 };
     
-    let totalMonthlyTarget = 0;
+    let totalMonthlyNetTarget = 0;
     let totalActualCollectedInMonth = 0;
     let totalShortfallForMonth = 0;
     let expectedCount = 0;
@@ -101,7 +101,11 @@ export default function DashboardPage() {
         const monthlyEmi = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const paidThisMonth = Math.round(customer.payments?.filter(p => {
+            const pDate = parseISO(p.date);
+            return (isSameMonth(pDate, currentMonth) || (pDate >= monthStart && pDate <= monthEnd));
+        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+
         const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
@@ -126,13 +130,14 @@ export default function DashboardPage() {
         const arrearsAtStart = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
         const netTargetForMonth = Math.max(0, expectedByEndOfMonth - paidBeforeThisMonth);
 
-        const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(addMonths(startDate, 1), monthEnd);
+        const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
         const hasBalance = totalPaidAllTime < totalPayable;
 
         if (wasActive && (hasBalance || paidThisMonth > 0)) {
+            totalActualCollectedInMonth += paidThisMonth;
+            
             if (netTargetForMonth > 0 || paidThisMonth > 0) {
-                totalMonthlyTarget += netTargetForMonth;
-                totalActualCollectedInMonth += paidThisMonth;
+                totalMonthlyNetTarget += netTargetForMonth;
                 totalArrears += arrearsAtStart;
                 totalShortfallForMonth += Math.max(0, netTargetForMonth - paidThisMonth);
                 
@@ -147,7 +152,7 @@ export default function DashboardPage() {
     });
 
     return {
-        expectedAmount: Math.round(totalMonthlyTarget),
+        expectedAmount: Math.round(totalMonthlyNetTarget),
         expectedCount,
         collectedAmount: Math.round(totalActualCollectedInMonth),
         collectedCount,
@@ -207,24 +212,24 @@ export default function DashboardPage() {
         <><CompanyDataOverview companies={allCompanies} customers={allCustomers.data} users={allUsers} expenses={allExpenses.data} /><Separator className="my-8" /></>
       )}
 
-      <Card className="border-primary/20 shadow-sm">
+      <Card className="border-primary/20 shadow-none">
         <CardHeader>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance tracking with Split Arrears logic.</CardDescription></div>
+                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance tracking with Carry Forward Arrears.</CardDescription></div>
                 <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
                     <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
-                    <div className="text-sm font-semibold w-32 text-center text-primary">{format(currentMonth, "MMMM yyyy")}</div>
+                    <div className="text-sm font-bold w-32 text-center text-primary">{format(currentMonth, "MMMM yyyy")}</div>
                     <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
             </div>
         </CardHeader>
         <CardContent>
              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-6">
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Carry Forward (Arrears)</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-primary"><div className="text-lg font-bold">{formatValue(monthlyStats.totalArrears)}</div></CardContent></Card>
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Monthly Collection</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{formatValue(monthlyStats.collectedAmount)} / {formatValue(monthlyStats.expectedAmount)}</div></CardContent></Card>
-                <Card className="bg-destructive/5 border-destructive/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Shortfall This Month</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-destructive"><div className="text-lg font-bold">{formatValue(monthlyStats.pendingAmount)}</div></CardContent></Card>
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">Files Settled</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.collectedCount} / {monthlyStats.expectedCount}</div></CardContent></Card>
-                <Card className="bg-primary/5 border-primary/10"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-semibold text-muted-foreground">New Files Started</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.newFiles}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10 shadow-none"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Carry Forward (Arrears)</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-primary"><div className="text-lg font-bold">{formatValue(monthlyStats.totalArrears)}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10 shadow-none"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Monthly Collection</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{formatValue(monthlyStats.collectedAmount)} / {formatValue(monthlyStats.expectedAmount)}</div></CardContent></Card>
+                <Card className="bg-destructive/5 border-destructive/10 shadow-none"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Shortfall This Month</CardTitle></CardHeader><CardContent className="p-3 pt-1 text-destructive"><div className="text-lg font-bold">{formatValue(monthlyStats.pendingAmount)}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10 shadow-none"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Files Settled</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.collectedCount} / {monthlyStats.expectedCount}</div></CardContent></Card>
+                <Card className="bg-primary/5 border-primary/10 shadow-none"><CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">New Files Started</CardTitle></CardHeader><CardContent className="p-3 pt-1"><div className="text-lg font-bold">{monthlyStats.newFiles}</div></CardContent></Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

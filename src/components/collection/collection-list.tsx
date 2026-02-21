@@ -75,7 +75,7 @@ export function CollectionList() {
     if (!customers) return { emis: [], stats: { expected: 0, actual: 0, shortfall: 0, collectedCount: 0, expectedCount: 0, totalArrears: 0 } };
     
     const allEntries: EmiEntry[] = [];
-    let totalMonthlyTarget = 0;
+    let totalMonthlyNetTarget = 0;
     let totalActualCollectedInMonth = 0;
     let totalShortfallForCurrentEMIs = 0;
     let collectedCount = 0;
@@ -90,7 +90,11 @@ export function CollectionList() {
         const monthlyEmi = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const paidThisMonth = Math.round(customer.payments?.filter(p => {
+            const pDate = parseISO(p.date);
+            return (isSameMonth(pDate, currentMonth) || (pDate >= monthStart && pDate <= monthEnd));
+        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+
         const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
@@ -120,16 +124,16 @@ export function CollectionList() {
         const isPaidInFullForMonth = totalPaidAllTime >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidAllTime > expectedBeforeThisMonth;
 
-        const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(addMonths(startDate, 1), monthEnd);
+        const wasActive = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
         const hasBalance = totalPaidAllTime < totalPayable;
 
         if (wasActive && (hasBalance || paidThisMonth > 0)) {
+            totalActualCollectedInMonth += paidThisMonth;
+            
             if (netTargetForMonth > 0 || paidThisMonth > 0) {
-                totalMonthlyTarget += netTargetForMonth;
-                totalActualCollectedInMonth += paidThisMonth;
+                totalMonthlyNetTarget += netTargetForMonth;
                 totalArrearsCarriedForward += arrearsAtStart;
                 
-                // Shortfall is what was due this month (Arrears + Current) minus what was paid this month
                 const individualShortfall = Math.max(0, netTargetForMonth - paidThisMonth);
                 totalShortfallForCurrentEMIs += individualShortfall;
                 
@@ -157,7 +161,7 @@ export function CollectionList() {
     return {
         emis: allEntries,
         stats: {
-            expected: totalMonthlyTarget,
+            expected: totalMonthlyNetTarget,
             actual: totalActualCollectedInMonth,
             shortfall: totalShortfallForCurrentEMIs,
             collectedCount,
@@ -249,40 +253,40 @@ export function CollectionList() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-            <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Carry Forward (Arrears)</CardTitle></CardHeader>
+            <Card className="border-primary/20 bg-primary/5 shadow-none">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">Carry Forward (Arrears)</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1">
                     <div className="text-xl font-bold text-primary">{formatCurrency(monthlyData.stats.totalArrears)}</div>
-                    <div className="text-[10px] text-muted-foreground">Debt from previous months</div>
+                    <div className="text-[10px] text-muted-foreground">Historical debt</div>
                 </CardContent>
             </Card>
-            <Card className="border-primary/20">
-                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Monthly Collection</CardTitle></CardHeader>
+            <Card className="border-primary/20 shadow-none">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">Monthly Collection</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1">
                     <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.actual)}</div>
-                    <div className="text-xs text-muted-foreground">Target: {formatCurrency(monthlyData.stats.expected)}</div>
+                    <div className="text-[10px] text-muted-foreground">Target: {formatCurrency(monthlyData.stats.expected)}</div>
                 </CardContent>
             </Card>
-            <Card className="border-destructive/20">
-                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Pending Shortfall</CardTitle></CardHeader>
+            <Card className="border-destructive/20 bg-destructive/5 shadow-none">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">Pending Shortfall</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1 text-destructive">
                     <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.shortfall)}</div>
-                    <div className="text-xs">Unpaid for this period</div>
+                    <div className="text-[10px]">Total missed this month</div>
                 </CardContent>
             </Card>
-            <Card className="border-primary/20">
-                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Files Settled</CardTitle></CardHeader>
+            <Card className="border-primary/20 shadow-none">
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">Files Settled</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1">
                     <div className="text-xl font-bold">{monthlyData.stats.collectedCount} / {monthlyData.stats.expectedCount}</div>
-                    <div className="text-xs text-muted-foreground">Target reached this month</div>
+                    <div className="text-[10px] text-muted-foreground">Customers cleared for Dec</div>
                 </CardContent>
             </Card>
             <div className="hidden xl:block">
                 <Card className="bg-muted/50 border-none shadow-none">
                     <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] uppercase text-muted-foreground">Status</CardTitle></CardHeader>
                     <CardContent className="p-3 pt-1">
-                        <div className="text-sm font-medium">{isPastMonth ? "Historical View" : "Current Collection"}</div>
-                        <div className="text-[10px] text-muted-foreground">{isPastMonth ? "Payments disabled" : "Active period"}</div>
+                        <div className="text-sm font-medium">{isPastMonth ? "Historical View" : "Active Period"}</div>
+                        <div className="text-[10px] text-muted-foreground">{isPastMonth ? "Payments locked" : "Accepting payments"}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -305,7 +309,7 @@ export function CollectionList() {
                     <Button size="sm" className="h-8 px-3" onClick={() => handleOpenPayment(emi)}>Pay</Button>
                 )}
                 {isPastMonth && !emi.isPaidInFullForMonth && (
-                    <div className="text-[10px] font-medium text-destructive flex items-center gap-1 uppercase mt-2">
+                    <div className="text-[10px] font-bold text-destructive flex items-center gap-1 uppercase mt-2">
                         <AlertCircle className="h-3 w-3" />
                         Missed
                     </div>
