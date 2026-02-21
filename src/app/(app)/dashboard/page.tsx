@@ -107,10 +107,11 @@ export default function DashboardPage() {
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        for (let i = 1; i <= customer.duration; i++) {
+        // Loop from Month 0: EMI #1 is due in the month of start.
+        for (let i = 0; i < customer.duration; i++) {
             const dueDate = addMonths(startDate, i);
-            if (isBefore(dueDate, monthStart)) expectedBeforeThisMonth += monthlyEmi;
-            if (isBefore(dueDate, monthEnd) || isSameMonth(dueDate, monthEnd)) expectedByEndOfMonth += monthlyEmi;
+            if (isBefore(startOfMonth(dueDate), monthStart)) expectedBeforeThisMonth += monthlyEmi;
+            if (isBefore(startOfMonth(dueDate), monthEnd) || isSameMonth(dueDate, monthEnd)) expectedByEndOfMonth += monthlyEmi;
         }
 
         expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);

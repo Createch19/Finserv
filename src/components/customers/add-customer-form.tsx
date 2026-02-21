@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -180,8 +181,8 @@ export function AddCustomerForm() {
       });
   }
 
-  const interestTypeLabel = form.watch("interestType") === "percentage" ? "Interest (%)" : "Interest (₹)";
-  const firstEmiDate = watchedStartDate ? addMonths(watchedStartDate, 1) : null;
+  // Based on GANESAN logic: Month 0 is the first EMI month.
+  const firstEmiDate = watchedStartDate ? watchedStartDate : null;
 
   return (
     <Form {...form}>
@@ -247,7 +248,7 @@ export function AddCustomerForm() {
               )}
             />
             <FormField control={form.control} name="interestValue" render={({ field }) => (
-              <FormItem><FormLabel>{interestTypeLabel}</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Interest (fixed or %)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="duration" render={({ field }) => (
               <FormItem><FormLabel>Duration (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -276,7 +277,7 @@ export function AddCustomerForm() {
                 <Info className="h-4 w-4" />
                 {firstEmiDate ? format(firstEmiDate, "dd MMM yyyy") : "Select start date"}
               </div>
-              <p className="text-[0.8rem] text-muted-foreground">The first EMI is automatically scheduled one month after start.</p>
+              <p className="text-[0.8rem] text-muted-foreground">The first EMI is scheduled within the month of financing.</p>
             </div>
           </CardContent>
         </Card>

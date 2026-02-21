@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -5,7 +6,7 @@ import type { Customer, WithId } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO, addMonths, isBefore, startOfMonth } from "date-fns";
+import { format, parseISO, addMonths, isBefore, startOfMonth, isSameMonth } from "date-fns";
 
 const DetailItem = ({ label, value }: { label: string, value: React.ReactNode }) => (
     <div className="flex flex-col">
@@ -28,9 +29,10 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
         const monthStart = startOfMonth(today);
 
         let expectedSoFar = 0;
-        for (let i = 1; i <= customer.duration; i++) {
+        // Loop from Month 0: EMI #1 is due in the month of start.
+        for (let i = 0; i < customer.duration; i++) {
             const emiDate = addMonths(startDate, i);
-            if (isBefore(emiDate, monthStart)) {
+            if (isBefore(startOfMonth(emiDate), monthStart)) {
                 expectedSoFar += monthlyEmi;
             }
         }

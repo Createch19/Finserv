@@ -90,18 +90,18 @@ export function CollectionList() {
         const monthlyEmi = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        // Cumulative sums for accurate ledger math
         const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        const totalPaidAllTime = paidBeforeThisMonth + paidThisMonth + Math.round(customer.payments?.filter(p => isAfter(parseISO(p.date), monthEnd)).reduce((s,p) => s + Math.round(p.amount), 0) || 0);
+        const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        for (let i = 1; i <= customer.duration; i++) {
+        // Loop from Month 0 based on GANESAN logic: EMI #1 is due in the month of start.
+        for (let i = 0; i < customer.duration; i++) {
             const dueDate = addMonths(startDate, i);
-            if (isBefore(dueDate, monthStart)) expectedBeforeThisMonth += monthlyEmi;
-            if (isBefore(dueDate, monthEnd) || isSameMonth(dueDate, monthEnd)) expectedByEndOfMonth += monthlyEmi;
+            if (isBefore(startOfMonth(dueDate), monthStart)) expectedBeforeThisMonth += monthlyEmi;
+            if (isBefore(startOfMonth(dueDate), monthEnd) || isSameMonth(dueDate, monthEnd)) expectedByEndOfMonth += monthlyEmi;
         }
 
         expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
@@ -114,7 +114,7 @@ export function CollectionList() {
         const isPaidInFullForMonth = (paidBeforeThisMonth + paidThisMonth) >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && (paidBeforeThisMonth + paidThisMonth) > expectedBeforeThisMonth;
 
-        const wasActive = isBefore(startDate, monthEnd);
+        const wasActive = isBefore(startOfMonth(startDate), monthEnd) || isSameMonth(startDate, monthEnd);
         const hasBalance = totalPaidAllTime < totalPayable;
 
         if (wasActive && (hasBalance || paidThisMonth > 0)) {
@@ -205,7 +205,7 @@ export function CollectionList() {
     const isFullyPaid = newRemainingBalance <= 0;
     const updatePayload = {
         payments: arrayUnion(newPayment),
-        status: isFullyPaid ? 'completed' : (customer.status === 'pending' ? 'active' : customer.status)
+        status: isFullyPaid ? 'completed' : customer.status
     };
 
     updateDoc(customerDocRef, updatePayload).then(() => {
@@ -222,10 +222,6 @@ export function CollectionList() {
 
   if (userLoading || customersLoading) {
     return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  }
-
-  function isAfter(date1: Date, date2: Date) {
-      return date1.getTime() > date2.getTime();
   }
 
   return (
