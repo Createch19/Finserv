@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter } from "date-fns";
+import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter, startOfDay } from "date-fns";
 import { Button } from "../ui/button";
 import { Loader2, CalendarIcon, CheckCircle2, Search, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,6 @@ export function CollectionList() {
 
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
-  // We include completed loans here to ensure historical reporting works
   const customers = useMemo(() => customersData?.filter(c => c.status !== 'pending') || [], [customersData]);
 
   const monthlyData = useMemo(() => {
@@ -87,11 +87,8 @@ export function CollectionList() {
         const totalPayable = Math.round(customer.totalPayable);
         const totalPaidAllTime = Math.round(customer.payments?.reduce((sum, p) => sum + Math.round(p.amount), 0) || 0);
         
-        // Calculate Cashflow: Sum payments made WITHIN this calendar month
-        const paidThisMonth = Math.round(customer.payments?.filter(p => {
-            const pDate = parseISO(p.date);
-            return (isAfter(pDate, monthStart) || isSameMonth(pDate, monthStart)) && (isBefore(pDate, monthEnd) || isSameMonth(pDate, monthEnd));
-        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        // Sum of all payments recorded within this specific month (Cashflow)
+        const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
         let expectedSoFar = 0;
         let expectedBeforeThisMonth = 0;
@@ -101,7 +98,7 @@ export function CollectionList() {
             if (isBefore(emiDueDate, monthStart)) {
                 expectedBeforeThisMonth += monthlyEmi;
             }
-            if (isBefore(emiDueDate, monthEnd)) {
+            if (isBefore(emiDueDate, monthEnd) || isSameMonth(emiDueDate, monthEnd)) {
                 expectedSoFar += monthlyEmi;
             }
         }
@@ -109,51 +106,50 @@ export function CollectionList() {
         expectedSoFar = Math.min(expectedSoFar, totalPayable);
         expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
 
-        // Arrears = What should have been paid before this month - what WAS paid before this month
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(startOfDay(parseISO(p.date)), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        
+        // Arrears are calculated strictly against the ledger target before this month started
         const arrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
         
-        const currentEmiTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - expectedBeforeThisMonth));
-        const totalTargetForScreen = arrears + currentEmiTarget;
+        // Target for screen is what is needed TO BE up to date by end of month, minus what was already paid before
+        const totalTargetForScreen = Math.max(0, expectedSoFar - paidBeforeThisMonth);
+        const currentEmiTarget = Math.max(0, totalTargetForScreen - arrears);
 
-        // Is this month "Settled" in the ledger?
-        // Logic: Total paid all time >= what was expected up to the end of this month
+        // A month is "Settled" if life-to-date payments cover the end-of-month target
         const isPaidInFullForMonth = totalTargetForScreen > 0 && totalPaidAllTime >= expectedSoFar;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidAllTime > expectedBeforeThisMonth;
 
-        // Stats tracking
-        if (totalTargetForScreen > 0) {
-            totalExpected += totalTargetForScreen;
-            if (isPaidInFullForMonth) collectedCount++;
-        }
-        totalActual += paidThisMonth;
+        if (totalTargetForScreen > 0 || paidThisMonth > 0) {
+            if (totalTargetForScreen > 0) {
+                totalExpected += totalTargetForScreen;
+                if (isPaidInFullForMonth) collectedCount++;
+            }
+            totalActual += paidThisMonth;
 
-        // Completing Files
+            // Visibility Logic
+            const wasActiveInThisMonth = isBefore(startDate, monthEnd) && (customer.status !== 'completed' || isBefore(monthStart, addMonths(startDate, customer.duration + 1)));
+            
+            if (wasActiveInThisMonth || paidThisMonth > 0) {
+                allEntries.push({
+                    customerName: customer.name,
+                    customerId: customer.id,
+                    emiAmount: monthlyEmi,
+                    arrears,
+                    currentDue: currentEmiTarget,
+                    totalDue: totalTargetForScreen,
+                    isPaidInFullForMonth,
+                    isPartiallyPaid,
+                    nextEmiNumber: Math.min(customer.duration, Math.floor(totalPaidAllTime / monthlyEmi) + 1),
+                    totalEmis: customer.duration
+                });
+            }
+        }
+
+        // Completing Files logic
         const isLastMonthOfTerm = isSameMonth(addMonths(startDate, customer.duration), currentMonth);
         if (isLastMonthOfTerm) {
             completingFiles++;
             if (totalPaidAllTime >= totalPayable) completedFiles++;
-        }
-
-        // Only show in the collection list if:
-        // 1. It's not completed yet OR
-        // 2. We are looking at a past month where it WAS active OR
-        // 3. A payment was made during this month
-        const wasActiveInThisMonth = isBefore(startDate, monthEnd) && (customer.status !== 'completed' || isBefore(monthStart, addMonths(startDate, customer.duration + 1)));
-        
-        if (wasActiveInThisMonth || paidThisMonth > 0) {
-            allEntries.push({
-                customerName: customer.name,
-                customerId: customer.id,
-                emiAmount: monthlyEmi,
-                arrears,
-                currentDue: currentEmiTarget,
-                totalDue: totalTargetForScreen,
-                isPaidInFullForMonth,
-                isPartiallyPaid,
-                nextEmiNumber: Math.min(customer.duration, Math.floor(totalPaidAllTime / monthlyEmi) + 1),
-                totalEmis: customer.duration
-            });
         }
     });
 

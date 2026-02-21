@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -16,7 +17,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth, isAfter } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth, isAfter, startOfDay } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 import { Button } from "@/components/ui/button";
@@ -101,11 +102,8 @@ export default function DashboardPage() {
         const totalPayable = Math.round(customer.totalPayable);
         const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         
-        // Cashflow calculation: money received in this month
-        const paidInThisMonth = Math.round(customer.payments?.filter(p => {
-            const pDate = parseISO(p.date);
-            return (isAfter(pDate, monthStart) || isSameMonth(pDate, monthStart)) && (isBefore(pDate, monthEnd) || isSameMonth(pDate, monthEnd));
-        }).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        // Cashflow calculation: Sum of all payments received within this specific calendar month
+        const paidInThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
         let expectedSoFar = 0;
         let expectedBeforeThisMonth = 0;
@@ -115,7 +113,7 @@ export default function DashboardPage() {
             if (isBefore(emiDueDate, monthStart)) {
                 expectedBeforeThisMonth += monthlyEmi;
             }
-            if (isBefore(emiDueDate, monthEnd)) {
+            if (isBefore(emiDueDate, monthEnd) || isSameMonth(emiDueDate, monthEnd)) {
                 expectedSoFar += monthlyEmi;
             }
         }
@@ -123,19 +121,19 @@ export default function DashboardPage() {
         expectedSoFar = Math.min(expectedSoFar, totalPayable);
         expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
 
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        const arrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
-        const currentMonthTarget = Math.min(monthlyEmi, Math.max(0, expectedSoFar - expectedBeforeThisMonth));
-        const totalDueThisMonth = arrears + currentMonthTarget;
+        // Net Target logic: What is actually needed from the customer today to be up-to-date for this month?
+        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(startOfDay(parseISO(p.date)), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        
+        // Current month net target accounts for both arrears and advances
+        const totalDueByEndMonth = Math.max(0, expectedSoFar - paidBeforeThisMonth);
 
-        if (totalDueThisMonth > 0 || paidInThisMonth > 0) {
-            expectedAmount += totalDueThisMonth;
-            if (totalDueThisMonth > 0) expectedCount += 1;
-            
+        if (totalDueByEndMonth > 0 || paidInThisMonth > 0) {
+            expectedAmount += totalDueByEndMonth;
+            if (totalDueByEndMonth > 0) expectedCount += 1;
             collectedAmount += paidInThisMonth;
             
-            // Ledger-based count: did the customer settle their debt for this month?
-            if (totalPaidAllTime >= expectedSoFar && totalDueThisMonth > 0) collectedCount++;
+            // A file is "Settled" for the month if their LTD payments cover the end-of-month target
+            if (totalPaidAllTime >= expectedSoFar && totalDueByEndMonth > 0) collectedCount++;
         }
 
         // New Files: Start date within this month
