@@ -17,7 +17,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId, User, Expense, Company, WithdrawalRequest } from "@/types";
-import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth, isAfter, startOfDay } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format, isBefore, parseISO, isSameMonth } from "date-fns";
 import { CapitalFlowTable } from "@/components/dashboard/capital-flow-table";
 import { CompanyDataOverview } from "@/components/dashboard/company-data-overview";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,7 @@ export default function DashboardPage() {
     let expectedAmount = 0;
     let expectedCount = 0;
     let collectedAmount = 0;
+    let totalShortfall = 0;
     let collectedCount = 0;
     let newFiles = 0;
     let completingFiles = 0;
@@ -102,44 +103,32 @@ export default function DashboardPage() {
         const totalPayable = Math.round(customer.totalPayable);
         const totalPaidAllTime = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         
-        // Cashflow calculation: Sum of all payments received within this specific calendar month
         const paidInThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
-        let expectedSoFar = 0;
-        let expectedBeforeThisMonth = 0;
-
+        let expectedByEndMonth = 0;
         for (let i = 1; i <= customer.duration; i++) {
-            const emiDueDate = addMonths(startDate, i);
-            if (isBefore(emiDueDate, monthStart)) {
-                expectedBeforeThisMonth += monthlyEmi;
-            }
-            if (isBefore(emiDueDate, monthEnd) || isSameMonth(emiDueDate, monthEnd)) {
-                expectedSoFar += monthlyEmi;
+            const dueDate = addMonths(startDate, i);
+            if (isBefore(dueDate, monthEnd) || isSameMonth(dueDate, monthEnd)) {
+                expectedByEndMonth += monthlyEmi;
             }
         }
+        expectedByEndMonth = Math.min(expectedByEndMonth, totalPayable);
 
-        expectedSoFar = Math.min(expectedSoFar, totalPayable);
-        expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
-
-        // Net Target logic: What is actually needed from the customer today to be up-to-date for this month?
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(startOfDay(parseISO(p.date)), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        
-        // Current month net target accounts for both arrears and advances
-        const totalDueByEndMonth = Math.max(0, expectedSoFar - paidBeforeThisMonth);
+        const totalDueByEndMonth = Math.max(0, expectedByEndMonth - paidBeforeThisMonth);
 
         if (totalDueByEndMonth > 0 || paidInThisMonth > 0) {
             expectedAmount += totalDueByEndMonth;
-            if (totalDueByEndMonth > 0) expectedCount += 1;
             collectedAmount += paidInThisMonth;
+            totalShortfall += Math.max(0, totalDueByEndMonth - paidInThisMonth);
             
-            // A file is "Settled" for the month if their LTD payments cover the end-of-month target
-            if (totalPaidAllTime >= expectedSoFar && totalDueByEndMonth > 0) collectedCount++;
+            if (totalDueByEndMonth > 0) {
+                expectedCount += 1;
+                if (totalPaidAllTime >= expectedByEndMonth) collectedCount++;
+            }
         }
 
-        // New Files: Start date within this month
         if (isSameMonth(startDate, currentMonth)) newFiles++;
-
-        // Completing Files
         const isLastMonthOfTerm = isSameMonth(addMonths(startDate, customer.duration), currentMonth);
         if (isLastMonthOfTerm) {
             completingFiles++;
@@ -152,7 +141,7 @@ export default function DashboardPage() {
         expectedCount,
         collectedAmount: Math.round(collectedAmount),
         collectedCount,
-        pendingAmount: Math.max(0, Math.round(expectedAmount - collectedAmount)),
+        pendingAmount: Math.round(totalShortfall),
         newFiles,
         completingFiles,
         completedFiles,

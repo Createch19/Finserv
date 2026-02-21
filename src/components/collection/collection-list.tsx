@@ -4,7 +4,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter, startOfDay } from "date-fns";
+import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, startOfDay } from "date-fns";
 import { Button } from "../ui/button";
 import { Loader2, CalendarIcon, CheckCircle2, Search, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -72,9 +72,11 @@ export function CollectionList() {
     if (!customers) return { emis: [], stats: { expected: 0, actual: 0, pending: 0, collectedCount: 0, expectedCount: 0, completingFiles: 0, completedFiles: 0 } };
     
     const allEntries: EmiEntry[] = [];
-    let totalExpected = 0;
-    let totalActual = 0;
+    let totalExpectedAmount = 0;
+    let totalActualCollected = 0;
+    let totalShortfall = 0;
     let collectedCount = 0;
+    let expectedCount = 0;
     let completingFiles = 0;
     let completedFiles = 0;
 
@@ -87,49 +89,48 @@ export function CollectionList() {
         const totalPayable = Math.round(customer.totalPayable);
         const totalPaidAllTime = Math.round(customer.payments?.reduce((sum, p) => sum + Math.round(p.amount), 0) || 0);
         
-        // Sum of all payments recorded within this specific month (Cashflow)
         const paidThisMonth = Math.round(customer.payments?.filter(p => isSameMonth(parseISO(p.date), currentMonth)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
+        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
 
-        let expectedSoFar = 0;
         let expectedBeforeThisMonth = 0;
+        let expectedByEndOfMonth = 0;
 
         for (let i = 1; i <= customer.duration; i++) {
-            const emiDueDate = addMonths(startDate, i);
-            if (isBefore(emiDueDate, monthStart)) {
+            const dueDate = addMonths(startDate, i);
+            if (isBefore(dueDate, monthStart)) {
                 expectedBeforeThisMonth += monthlyEmi;
             }
-            if (isBefore(emiDueDate, monthEnd) || isSameMonth(emiDueDate, monthEnd)) {
-                expectedSoFar += monthlyEmi;
+            if (isBefore(dueDate, monthEnd) || isSameMonth(dueDate, monthEnd)) {
+                expectedByEndOfMonth += monthlyEmi;
             }
         }
 
-        expectedSoFar = Math.min(expectedSoFar, totalPayable);
         expectedBeforeThisMonth = Math.min(expectedBeforeThisMonth, totalPayable);
+        expectedByEndOfMonth = Math.min(expectedByEndOfMonth, totalPayable);
 
-        const paidBeforeThisMonth = Math.round(customer.payments?.filter(p => isBefore(startOfDay(parseISO(p.date)), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0) || 0);
-        
-        // Arrears are calculated strictly against the ledger target before this month started
         const arrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
-        
-        // Target for screen is what is needed TO BE up to date by end of month, minus what was already paid before
-        const totalTargetForScreen = Math.max(0, expectedSoFar - paidBeforeThisMonth);
+        const totalTargetForScreen = Math.max(0, expectedByEndOfMonth - paidBeforeThisMonth);
         const currentEmiTarget = Math.max(0, totalTargetForScreen - arrears);
 
-        // A month is "Settled" if life-to-date payments cover the end-of-month target
-        const isPaidInFullForMonth = totalTargetForScreen > 0 && totalPaidAllTime >= expectedSoFar;
+        const isPaidInFullForMonth = totalPaidAllTime >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidAllTime > expectedBeforeThisMonth;
 
-        if (totalTargetForScreen > 0 || paidThisMonth > 0) {
-            if (totalTargetForScreen > 0) {
-                totalExpected += totalTargetForScreen;
-                if (isPaidInFullForMonth) collectedCount++;
-            }
-            totalActual += paidThisMonth;
+        // Visibility & Aggregation
+        const wasActiveInThisMonth = isBefore(startDate, monthEnd);
+        const hasUnfinishedLoan = totalPaidAllTime < totalPayable;
+        const isHistorical = isBefore(addMonths(startDate, customer.duration), monthStart);
 
-            // Visibility Logic
-            const wasActiveInThisMonth = isBefore(startDate, monthEnd) && (customer.status !== 'completed' || isBefore(monthStart, addMonths(startDate, customer.duration + 1)));
-            
-            if (wasActiveInThisMonth || paidThisMonth > 0) {
+        if (wasActiveInThisMonth && (!isHistorical || hasUnfinishedLoan || paidThisMonth > 0)) {
+            if (totalTargetForScreen > 0 || paidThisMonth > 0) {
+                totalExpectedAmount += totalTargetForScreen;
+                totalActualCollected += paidThisMonth;
+                totalShortfall += Math.max(0, totalTargetForScreen - paidThisMonth);
+                
+                if (totalTargetForScreen > 0) {
+                    expectedCount++;
+                    if (isPaidInFullForMonth) collectedCount++;
+                }
+
                 allEntries.push({
                     customerName: customer.name,
                     customerId: customer.id,
@@ -156,11 +157,11 @@ export function CollectionList() {
     return {
         emis: allEntries,
         stats: {
-            expected: Math.round(totalExpected),
-            actual: Math.round(totalActual),
-            pending: Math.max(0, Math.round(totalExpected - totalActual)),
+            expected: totalExpectedAmount,
+            actual: totalActualCollected,
+            pending: totalShortfall,
             collectedCount,
-            expectedCount: allEntries.filter(e => e.totalDue > 0).length,
+            expectedCount,
             completingFiles,
             completedFiles
         }
@@ -257,7 +258,7 @@ export function CollectionList() {
                 </CardContent>
             </Card>
             <Card className="border-destructive/20">
-                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Pending Amount</CardTitle></CardHeader>
+                <CardHeader className="p-3 pb-0"><CardTitle className="text-xs font-medium uppercase text-muted-foreground">Pending Shortfall</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1 text-destructive">
                     <div className="text-xl font-bold">{formatCurrency(monthlyData.stats.pending)}</div>
                     <div className="text-xs">Shortfall for this month</div>
@@ -304,7 +305,7 @@ export function CollectionList() {
                 <div className="space-y-1 pt-2 border-t text-[11px]">
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Current EMI:</span>
-                        <span>{formatCurrency(emi.emiAmount)}</span>
+                        <span>{formatCurrency(emi.currentDue)}</span>
                     </div>
                     {emi.arrears > 0 && (
                         <div className="flex justify-between text-destructive font-medium">
