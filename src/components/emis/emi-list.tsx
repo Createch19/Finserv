@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, parseISO, startOfMonth, isBefore, isSameMonth } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle } from "lucide-react";
+import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle, RotateCcw, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Accordion,
@@ -15,11 +15,24 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import type { Customer, WithId } from "@/types";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type EmiStatus = "paid" | "partial" | "due" | "upcoming";
 
@@ -36,8 +49,12 @@ const formatCurrency = (amount: number) => Math.round(amount).toLocaleString('en
 export function EmiList() {
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isRevoking, setIsRevoking] = useState<string | null>(null);
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -59,7 +76,6 @@ export function EmiList() {
 
         const startDate = startOfMonth(parseISO(customer.startDate));
 
-        // Loop from Month 1 based on latest logic: EMI #1 is due 1 month AFTER start.
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = addMonths(startDate, i);
             const amount = i === customer.duration ? (totalPayable - (monthlyEmi * (i - 1))) : monthlyEmi;
@@ -82,7 +98,37 @@ export function EmiList() {
     });
   }, [customers, searchTerm, statusFilter]);
 
-  if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  const handleRevokeLastPayment = async (customer: WithId<Customer>) => {
+    if (!firestore || !isAdmin || !customer.payments || customer.payments.length === 0) return;
+
+    setIsRevoking(customer.id);
+    const newPayments = [...customer.payments];
+    const revokedPayment = newPayments.pop();
+    
+    const customerRef = doc(firestore, 'customers', customer.id);
+    const updatePayload = {
+        payments: newPayments,
+        status: customer.status === 'completed' ? 'active' : customer.status
+    };
+
+    updateDoc(customerRef, updatePayload)
+        .then(() => {
+            toast({
+                title: "Payment Revoked",
+                description: `Successfully reverted ${formatCurrency(revokedPayment?.amount || 0)} payment for ${customer.name}.`
+            });
+        })
+        .catch(e => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: customerRef.path,
+                operation: 'update',
+                requestResourceData: updatePayload
+            }));
+        })
+        .finally(() => setIsRevoking(null));
+  };
+
+  if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="flex flex-col h-full">
@@ -125,24 +171,74 @@ export function EmiList() {
                                 </div>
                             </div>
                         </AccordionTrigger>
-                        <AccordionContent className="p-4 pt-0 space-y-2">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mt-4">
-                                {loan.emis.map(emi => (
-                                    <div key={emi.number} className={cn("flex items-center justify-between p-3 rounded-md border text-xs", emi.status === 'paid' ? "bg-green-50/50 border-green-100" : "bg-muted/30")}>
-                                        <div className="flex items-center gap-3">
-                                            {getStatusIcon(emi.status)}
-                                            <div>
-                                                <div className="font-semibold">EMI #{emi.number} • {formatCurrency(emi.amount)}</div>
-                                                <div className="text-muted-foreground">{format(emi.dueDate, "dd MMM yyyy")}</div>
+                        <AccordionContent className="p-4 pt-0">
+                            <div className="space-y-6 mt-4">
+                                <div>
+                                    <h4 className="text-xs font-bold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+                                        <CalendarDays className="h-3 w-3" />
+                                        EMI Schedule
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                        {loan.emis.map(emi => (
+                                            <div key={emi.number} className={cn("flex items-center justify-between p-3 rounded-md border text-xs", emi.status === 'paid' ? "bg-green-50/50 border-green-100" : "bg-muted/30")}>
+                                                <div className="flex items-center gap-3">
+                                                    {getStatusIcon(emi.status)}
+                                                    <div>
+                                                        <div className="font-semibold">EMI #{emi.number} • {formatCurrency(emi.amount)}</div>
+                                                        <div className="text-muted-foreground">{format(emi.dueDate, "dd MMM yyyy")}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    {emi.status === 'partial' && <Badge className="bg-orange-500 mb-1 text-[10px] h-4">Partial</Badge>}
+                                                    {emi.status === 'paid' && <Badge className="bg-green-600 mb-1 text-[10px] h-4">Paid</Badge>}
+                                                    <div className="font-mono">{formatCurrency(emi.paidAmount)}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="text-right">
-                                            {emi.status === 'partial' && <Badge className="bg-orange-500 mb-1 text-[10px] h-4">Partial</Badge>}
-                                            {emi.status === 'paid' && <Badge className="bg-green-600 mb-1 text-[10px] h-4">Paid</Badge>}
-                                            <div className="font-mono">{formatCurrency(emi.paidAmount)}</div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {loan.payments && loan.payments.length > 0 && (
+                                    <div>
+                                        <h4 className="text-xs font-bold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+                                            <History className="h-3 w-3" />
+                                            Recent Transactions
+                                        </h4>
+                                        <div className="rounded-md border bg-muted/10 overflow-hidden">
+                                            {[...loan.payments].reverse().map((payment, idx) => (
+                                                <div key={payment.paymentId} className="flex items-center justify-between p-3 border-b last:border-0 bg-background/50 text-xs">
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="font-medium text-muted-foreground">{format(parseISO(payment.date), "dd MMM yyyy")}</span>
+                                                        <span className="font-bold text-primary">{formatCurrency(payment.amount)}</span>
+                                                        <Badge variant="outline" className="text-[9px] uppercase h-4 px-1">{payment.mode}</Badge>
+                                                    </div>
+                                                    {idx === 0 && isAdmin && (
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isRevoking === loan.id}>
+                                                                    {isRevoking === loan.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
+                                                                    Revoke
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Revoke Last Payment?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        This will undo the payment of <strong>{formatCurrency(payment.amount)}</strong> recorded on {format(parseISO(payment.date), "PPP")}. The loan balance will be increased accordingly.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleRevokeLastPayment(loan)} className="bg-destructive hover:bg-destructive/90">Confirm Revoke</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </AccordionContent>
                     </AccordionItem>
