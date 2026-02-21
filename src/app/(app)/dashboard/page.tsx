@@ -88,7 +88,7 @@ export default function DashboardPage() {
     let totalMonthlyTarget = 0;
     let totalActualCollectedInMonth = 0;
     let totalShortfall = 0;
-    let totalOpeningArrears = 0;
+    let totalCurrentArrears = 0;
     let expectedCount = 0;
     let collectedCount = 0;
     let newFiles = 0;
@@ -127,6 +127,7 @@ export default function DashboardPage() {
         expectedByEndOfMonth = Math.min(expectedByEndOfMonth, totalPayable);
 
         const openingArrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
+        const remainingArrears = Math.max(0, openingArrears - paidThisMonth);
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const shortfallAtEndOfMonth = Math.max(0, expectedByEndOfMonth - totalPaidByEndOfSelectedMonth);
 
@@ -138,7 +139,7 @@ export default function DashboardPage() {
             
             if ((openingArrears + monthlyTarget) > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += monthlyTarget;
-                totalOpeningArrears += openingArrears;
+                totalCurrentArrears += remainingArrears;
                 totalShortfall += shortfallAtEndOfMonth;
                 
                 if ((openingArrears + monthlyTarget) > 0) {
@@ -157,7 +158,7 @@ export default function DashboardPage() {
         collectedAmount: Math.round(totalActualCollectedInMonth),
         collectedCount,
         pendingAmount: Math.round(totalShortfall),
-        totalArrears: Math.round(totalOpeningArrears),
+        totalArrears: Math.round(totalCurrentArrears),
         newFiles,
     };
   }, [customers, currentMonth]);
@@ -215,7 +216,7 @@ export default function DashboardPage() {
       <Card className="border-primary/20 shadow-none">
         <CardHeader>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance tracking with Carry Forward Arrears.</CardDescription></div>
+                <div><CardTitle>Monthly Overview</CardTitle><CardDescription>Performance tracking with Dynamic Arrears tracking.</CardDescription></div>
                 <div className="flex items-center gap-2 p-1 border rounded-md bg-background self-start md:self-center">
                     <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}><ChevronLeft className="h-4 w-4" /></Button>
                     <div className="text-sm font-bold w-32 text-center text-primary">{format(currentMonth, "MMMM yyyy")}</div>

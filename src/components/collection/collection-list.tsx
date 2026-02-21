@@ -35,8 +35,11 @@ type EmiEntry = {
   customerId: string;
   emiAmount: number;
   openingArrears: number;
+  remainingArrears: number;
   monthlyTarget: number;
+  remainingMonthlyTarget: number;
   totalNetTarget: number;
+  remainingTotalNetTarget: number;
   isPaidInFullForMonth: boolean;
   isPartiallyPaid: boolean;
   nextEmiNumber: number;
@@ -80,7 +83,7 @@ export function CollectionList() {
     let totalMonthlyTarget = 0;
     let totalActualCollectedInMonth = 0;
     let totalShortfall = 0;
-    let totalOpeningArrears = 0;
+    let totalRemainingArrears = 0;
     let expectedCount = 0;
     let collectedCount = 0;
 
@@ -124,6 +127,11 @@ export function CollectionList() {
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const totalNetTarget = openingArrears + monthlyTarget;
 
+        // Dynamic Remaining Balances for real-time subtraction
+        const remainingArrears = Math.max(0, openingArrears - paidThisMonth);
+        const remainingMonthlyTarget = Math.max(0, monthlyTarget - Math.max(0, paidThisMonth - openingArrears));
+        const remainingTotalNetTarget = remainingArrears + remainingMonthlyTarget;
+
         const isPaidInFullForMonth = totalPaidToDate >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidToDate > expectedBeforeThisMonth;
         
@@ -137,7 +145,7 @@ export function CollectionList() {
             
             if (totalNetTarget > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += monthlyTarget;
-                totalOpeningArrears += openingArrears;
+                totalRemainingArrears += remainingArrears;
                 totalShortfall += shortfallAtEndOfMonth;
                 
                 if (totalNetTarget > 0) {
@@ -150,8 +158,11 @@ export function CollectionList() {
                     customerId: customer.id,
                     emiAmount: emiAmount,
                     openingArrears: openingArrears,
+                    remainingArrears: remainingArrears,
                     monthlyTarget: monthlyTarget,
+                    remainingMonthlyTarget: remainingMonthlyTarget,
                     totalNetTarget: totalNetTarget,
+                    remainingTotalNetTarget: remainingTotalNetTarget,
                     isPaidInFullForMonth,
                     isPartiallyPaid,
                     nextEmiNumber: Math.min(customer.duration, Math.floor(totalPaidToDate / emiAmount) + 1),
@@ -169,7 +180,7 @@ export function CollectionList() {
             shortfall: totalShortfall,
             collectedCount,
             expectedCount,
-            totalArrears: totalOpeningArrears
+            totalArrears: totalRemainingArrears
         }
     };
   }, [customers, currentMonth]);
@@ -180,13 +191,13 @@ export function CollectionList() {
         .filter(e => e.customerName.toLowerCase().includes(lowerSearch))
         .sort((a, b) => {
             if (a.isPaidInFullForMonth !== b.isPaidInFullForMonth) return a.isPaidInFullForMonth ? 1 : -1;
-            return b.openingArrears - a.openingArrears;
+            return b.remainingArrears - a.remainingArrears;
         });
   }, [monthlyData.emis, searchTerm]);
 
   const handleOpenPayment = (emi: EmiEntry) => {
     setSelectedEmiForPayment(emi);
-    setPaymentAmount(Math.round(emi.totalNetTarget).toString());
+    setPaymentAmount(Math.round(emi.remainingTotalNetTarget).toString());
   };
 
   const handleRecordPayment = async () => {
@@ -259,7 +270,7 @@ export function CollectionList() {
                 <CardHeader className="p-3 pb-0"><CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">Carry Forward (Arrears)</CardTitle></CardHeader>
                 <CardContent className="p-3 pt-1">
                     <div className="text-xl font-bold text-primary">{formatCurrency(monthlyData.stats.totalArrears)}</div>
-                    <div className="text-[10px] text-muted-foreground">Missed before {format(currentMonth, 'MMM')}</div>
+                    <div className="text-[10px] text-muted-foreground">Outstanding before {format(currentMonth, 'MMM')}</div>
                 </CardContent>
             </Card>
             <Card className="border-primary/20 shadow-none">
@@ -322,18 +333,18 @@ export function CollectionList() {
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-2">
                 <div className="flex justify-between items-end">
-                    <div className="text-xs text-muted-foreground">Month's Target</div>
-                    <div className="text-lg font-bold text-primary">{formatCurrency(emi.totalNetTarget)}</div>
+                    <div className="text-xs text-muted-foreground">Remaining Target</div>
+                    <div className="text-lg font-bold text-primary">{formatCurrency(emi.remainingTotalNetTarget)}</div>
                 </div>
                 <div className="space-y-1 pt-2 border-t text-[11px]">
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Current EMI:</span>
-                        <span>{formatCurrency(emi.monthlyTarget)}</span>
+                        <span>{formatCurrency(emi.remainingMonthlyTarget)}</span>
                     </div>
-                    {emi.openingArrears > 0 && (
+                    {emi.remainingArrears > 0 && (
                         <div className="flex justify-between text-destructive font-medium">
                             <span>Past Arrears:</span>
-                            <span>{formatCurrency(emi.openingArrears)}</span>
+                            <span>{formatCurrency(emi.remainingArrears)}</span>
                         </div>
                     )}
                 </div>
@@ -357,15 +368,15 @@ export function CollectionList() {
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Past Arrears</Label>
-                    <div className="col-span-3 font-medium text-destructive">{formatCurrency(selectedEmiForPayment?.openingArrears || 0)}</div>
+                    <div className="col-span-3 font-medium text-destructive">{formatCurrency(selectedEmiForPayment?.remainingArrears || 0)}</div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Current Due</Label>
-                    <div className="col-span-3 font-medium">{formatCurrency(selectedEmiForPayment?.monthlyTarget || 0)}</div>
+                    <div className="col-span-3 font-medium">{formatCurrency(selectedEmiForPayment?.remainingMonthlyTarget || 0)}</div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4 border-t pt-2">
                     <Label className="text-right font-bold">Total Amount</Label>
-                    <div className="col-span-3 font-bold text-primary">{formatCurrency(selectedEmiForPayment?.totalNetTarget || 0)}</div>
+                    <div className="col-span-3 font-bold text-primary">{formatCurrency(selectedEmiForPayment?.remainingTotalNetTarget || 0)}</div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Collect (₹)</Label>
