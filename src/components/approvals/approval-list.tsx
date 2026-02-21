@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -34,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import type { UseCollectionResult } from "@/firebase/firestore/use-collection";
 
 const formatCurrency = (amount: number) => `₹${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -130,6 +129,7 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
               <TableHead>Interest</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Date Submitted</TableHead>
+              <TableHead>First EMI Date</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -147,6 +147,9 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
                 <TableCell>{formatCurrency(customer.interestAmount)}</TableCell>
                 <TableCell>{customer.duration} months</TableCell>
                 <TableCell>{format(new Date(customer.startDate), 'dd MMM yyyy')}</TableCell>
+                <TableCell className="font-semibold text-primary">
+                  {format(addMonths(new Date(customer.startDate), 1), 'dd MMM yyyy')}
+                </TableCell>
                 <TableCell className="text-right space-x-2">
                   {user?.role === 'admin' && (
                     <>
