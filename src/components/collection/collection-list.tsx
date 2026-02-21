@@ -69,7 +69,7 @@ export function CollectionList() {
 
   const { data: customersData, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
-  const customers = useMemo(() => customersData?.filter(c => c.status !== 'pending') || [], [customersData]);
+  const customers = useMemo(() => customersData || [], [customersData]);
 
   const monthlyData = useMemo(() => {
     if (!customers) return { emis: [], stats: { expected: 0, actual: 0, shortfall: 0, collectedCount: 0, expectedCount: 0, totalArrears: 0 } };
@@ -85,20 +85,20 @@ export function CollectionList() {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
 
-    customers.forEach(customer => {
+    customers.filter(c => c.status !== 'pending').forEach(customer => {
         const startDate = startOfMonth(parseISO(customer.startDate));
         const emiAmount = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
         
-        // Cumulative calculations
         const payments = customer.payments || [];
+        const totalPaidToDate = Math.round(payments.reduce((s, p) => s + Math.round(p.amount), 0));
+        
         const paidThisMonth = Math.round(payments.filter(p => {
             const pDate = parseISO(p.date);
             return (pDate >= monthStart && pDate <= monthEnd);
         }).reduce((s, p) => s + Math.round(p.amount), 0));
 
         const paidBeforeThisMonth = Math.round(payments.filter(p => isBefore(parseISO(p.date), monthStart)).reduce((s, p) => s + Math.round(p.amount), 0));
-        const totalPaidToDate = payments.reduce((s, p) => s + Math.round(p.amount), 0);
         const totalPaidByEndOfSelectedMonth = paidBeforeThisMonth + paidThisMonth;
 
         let expectedBeforeThisMonth = 0;
@@ -122,11 +122,10 @@ export function CollectionList() {
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const totalNetTarget = openingArrears + monthlyTarget;
 
-        // Use live Total Paid to date for the "Settled" status tag
+        // Cumulative FIFO Status check
         const isPaidInFullForMonth = totalPaidToDate >= expectedByEndOfMonth;
         const isPartiallyPaid = !isPaidInFullForMonth && totalPaidToDate > expectedBeforeThisMonth;
         
-        // For stats, look at shortfall relative to the end of the selected month
         const shortfallAtEndOfMonth = Math.max(0, expectedByEndOfMonth - totalPaidByEndOfSelectedMonth);
 
         const isEmiDueByNow = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
@@ -134,10 +133,10 @@ export function CollectionList() {
 
         if (isEmiDueByNow && (hasRemainingBalance || paidThisMonth > 0)) {
             totalActualCollectedInMonth += paidThisMonth;
-            totalOpeningArrears += openingArrears;
             
             if (totalNetTarget > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += monthlyTarget;
+                totalOpeningArrears += openingArrears;
                 totalShortfall += shortfallAtEndOfMonth;
                 
                 if (totalNetTarget > 0) {

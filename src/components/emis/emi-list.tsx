@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, addMonths, parseISO, startOfMonth, isBefore } from "date-fns";
+import { format, addMonths, parseISO, startOfMonth, isBefore, isSameMonth } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -56,10 +57,12 @@ export function EmiList() {
         const totalPaid = Math.round(customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0);
         let remainingToAllocate = totalPaid;
 
-        // Loop from Month 1 based on latest logic: EMI #1 is due in the month AFTER start.
+        const startDate = startOfMonth(parseISO(customer.startDate));
+
+        // Loop from Month 1 based on latest logic: EMI #1 is due 1 month AFTER start.
         for (let i = 1; i <= customer.duration; i++) {
-            const dueDate = addMonths(parseISO(customer.startDate), i);
-            const amount = monthlyEmi;
+            const dueDate = addMonths(startDate, i);
+            const amount = i === customer.duration ? (totalPayable - (monthlyEmi * (i - 1))) : monthlyEmi;
             const paidForThisEmi = Math.min(amount, Math.max(0, remainingToAllocate));
             remainingToAllocate -= paidForThisEmi;
 
@@ -152,7 +155,8 @@ export function EmiList() {
 }
 
 function isBeforeToday(date: Date) {
-    return isBefore(startOfMonth(date), startOfMonth(new Date()));
+    const todayStart = startOfMonth(new Date());
+    return isBefore(startOfMonth(date), todayStart);
 }
 
 function getStatusIcon(status: EmiStatus) {

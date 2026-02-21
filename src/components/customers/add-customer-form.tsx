@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -32,7 +33,7 @@ import { format, addMonths } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { useDoc, useFirestore } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
-import type { Customer } from "@/types";
+import type { Customer, AppSettings } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Label } from "@/components/ui/label";
@@ -59,7 +60,7 @@ export function AddCustomerForm() {
   const firestore = useFirestore();
 
   const settingsRef = doc(firestore, 'settings', 'defaults');
-  const { data: defaultSettings, isLoading: settingsLoading } = useDoc(settingsRef);
+  const { data: defaultSettings, isLoading: settingsLoading } = useDoc<AppSettings>(settingsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -89,8 +90,8 @@ export function AddCustomerForm() {
   const [monthlyEMI, setMonthlyEMI] = useState(0);
 
   useEffect(() => {
-    const numTotalPrice = Number(totalPrice) || 0;
-    const numDownPayment = Number(downPayment) || 0;
+    const numTotalPrice = Math.round(Number(totalPrice)) || 0;
+    const numDownPayment = Math.round(Number(downPayment)) || 0;
     const numInterestValue = Number(interestValue) || 0;
     const numDuration = Number(duration) || 0;
 
@@ -98,38 +99,31 @@ export function AddCustomerForm() {
     let totalInterest = 0;
 
     if (interestType === 'percentage') {
-        totalInterest = (financed * numInterestValue) / 100;
+        totalInterest = Math.round((financed * numInterestValue) / 100);
     } else {
-        totalInterest = numInterestValue;
+        totalInterest = Math.round(numInterestValue);
     }
 
     const payable = financed + totalInterest;
-    const emi = numDuration > 0 ? payable / numDuration : 0;
+    const emi = numDuration > 0 ? Math.round(payable / numDuration) : 0;
 
-    setFinancedAmount(Math.round(financed));
-    setInterestAmount(Math.round(totalInterest));
-    setTotalPayable(Math.round(payable));
-    setMonthlyEMI(Math.round(emi));
+    setFinancedAmount(financed);
+    setInterestAmount(totalInterest);
+    setTotalPayable(payable);
+    setMonthlyEMI(emi);
   }, [totalPrice, downPayment, interestType, interestValue, duration]);
   
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     if (!user || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in and connected to the database.",
-      });
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
       setIsLoading(false);
       return;
     }
 
     const customerId = uuidv4();
     const newCustomerDocRef = doc(firestore, "customers", customerId);
-    
-    const finalMonthlyEMI = Math.round(monthlyEMI);
-    const finalTotalPayable = Math.round(totalPayable);
     const agentCommissionRate = defaultSettings?.agentCommissionRate || 10;
 
     const newCustomer: Customer = {
@@ -144,9 +138,9 @@ export function AddCustomerForm() {
       downPayment: Math.round(values.downPayment),
       financedAmount: Math.round(financedAmount),
       interestAmount: Math.round(interestAmount),
-      totalPayable: finalTotalPayable,
+      totalPayable: Math.round(totalPayable),
       duration: values.duration,
-      monthlyEMI: finalMonthlyEMI,
+      monthlyEMI: Math.round(monthlyEMI),
       startDate: values.startDate.toISOString(),
       status: "pending",
       payments: [],
@@ -161,26 +155,20 @@ export function AddCustomerForm() {
 
     setDoc(newCustomerDocRef, newCustomer)
       .then(() => {
-        toast({
-          title: "Submission Successful",
-          description: `${values.customerName} has been submitted for approval.`,
-        });
+        toast({ title: "Submission Successful", description: `${values.customerName} added for approval.` });
         router.push("/customers");
       })
       .catch((serverError) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit("permission-error", new FirestorePermissionError({
           path: newCustomerDocRef.path,
           operation: "create",
           requestResourceData: newCustomer,
-        });
-        errorEmitter.emit("permission-error", permissionError);
+        }));
       })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .finally(() => setIsLoading(false));
   }
 
-  // EMI #1 is due the month AFTER start.
+  // EMI #1 is due exactly 1 month after start
   const firstEmiDate = watchedStartDate ? addMonths(watchedStartDate, 1) : null;
 
   return (
@@ -223,21 +211,13 @@ export function AddCustomerForm() {
                 <FormItem className="space-y-3">
                   <FormLabel>Interest Type</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
-                    >
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
                       <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="percentage" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="percentage" /></FormControl>
                         <FormLabel className="font-normal">Percentage (%)</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="value" />
-                        </FormControl>
+                        <FormControl><RadioGroupItem value="value" /></FormControl>
                         <FormLabel className="font-normal">Fixed Value (₹)</FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -253,7 +233,7 @@ export function AddCustomerForm() {
               <FormItem><FormLabel>Duration (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="startDate" render={({ field }) => (
-              <FormItem className="flex flex-col"><FormLabel>Financing Date (Start Month)</FormLabel>
+              <FormItem className="flex flex-col"><FormLabel>Financing Date (Starts month)</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
@@ -276,7 +256,7 @@ export function AddCustomerForm() {
                 <Info className="h-4 w-4" />
                 {firstEmiDate ? format(firstEmiDate, "dd MMM yyyy") : "Select start date"}
               </div>
-              <p className="text-[0.8rem] text-muted-foreground">The first EMI is scheduled one month after financing.</p>
+              <p className="text-[0.8rem] text-muted-foreground">The first EMI is expected one month after financing.</p>
             </div>
           </CardContent>
         </Card>

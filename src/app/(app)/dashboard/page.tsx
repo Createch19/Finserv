@@ -128,7 +128,6 @@ export default function DashboardPage() {
 
         const openingArrears = Math.max(0, expectedBeforeThisMonth - paidBeforeThisMonth);
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
-        const totalNetTarget = openingArrears + monthlyTarget;
         const shortfallAtEndOfMonth = Math.max(0, expectedByEndOfMonth - totalPaidByEndOfSelectedMonth);
 
         const isEmiDueByNow = isBefore(startOfMonth(addMonths(startDate, 1)), monthEnd) || isSameMonth(startOfMonth(addMonths(startDate, 1)), monthEnd);
@@ -137,12 +136,12 @@ export default function DashboardPage() {
         if (isEmiDueByNow && (hasBalance || paidThisMonth > 0)) {
             totalActualCollectedInMonth += paidThisMonth;
             
-            if (totalNetTarget > 0 || paidThisMonth > 0) {
+            if ((openingArrears + monthlyTarget) > 0 || paidThisMonth > 0) {
                 totalMonthlyTarget += monthlyTarget;
                 totalOpeningArrears += openingArrears;
                 totalShortfall += shortfallAtEndOfMonth;
                 
-                if (totalNetTarget > 0) {
+                if ((openingArrears + monthlyTarget) > 0) {
                     expectedCount++;
                     if (totalPaidByEndOfSelectedMonth >= expectedByEndOfMonth) collectedCount++;
                 }
