@@ -16,11 +16,21 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 
 // Initialize Firebase Admin SDK
-if (!getApps().length) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-    initializeApp({
-        credential: cert(serviceAccount),
-    });
+function ensureAdminInit() {
+    if (!getApps().length) {
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (!serviceAccountKey) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY not found in environment.");
+        }
+        try {
+            const serviceAccount = JSON.parse(serviceAccountKey);
+            initializeApp({
+                credential: cert(serviceAccount),
+            });
+        } catch (e: any) {
+            throw new Error("Failed to parse service account key: " + e.message);
+        }
+    }
 }
 
 const CreateUserInputSchema = z.object({
@@ -40,7 +50,12 @@ const CreateUserOutputSchema = z.object({
 export type CreateUserOutput = z.infer<typeof CreateUserOutputSchema>;
 
 export async function createUser(input: CreateUserInput): Promise<CreateUserOutput> {
-    return createUserFlow(input);
+    try {
+        ensureAdminInit();
+        return createUserFlow(input);
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
 }
 
 
@@ -54,8 +69,10 @@ const createUserFlow = ai.defineFlow(
         const { name, email, password, role, companyId } = input;
         
         try {
-            // 1. Create user in Firebase Auth
             const auth = getAuth();
+            const db = getFirestore();
+
+            // 1. Create user in Firebase Auth
             const userRecord = await auth.createUser({
                 email,
                 password,
@@ -64,10 +81,10 @@ const createUserFlow = ai.defineFlow(
             const uid = userRecord.uid;
 
             // 2. Set custom claims for the user's role and company
+            // This is CRITICAL for security rules to work correctly on the client side
             await auth.setCustomUserClaims(uid, { role, companyId });
 
             // 3. Create user document in Firestore
-            const db = getFirestore();
             await db.collection('users').doc(uid).set({
                 uid,
                 name,
@@ -78,10 +95,12 @@ const createUserFlow = ai.defineFlow(
 
             return { success: true, uid };
         } catch (e: any) {
-            console.error("Error creating user:", e);
+            console.error("Error in createUserFlow:", e);
             let errorMessage = "An unexpected error occurred.";
             if (e.code === 'auth/email-already-exists') {
                 errorMessage = "A user with this email address already exists.";
+            } else if (e.code === 'auth/invalid-password') {
+                errorMessage = "The password must be at least 6 characters long.";
             } else if (e.message) {
                 errorMessage = e.message;
             }

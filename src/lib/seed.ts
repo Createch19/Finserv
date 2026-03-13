@@ -180,8 +180,8 @@ export async function seedDatabase() {
     
     console.log('Starting database seed process...');
 
-    // 1. Create Auth users
-    console.log('Creating authentication users...');
+    // 1. Create Auth users and set custom claims
+    console.log('Creating authentication users and setting roles...');
     for (const user of users) {
         try {
             await auth.createUser({
@@ -201,6 +201,17 @@ export async function seedDatabase() {
             } else {
                 console.error(`Error creating auth user ${user.email}:`, error.message);
             }
+        }
+
+        // Always set custom claims to ensure roles are synchronized with the seed data
+        try {
+            await auth.setCustomUserClaims(user.uid, { 
+                role: user.role, 
+                companyId: user.companyId 
+            });
+            console.log(`  - Claims set for ${user.email}: role=${user.role}, companyId=${user.companyId}`);
+        } catch (error: any) {
+            console.error(`  - Failed to set claims for ${user.email}:`, error.message);
         }
     }
 
