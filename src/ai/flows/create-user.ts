@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for creating a new user with Firebase Admin SDK.
@@ -15,27 +14,32 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK with fallback to ADC
 function ensureAdminInit() {
     if (!getApps().length) {
         const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
+        
+        // Only attempt cert initialization if the key looks like a valid non-empty JSON string
+        if (serviceAccountKey && serviceAccountKey.trim() !== "" && serviceAccountKey !== "undefined") {
             try {
                 const serviceAccount = JSON.parse(serviceAccountKey);
                 initializeApp({
                     credential: cert(serviceAccount),
                 });
+                console.log("Firebase Admin initialized via Service Account Key.");
                 return;
             } catch (e: any) {
-                console.error("Failed to parse service account key:", e.message);
+                console.warn("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY, falling back to default init:", e.message);
             }
         }
         
-        // Fallback to default initialization (ADC)
+        // Fallback to default initialization (Application Default Credentials)
         try {
             initializeApp();
+            console.log("Firebase Admin initialized via Application Default Credentials (ADC).");
         } catch (e: any) {
             console.error("Default Firebase Admin initialization failed:", e.message);
+            throw new Error("Could not initialize Firebase Admin. Please ensure credentials are set correctly.");
         }
     }
 }
