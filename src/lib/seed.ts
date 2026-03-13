@@ -14,6 +14,7 @@ const FINSERV_COMPANY_ID = '9213b6c3-634c-4cf1-be66-8b79a73bc43b';
 const SUPER_ADMIN_UID = 'WkxEkKrs8fTm2dIsiYLz6OpAlx32';
 const ADMIN_UID = 'Oj6wlYl66YgTGpM1YZtIAWy1CVl1';
 const AGENT_UID = 'kriAJh27x3aZ5Pz2yI4tWxYg2Vb2';
+const COLLECTOR_UID = 'collector-user-uid-12345';
 
 const DEFAULT_COMMISSION_RATE = 10;
 
@@ -44,6 +45,13 @@ const users: User[] = [
         uid: AGENT_UID,
         name: 'Agent User',
         email: 'agent@finserv.com',
+        role: 'agent',
+        companyId: FINSERV_COMPANY_ID,
+    },
+    {
+        uid: COLLECTOR_UID,
+        name: 'Collector',
+        email: 'collector@finserv.com',
         role: 'agent',
         companyId: FINSERV_COMPANY_ID,
     }
@@ -158,7 +166,6 @@ const expenses: Expense[] = [
 ];
 
 const defaultSettings: AppSettings = {
-    defaultInterestRate: 10,
     agentCommissionRate: DEFAULT_COMMISSION_RATE,
 };
 
@@ -180,7 +187,7 @@ export async function seedDatabase() {
             await auth.createUser({
                 uid: user.uid,
                 email: user.email,
-                password: 'Finserve@123', // Set a default password
+                password: 'finserve@123', // Set the requested default password
                 displayName: user.name,
             });
             console.log(`- Auth user created: ${user.email}`);
@@ -188,7 +195,7 @@ export async function seedDatabase() {
             if (error.code === 'auth/uid-already-exists' || error.code === 'auth/email-already-exists') {
                 console.log(`- Auth user already exists, updating: ${user.email}`);
                 await auth.updateUser(user.uid, {
-                    password: 'Finserve@123',
+                    password: 'finserve@123',
                     displayName: user.name,
                 });
             } else {
@@ -252,5 +259,3 @@ export async function seedDatabase() {
         throw new Error('Database seeding failed during batch commit.');
     }
 }
-
-    
