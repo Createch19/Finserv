@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for seeding the database with initial demo data.
@@ -26,16 +27,22 @@ const seedDatabaseFlow = ai.defineFlow(
         // Initialize Firebase Admin if not already initialized
         if (!getApps().length) {
             const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-            if (!serviceAccountKey) {
-                return { success: false, error: "FIREBASE_SERVICE_ACCOUNT_KEY not found in environment." };
-            }
-            try {
-                const serviceAccount = JSON.parse(serviceAccountKey);
-                initializeApp({
-                    credential: cert(serviceAccount),
-                });
-            } catch (e: any) {
-                return { success: false, error: "Failed to parse service account key: " + e.message };
+            if (serviceAccountKey) {
+                try {
+                    const serviceAccount = JSON.parse(serviceAccountKey);
+                    initializeApp({
+                        credential: cert(serviceAccount),
+                    });
+                } catch (e: any) {
+                    console.error("Failed to parse service account key in seed flow:", e.message);
+                }
+            } else {
+                // Fallback to default initialization
+                try {
+                    initializeApp();
+                } catch (e: any) {
+                    console.error("Default init failed in seed flow:", e.message);
+                }
             }
         }
 

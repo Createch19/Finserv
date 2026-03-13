@@ -4,84 +4,88 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Core Auth Functions (from Custom Claims) ---
+    // --- Core Auth Functions ---
     function isAuthed() {
       return request.auth != null;
     }
 
+    // Get user data directly from the /users collection in Firestore
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function getRole() {
-      return request.auth.token.role;
+      // Prefer the user document in Firestore over token claims.
+      return getUserDoc().role;
     }
 
     function getUserCompanyId() {
-      return request.auth.token.companyId;
+      // Prefer the user document in Firestore over token claims.
+      return getUserDoc().companyId;
     }
-
+    
     function isSuperAdmin() {
       return getRole() == 'superadmin';
     }
-    
-    // --- Resource/Request Context Functions ---
 
-    // Checks if the user's company matches the company of an EXISTING document
+    // --- Resource/Request Context Functions ---
     function isTenantMember(doc) {
       return getUserCompanyId() == doc.companyId;
     }
     
-    // Checks if the user's company matches the company in a NEW document being created
     function isRequestingTenantMember() {
-        return getUserCompanyId() == request.resource.data.companyId;
+      return getUserCompanyId() == request.resource.data.companyId;
     }
 
     // --- Collection Rules ---
 
     match /companies/{companyId} {
-      // Only Super Admin can create, update, or delete companies
       allow create, update, delete: if isSuperAdmin();
-
-      // Allow any authenticated user to read company details (e.g., to check status)
       allow read, list: if isAuthed();
     }
     
     match /users/{userId} {
-      // Super Admin has full access to any user document.
       allow read, write: if isSuperAdmin();
-
-      // Admins can manage users within their own company.
-      // `isTenantMember(resource.data)` for existing docs (read, update, delete)
-      // `isRequestingTenantMember()` for new docs (create)
       allow read, write: if getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember());
-      
-      // Any authenticated user can read their own document.
       allow get: if isAuthed() && request.auth.uid == userId;
     }
 
     match /customers/{customerId} {
       // Super Admin has full access.
-      // Otherwise, user must be part of the same company.
-      allow read, list, write: if isSuperAdmin() || (
-        (isTenantMember(resource.data) || isRequestingTenantMember()) && 
-        (getRole() == 'admin' || getRole() == 'agent')
-      );
+      allow read, write: if isSuperAdmin();
+      // Admins and agents can manage customers within their own company.
+      allow list, read, write: if (getRole() == 'admin' || getRole() == 'agent') && 
+                                  (isTenantMember(resource.data) || isRequestingTenantMember());
     }
 
     match /expenses/{expenseId} {
+      // Super Admin has full access.
+      allow read, write: if isSuperAdmin();
       // Admins can manage expenses within their own company.
-      // Super Admins have full access.
-      allow read, write: if isSuperAdmin() || (
-        getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember())
-      );
+      allow read, write: if getRole() == 'admin' && (isTenantMember(resource.data) || isRequestingTenantMember());
       // For list, we rely on the client query to filter by companyId
       allow list: if isSuperAdmin() || getRole() == 'admin';
     }
     
     match /expenseTypes/{expenseTypeId} {
-        // These are global settings managed only by Super Admin
-        allow read, list, write: if isSuperAdmin();
+        allow read, list: if isSuperAdmin() || getRole() == 'admin';
+        allow write: if isSuperAdmin() || getRole() == 'admin';
     }
     
     match /withdrawalRequests/{requestId} {
-        allow read, write, list: if isAuthed();
+      // Super Admin can read, update, delete, and list all requests.
+      allow read, list, update, delete: if isSuperAdmin();
+      // Admins can create requests for their own company.
+      allow create: if getRole() == 'admin' && isRequestingTenantMember();
+      // Admins can read a list of requests, but client query must filter by their companyId.
+      allow list: if getRole() == 'admin';
+    }
+
+    match /settings/{settingId} {
+      // Any authenticated user can read settings (e.g. to apply defaults on client)
+      allow read, list: if isAuthed();
+      // Only Admins and Super Admins can change settings
+      allow write: if isSuperAdmin() || getRole() == 'admin';
     }
   }
 }

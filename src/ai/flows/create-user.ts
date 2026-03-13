@@ -19,16 +19,23 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 function ensureAdminInit() {
     if (!getApps().length) {
         const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountKey) {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY not found in environment.");
+        if (serviceAccountKey) {
+            try {
+                const serviceAccount = JSON.parse(serviceAccountKey);
+                initializeApp({
+                    credential: cert(serviceAccount),
+                });
+                return;
+            } catch (e: any) {
+                console.error("Failed to parse service account key:", e.message);
+            }
         }
+        
+        // Fallback to default initialization (ADC)
         try {
-            const serviceAccount = JSON.parse(serviceAccountKey);
-            initializeApp({
-                credential: cert(serviceAccount),
-            });
+            initializeApp();
         } catch (e: any) {
-            throw new Error("Failed to parse service account key: " + e.message);
+            console.error("Default Firebase Admin initialization failed:", e.message);
         }
     }
 }
@@ -81,8 +88,12 @@ const createUserFlow = ai.defineFlow(
             const uid = userRecord.uid;
 
             // 2. Set custom claims for the user's role and company
-            // This is CRITICAL for security rules to work correctly on the client side
-            await auth.setCustomUserClaims(uid, { role, companyId });
+            // Wrapped in try-catch because security rules now also check Firestore
+            try {
+                await auth.setCustomUserClaims(uid, { role, companyId });
+            } catch (claimError) {
+                console.warn("Could not set custom claims, but proceeding with Firestore doc:", claimError);
+            }
 
             // 3. Create user document in Firestore
             await db.collection('users').doc(uid).set({
