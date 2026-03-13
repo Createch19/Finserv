@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -59,7 +59,11 @@ export function AddCustomerForm() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
-  const settingsRef = doc(firestore, 'settings', 'defaults');
+  const settingsRef = useMemo(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'settings', 'defaults');
+  }, [firestore]);
+
   const { data: defaultSettings, isLoading: settingsLoading } = useDoc<AppSettings>(settingsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({

@@ -78,8 +78,7 @@ export function useCollection<T = any>(
     return () => {
       unsubscribe();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(query)]);
+  }, [query]);
 
   return { data, isLoading, error };
 }

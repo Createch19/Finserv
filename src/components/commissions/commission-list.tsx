@@ -56,6 +56,7 @@ interface CommissionEntry {
     agentId: string;
     completionDate: string;
     commissionAmount: number;
+    commissionSettled: boolean;
 }
 
 export function CommissionList() {
@@ -112,7 +113,7 @@ export function CommissionList() {
             agentId: customer.agent.uid,
             completionDate: lastPaymentDate,
             commissionAmount: commissionAmount,
-            commissionSettled: customer.commissionSettled
+            commissionSettled: !!customer.commissionSettled
         };
     });
     
