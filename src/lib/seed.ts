@@ -1,9 +1,9 @@
 
-import { getFirestore, collection, writeBatch } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { subMonths, formatISO } from 'date-fns';
-import type { Company, User, Customer, Payment, Expense, ExpenseType, AppSettings } from '@/types';
+import type { Company, User, Customer, Expense, ExpenseType, AppSettings } from '@/types';
 
 // --- Hardcoded Demo Data ---
 

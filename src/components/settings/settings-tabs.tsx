@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -20,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Loader2, Palette, PlusCircle, Trash2 } from "lucide-react";
+import { Download, Loader2, Palette, PlusCircle, Trash2, DatabaseZap, AlertTriangle } from "lucide-react";
 import { useCollection, useDoc, useFirestore } from "@/firebase";
 import { collection, addDoc, doc, deleteDoc, query, where, orderBy, setDoc } from "firebase/firestore";
 import type { Customer, WithId, User, ExpenseType, AppSettings } from "@/types";
@@ -28,6 +27,18 @@ import { useAuth } from "@/hooks/use-auth";
 import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/hooks/use-toast";
 import { FirestorePermissionError, errorEmitter } from "@/firebase";
+import { seedDatabase } from "@/ai/flows/seed-database";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -55,21 +66,10 @@ function downloadCSV(data: any[], filename: string) {
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-a.setAttribute('download', filename);
+    a.setAttribute('download', filename);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-}
-
-function getCustomersQuery(firestore: any, user: User | null) {
-    if (!firestore || !user) return null;
-    
-    if (user.isSuperAdmin) {
-        return collection(firestore, 'customers');
-    }
-
-    if (!user.companyId) return null;
-    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
 }
 
 const hexToHsl = (hex: string): string => {
@@ -191,7 +191,16 @@ export function SettingsTabs() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const customersQuery = useMemo(() => getCustomersQuery(firestore, user), [user, firestore]);
+  const isSuperAdmin = user?.role === 'superadmin';
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
+
+  const customersQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    if (isSuperAdmin) return collection(firestore, 'customers');
+    if (!user.companyId) return null;
+    return query(collection(firestore, 'customers'), where('companyId', '==', user.companyId));
+  }, [user, firestore, isSuperAdmin]);
+
   const { data: customers, isLoading: customersLoading } = useCollection<WithId<Customer>>(customersQuery);
   
   const settingsRef = useMemo(() => {
@@ -204,8 +213,7 @@ export function SettingsTabs() {
   const [interestRate, setInterestRate] = useState(10);
   const [commissionRate, setCommissionRate] = useState(10);
   const [isSaving, setIsSaving] = useState(false);
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     if (defaultSettings) {
@@ -236,6 +244,22 @@ export function SettingsTabs() {
       .finally(() => {
         setIsSaving(false);
       });
+  };
+
+  const handleRunSeed = async () => {
+    setIsSeeding(true);
+    try {
+        const result = await seedDatabase();
+        if (result.success) {
+            toast({ title: "Database Seeded", description: "Demo data has been successfully reset. The Collector user is now available." });
+        } else {
+            toast({ variant: "destructive", title: "Seed Failed", description: result.error });
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Unexpected Error", description: e.message });
+    } finally {
+        setIsSeeding(false);
+    }
   };
 
   
@@ -367,23 +391,68 @@ export function SettingsTabs() {
         </Card>
       </TabsContent>
       <TabsContent value="data">
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Management</CardTitle>
-            <CardDescription>
-              Backup or export your application data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => downloadCSV(customers || [], 'customers-backup.csv')} disabled={customersLoading}>
-                {customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                Export Customer Data (CSV)
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Data Export</CardTitle>
+                    <CardDescription>
+                    Download a copy of your customer records.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={() => downloadCSV(customers || [], 'customers-backup.csv')} disabled={customersLoading}>
+                        {customersLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        Export Customer Data (CSV)
+                    </Button>
+                </CardContent>
+            </Card>
+
+            {isSuperAdmin && (
+                <Card className="border-destructive/50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-destructive">
+                            <DatabaseZap className="h-5 w-5" />
+                            Database Management
+                        </CardTitle>
+                        <CardDescription>
+                            Reset or populate the database with initial demo data.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-start gap-4 p-4 rounded-lg bg-destructive/5 border border-destructive/20 mb-4">
+                            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                            <div className="text-sm">
+                                <p className="font-bold text-destructive">Warning: Destructive Action</p>
+                                <p className="text-muted-foreground">Running the seed command will overwrite existing demo users and records. Use this only during initial setup or for system resets.</p>
+                            </div>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={isSeeding}>
+                                    {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DatabaseZap className="mr-2 h-4 w-4" />}
+                                    Trigger Database Seed
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Reset Database to Seed State?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will recreate the standard demo users (Admin, Agent, Collector) and reset their customer records. This action cannot be reversed.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleRunSeed} className="bg-destructive hover:bg-destructive/90">
+                                        Yes, Run Seed
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
       </TabsContent>
     </Tabs>
   );
 }
-
-    
