@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -31,12 +32,20 @@ import {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const firestore = useFirestore();
   const userRole = user?.role;
   const userCompanyId = user?.companyId;
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+
+  // Redirect agents away from Dashboard as it's restricted
+  useEffect(() => {
+    if (user?.role === 'agent') {
+      router.push('/customers');
+    }
+  }, [user, router]);
 
   const allCompaniesQuery = useMemo(() => (firestore && userRole === 'superadmin') ? collection(firestore, 'companies') : null, [firestore, userRole]);
   const { data: allCompanies, isLoading: allCompaniesLoading } = useCollection<WithId<Company>>(allCompaniesQuery);
@@ -45,7 +54,7 @@ export default function DashboardPage() {
   const { data: allUsers, isLoading: allUsersLoading } = useCollection<WithId<User>>(allUsersQuery);
 
   const customersQuery = useMemo(() => {
-    if (!firestore || !userRole) return null;
+    if (!firestore || !userRole || userRole === 'agent') return null; // Agents shouldn't fetch dashboard data
     const baseQuery = collection(firestore, 'customers');
     if (userRole === 'superadmin') {
       if (selectedCompanyId === 'all') return baseQuery;
@@ -163,7 +172,7 @@ export default function DashboardPage() {
     };
   }, [customers, currentMonth]);
 
-  if (isLoading || !user) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (isLoading || !user || userRole === 'agent') return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   const totalFinanced = Math.round((customers || []).reduce((acc, c) => acc + c.financedAmount, 0));
   const totalInterest = Math.round((customers || []).reduce((acc, c) => acc + c.interestAmount, 0));

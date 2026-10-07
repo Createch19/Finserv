@@ -44,7 +44,7 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
   { href: '/customers', label: 'Customers', icon: Users, roles: ['agent', 'admin', 'superadmin'] },
   { href: '/approvals', label: 'Approvals', icon: ShieldCheck, roles: ['admin', 'superadmin'] },
   { href: '/emis', label: 'EMI Tracker', icon: CalendarClock, roles: ['agent', 'admin', 'superadmin'] },
