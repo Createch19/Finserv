@@ -51,8 +51,8 @@ const menuItems: MenuItem[] = [
   { href: '/collection', label: 'Collection', icon: CalendarCheck, roles: ['agent', 'admin', 'superadmin'] },
   { href: '/expenses', label: 'Expenses', icon: Receipt, roles: ['admin', 'superadmin'] },
   { href: '/commissions', label: 'Commissions', icon: Award, roles: ['admin', 'superadmin'] },
-  { href: '/reports', label: 'Reports', icon: LineChart, roles: ['agent', 'admin', 'superadmin'] },
-  { href: '/reminder', label: 'EMI Reminder', icon: Bot, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/reports', label: 'Reports', icon: LineChart, roles: ['admin', 'superadmin'] },
+  { href: '/reminder', label: 'EMI Reminder', icon: Bot, roles: ['admin', 'superadmin'] },
   { href: '/withdrawals', label: 'Withdrawals', icon: Landmark, roles: ['admin', 'superadmin'] },
   { href: '/users', label: 'Users', icon: UsersRound, roles: ['admin', 'superadmin'] },
 ];
@@ -90,6 +90,8 @@ export function SidebarNav() {
     if (!user) return [];
     return menuItems.filter(item => item.roles.includes(user.role));
   }, [user]);
+
+  const canSeeSettings = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <>
@@ -132,20 +134,22 @@ export function SidebarNav() {
             </>
           )}
 
-          <SidebarMenuItem key="/settings">
-            <Link href="/settings" passHref onClick={handleLinkClick}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname.startsWith("/settings")}
-                tooltip={"Settings"}
-              >
-                <div>
-                  <Settings />
-                  <span>Settings</span>
-                </div>
-              </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
+          {canSeeSettings && (
+            <SidebarMenuItem key="/settings">
+              <Link href="/settings" passHref onClick={handleLinkClick}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/settings")}
+                  tooltip={"Settings"}
+                >
+                  <div>
+                    <Settings />
+                    <span>Settings</span>
+                  </div>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="hidden md:flex">
