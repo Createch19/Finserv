@@ -28,6 +28,7 @@ import {
   Building,
   Award,
   Loader2,
+  UsersRound,
 } from 'lucide-react';
 import { UserNav } from './user-nav';
 import { useAuth } from '@/hooks/use-auth';
@@ -35,17 +36,25 @@ import { useDoc, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { Company } from '@/types';
 
-const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
-  { href: '/emis', label: 'EMI Tracker', icon: CalendarClock },
-  { href: '/collection', label: 'Collection', icon: CalendarCheck },
-  { href: '/expenses', label: 'Expenses', icon: Receipt, adminOnly: true },
-  { href: '/commissions', label: 'Commissions', icon: Award, adminOnly: true },
-  { href: '/reports', label: 'Reports', icon: LineChart },
-  { href: '/reminder', label: 'EMI Reminder', icon: Bot },
-  { href: '/withdrawals', label: 'Withdrawals', icon: Landmark, adminOnly: true },
+type MenuItem = {
+  href: string;
+  label: string;
+  icon: any;
+  roles: ('agent' | 'admin' | 'superadmin')[];
+};
+
+const menuItems: MenuItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/customers', label: 'Customers', icon: Users, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/approvals', label: 'Approvals', icon: ShieldCheck, roles: ['admin', 'superadmin'] },
+  { href: '/emis', label: 'EMI Tracker', icon: CalendarClock, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/collection', label: 'Collection', icon: CalendarCheck, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/expenses', label: 'Expenses', icon: Receipt, roles: ['admin', 'superadmin'] },
+  { href: '/commissions', label: 'Commissions', icon: Award, roles: ['admin', 'superadmin'] },
+  { href: '/reports', label: 'Reports', icon: LineChart, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/reminder', label: 'EMI Reminder', icon: Bot, roles: ['agent', 'admin', 'superadmin'] },
+  { href: '/withdrawals', label: 'Withdrawals', icon: Landmark, roles: ['admin', 'superadmin'] },
+  { href: '/users', label: 'Users', icon: UsersRound, roles: ['admin', 'superadmin'] },
 ];
 
 export function SidebarNav() {
@@ -69,91 +78,30 @@ export function SidebarNav() {
 
   const getDisplayName = () => {
     if (user?.role === 'superadmin') {
-      return "Admin Panel";
+      return "Super Admin";
     }
     if (company) {
       return company.name;
     }
-    return <Loader2 className="h-5 w-5 animate-spin" />;
+    return "...";
   }
 
-  if (user?.role === 'superadmin') {
-    return (
-      <>
-        <SidebarHeader>
-          <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <CreditCard className="h-5 w-5" />
-              </div>
-              <span className="font-headline text-lg font-semibold text-sidebar-foreground">{getDisplayName()}</span>
-          </div>
-        </SidebarHeader>
-        <SidebarContent className="p-2 flex flex-col justify-between">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <Link href="/dashboard" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard')} tooltip="Admin Dashboard">
-                  <div><LayoutDashboard /><span>Admin Dashboard</span></div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/companies" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/companies')} tooltip="Companies">
-                  <div><Building /><span>Companies</span></div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/users" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/users')} tooltip="Users">
-                  <div><Users /><span>Users</span></div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/withdrawals" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/withdrawals')} tooltip="Withdrawals">
-                  <div><Landmark /><span>Withdrawals</span></div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/commissions" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/commissions')} tooltip="Commissions">
-                  <div><Award /><span>Commissions</span></div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/settings" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/settings')} tooltip="Settings">
-                  <div><Settings /><span>Settings</span></div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarContent>
-        <SidebarFooter className="hidden md:flex">
-           <UserNav />
-        </SidebarFooter>
-      </>
-    );
-  }
-
-  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
+  const filteredMenuItems = useMemo(() => {
+    if (!user) return [];
+    return menuItems.filter(item => item.roles.includes(user.role));
+  }, [user]);
 
   return (
     <>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <div className="flex items-center gap-2 p-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
                 <CreditCard className="h-5 w-5" />
             </div>
             <div className="font-headline text-lg font-semibold text-sidebar-foreground truncate">{getDisplayName()}</div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="p-2 flex flex-col justify-between">
+      <SidebarContent className="p-2">
         <SidebarMenu>
           {filteredMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
@@ -171,20 +119,33 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
-            <SidebarMenuItem key="/settings">
-              <Link href="/settings" passHref onClick={handleLinkClick}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith("/settings")}
-                  tooltip={"Settings"}
-                >
-                  <div>
-                    <Settings />
-                    <span>Settings</span>
-                  </div>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
+
+          {user?.role === 'superadmin' && (
+            <>
+              <SidebarMenuItem>
+                <Link href="/companies" passHref onClick={handleLinkClick}>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith('/companies')} tooltip="Companies">
+                    <div><Building /><span>Companies</span></div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </>
+          )}
+
+          <SidebarMenuItem key="/settings">
+            <Link href="/settings" passHref onClick={handleLinkClick}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith("/settings")}
+                tooltip={"Settings"}
+              >
+                <div>
+                  <Settings />
+                  <span>Settings</span>
+                </div>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="hidden md:flex">

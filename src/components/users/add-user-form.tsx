@@ -53,6 +53,9 @@ export function AddUserForm() {
   const { user } = useAuth();
   const firestore = useFirestore();
 
+  const isAdmin = user?.role === 'admin';
+  const isSuperAdmin = user?.role === 'superadmin';
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -60,20 +63,22 @@ export function AddUserForm() {
       email: "",
       password: "",
       role: "agent",
-      companyId: "",
+      companyId: isAdmin ? user?.companyId : "",
     },
   });
   
   const companiesQuery = useMemo(() => {
-    if (!firestore) return null;
+    if (!firestore || !isSuperAdmin) return null;
     return collection(firestore, 'companies');
-  }, [firestore]);
+  }, [firestore, isSuperAdmin]);
 
   const { data: companies, isLoading: companiesLoading } = useCollection<WithId<Company>>(companiesQuery);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    if (!user || user.role !== 'superadmin') {
+    
+    // Authorization check
+    if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
       toast({
         variant: "destructive",
         title: "Permission Denied",
@@ -83,6 +88,11 @@ export function AddUserForm() {
       return;
     }
 
+    // Force companyId for normal admins
+    if (user.role === 'admin') {
+        values.companyId = user.companyId;
+    }
+
     try {
         const result = await createUser(values);
         if (result.success) {
@@ -90,7 +100,13 @@ export function AddUserForm() {
                 title: "User Created",
                 description: `User ${values.name} has been successfully created.`,
             });
-            form.reset();
+            form.reset({
+                name: "",
+                email: "",
+                password: "",
+                role: "agent",
+                companyId: isAdmin ? user?.companyId : "",
+            });
         } else {
              toast({
                 variant: "destructive",
@@ -113,7 +129,7 @@ export function AddUserForm() {
     <Card>
       <CardHeader>
         <CardTitle>Create New User</CardTitle>
-        <CardDescription>Add a new user and assign them to a company.</CardDescription>
+        <CardDescription>Add a new {isAdmin ? "agent or admin" : "user"} to the system.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -178,28 +194,30 @@ export function AddUserForm() {
                 </FormItem>
               )}
             />
-             <FormField
-              control={form.control}
-              name="companyId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={companiesLoading}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a company to assign" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {companies?.map(company => (
-                             <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+             {isSuperAdmin && (
+                 <FormField
+                  control={form.control}
+                  name="companyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company</FormLabel>
+                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={companiesLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a company" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {companies?.map(company => (
+                                 <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+             )}
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isSubmitting || companiesLoading} className="w-full">

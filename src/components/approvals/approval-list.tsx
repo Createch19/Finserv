@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -48,6 +49,8 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
   const { toast } = useToast();
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const handleApprove = async (customerId: string) => {
     if (!firestore) return;
@@ -151,7 +154,7 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
                   {format(addMonths(new Date(customer.startDate), 1), 'dd MMM yyyy')}
                 </TableCell>
                 <TableCell className="text-right space-x-2">
-                  {user?.role === 'admin' && (
+                  {isAdmin && (
                     <>
                       <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -171,7 +174,7 @@ export function ApprovalList({ pendingCustomers, isLoading, error }: ApprovalLis
                               <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                  This will approve the customer and move them to the active list. This action can be managed later.
+                                  This will approve the customer and move them to the active list.
                               </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
