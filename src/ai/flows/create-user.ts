@@ -1,7 +1,8 @@
+
 'use server';
 /**
  * @fileOverview A flow for creating a new user with Firebase Admin SDK.
- * This should only be callable by a super admin.
+ * This should only be callable by an admin or super admin.
  *
  * - createUser - A function to handle creating a user in Firebase Auth and Firestore.
  * - CreateUserInput - The input type for the createUser function.
@@ -10,39 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-
-// Initialize Firebase Admin SDK with fallback to ADC
-function ensureAdminInit() {
-    if (!getApps().length) {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        
-        // Only attempt cert initialization if the key looks like a valid non-empty JSON string
-        if (serviceAccountKey && serviceAccountKey.trim() !== "" && serviceAccountKey !== "undefined") {
-            try {
-                const serviceAccount = JSON.parse(serviceAccountKey);
-                initializeApp({
-                    credential: cert(serviceAccount),
-                });
-                console.log("Firebase Admin initialized via Service Account Key.");
-                return;
-            } catch (e: any) {
-                console.warn("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY, falling back to default init:", e.message);
-            }
-        }
-        
-        // Fallback to default initialization (Application Default Credentials)
-        try {
-            initializeApp();
-            console.log("Firebase Admin initialized via Application Default Credentials (ADC).");
-        } catch (e: any) {
-            console.error("Default Firebase Admin initialization failed:", e.message);
-            throw new Error("Could not initialize Firebase Admin. Please ensure credentials are set correctly.");
-        }
-    }
-}
+import { ensureAdminInit, getAuth, getFirestore } from '@/lib/firebase-admin';
 
 const CreateUserInputSchema = z.object({
   name: z.string(),
@@ -68,7 +37,6 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserOutp
         return { success: false, error: e.message };
     }
 }
-
 
 const createUserFlow = ai.defineFlow(
     {
