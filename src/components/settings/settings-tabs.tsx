@@ -353,7 +353,7 @@ export function SettingsTabs() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {settingsLoading ? <Loader2 className="animate-spin" /> : (
+            {settingsLoading ? <div className="flex justify-center p-4"><Loader2 className="animate-spin text-primary" /></div> : (
                 <>
                     <div className="space-y-2">
                         <Label htmlFor="interest">Default Interest Rate (%)</Label>
@@ -388,7 +388,7 @@ export function SettingsTabs() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {settingsLoading ? <Loader2 className="animate-spin" /> : (
+            {settingsLoading ? <div className="flex justify-center p-4"><Loader2 className="animate-spin text-primary" /></div> : (
                 <>
                     <div className="space-y-2">
                         <Label>Business UPI ID (for Payment QR Link)</Label>

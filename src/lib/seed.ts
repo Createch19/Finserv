@@ -18,6 +18,29 @@ const COLLECTOR_UID = 'collector-user-uid-12345';
 
 const DEFAULT_COMMISSION_RATE = 10;
 
+const DEFAULT_PAYMENT_TEMPLATE = `*Payment Received!*
+
+Dear *[CUSTOMER_NAME]*,
+We have received your payment of *₹[AMOUNT]* towards your *[EMI_INFO]* for *[MODEL]* on [DATE].
+
+*Remaining Balance:* ₹[BALANCE]
+
+Thank you for your payment!
+*FINSERV*`;
+
+const DEFAULT_REMINDER_TEMPLATE = `*EMI REMINDER*
+
+Dear *[CUSTOMER_NAME]*,
+This is a friendly reminder that your EMI of *₹[AMOUNT]* for *[MODEL]* was due on *[MISSED_DATE]*.
+
+*Outstanding Balance:* ₹[BALANCE]
+
+Please pay as soon as possible via the link below or using the QR code:
+[UPI_LINK]
+
+Ignore if already paid.
+*FINSERV*`;
+
 const company: Company = {
     id: FINSERV_COMPANY_ID,
     name: 'FINSERV Demo Company',
@@ -166,7 +189,11 @@ const expenses: Expense[] = [
 ];
 
 const defaultSettings: AppSettings = {
+    defaultInterestRate: 10,
     agentCommissionRate: DEFAULT_COMMISSION_RATE,
+    whatsappPaymentTemplate: DEFAULT_PAYMENT_TEMPLATE,
+    whatsappReminderTemplate: DEFAULT_REMINDER_TEMPLATE,
+    businessUpiId: "finserv@upi",
 };
 
 
