@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Customer, WithId } from "@/types";
+import type { Customer, WithId, AppSettings } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { format, parseISO, addMonths, isBefore, startOfMonth } from "date-fns";
 import { RotateCcw, Loader2, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
+import { useFirestore, FirestorePermissionError, errorEmitter, useDoc } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -42,6 +42,9 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
     const [isRevoking, setIsRevoking] = useState(false);
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+    const settingsRef = useMemo(() => firestore ? doc(firestore, 'settings', 'defaults') : null, [firestore]);
+    const { data: appSettings } = useDoc<AppSettings>(settingsRef);
 
     const sortedPayments = useMemo(() => {
         return [...(customer.payments || [])].sort((a, b) => 
@@ -178,7 +181,8 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                                                     customer.phoneModel,
                                                     p.remainingBalance,
                                                     format(parseISO(p.date), 'dd MMM yyyy'),
-                                                    emiInfo
+                                                    emiInfo,
+                                                    appSettings as AppSettings
                                                 ), '_blank')}
                                             >
                                                 <MessageCircle className="h-4 w-4" />

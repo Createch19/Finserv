@@ -13,7 +13,7 @@ import type { AppSettings } from "@/types";
  * [MISSED_DATE]
  */
 
-const DEFAULT_PAYMENT_TEMPLATE = `*Payment Received!*
+export const DEFAULT_PAYMENT_TEMPLATE = `*Payment Received!*
 
 Dear *[CUSTOMER_NAME]*,
 We have received your payment of *₹[AMOUNT]* towards your *[EMI_INFO]* for *[MODEL]* on [DATE].
@@ -23,7 +23,7 @@ We have received your payment of *₹[AMOUNT]* towards your *[EMI_INFO]* for *[M
 Thank you for your payment!
 *FINSERV*`;
 
-const DEFAULT_REMINDER_TEMPLATE = `*EMI REMINDER*
+export const DEFAULT_REMINDER_TEMPLATE = `*EMI REMINDER*
 
 Dear *[CUSTOMER_NAME]*,
 This is a friendly reminder that your EMI of *₹[AMOUNT]* for *[MODEL]* was due on *[MISSED_DATE]*.

@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { DEFAULT_PAYMENT_TEMPLATE, DEFAULT_REMINDER_TEMPLATE } from "@/lib/whatsapp-utils";
 
 function downloadCSV(data: any[], filename: string) {
     if (data.length === 0) return;
@@ -213,8 +214,8 @@ export function SettingsTabs() {
   
   const [interestRate, setInterestRate] = useState(10);
   const [commissionRate, setCommissionRate] = useState(10);
-  const [paymentTemplate, setPaymentTemplate] = useState("");
-  const [reminderTemplate, setReminderTemplate] = useState("");
+  const [paymentTemplate, setPaymentTemplate] = useState(DEFAULT_PAYMENT_TEMPLATE);
+  const [reminderTemplate, setReminderTemplate] = useState(DEFAULT_REMINDER_TEMPLATE);
   const [upiId, setUpiId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -223,8 +224,8 @@ export function SettingsTabs() {
     if (defaultSettings) {
         setInterestRate(defaultSettings.defaultInterestRate || 10);
         setCommissionRate(defaultSettings.agentCommissionRate || 10);
-        setPaymentTemplate(defaultSettings.whatsappPaymentTemplate || "");
-        setReminderTemplate(defaultSettings.whatsappReminderTemplate || "");
+        setPaymentTemplate(defaultSettings.whatsappPaymentTemplate || DEFAULT_PAYMENT_TEMPLATE);
+        setReminderTemplate(defaultSettings.whatsappReminderTemplate || DEFAULT_REMINDER_TEMPLATE);
         setUpiId(defaultSettings.businessUpiId || "");
     }
   }, [defaultSettings]);
