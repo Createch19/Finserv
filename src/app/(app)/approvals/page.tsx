@@ -8,17 +8,15 @@ import { useCollection, useFirestore } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where } from "firebase/firestore";
 import type { Customer, WithId } from "@/types";
-import { Loader2, Users, Banknote, ShieldAlert } from "lucide-react";
+import { Loader2, Users, Banknote } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ApprovalsPage() {
   const { user, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-
   const pendingCustomersQuery = useMemo(() => {
-    if (!firestore || !user || !isAdmin) return null;
+    if (!firestore || !user) return null;
 
     if (user.role === 'superadmin') {
       return query(collection(firestore, "customers"), where("status", "==", "pending"));
@@ -30,7 +28,7 @@ export default function ApprovalsPage() {
       where("status", "==", "pending"),
       where("companyId", "==", user.companyId)
     );
-  }, [firestore, user, isAdmin]);
+  }, [firestore, user]);
 
   const {
     data: pendingCustomers,
@@ -62,25 +60,6 @@ export default function ApprovalsPage() {
   };
 
   const isLoading = authLoading || dataLoading;
-
-  if (!authLoading && !isAdmin) {
-      return (
-          <>
-            <PageHeader title="Customer Approvals" />
-            <Card className="mt-6">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <ShieldAlert className="h-6 w-6 text-destructive" />
-                        Access Denied
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>You do not have permission to review or approve customer financing requests.</p>
-                </CardContent>
-            </Card>
-          </>
-      )
-  }
 
   return (
     <>
