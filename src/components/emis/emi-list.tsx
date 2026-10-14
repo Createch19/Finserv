@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, parseISO, startOfMonth, isBefore, isSameMonth } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle, RotateCcw, History } from "lucide-react";
+import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle, RotateCcw, History, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Accordion,
@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getWhatsAppPaymentLink } from "@/lib/whatsapp-utils";
 
 type EmiStatus = "paid" | "partial" | "due" | "upcoming";
 
@@ -212,28 +213,45 @@ export function EmiList() {
                                                         <span className="font-bold text-primary">{formatCurrency(payment.amount)}</span>
                                                         <Badge variant="outline" className="text-[9px] uppercase h-4 px-1">{payment.mode}</Badge>
                                                     </div>
-                                                    {idx === 0 && isAdmin && (
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isRevoking === loan.id}>
-                                                                    {isRevoking === loan.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
-                                                                    Revoke
-                                                                </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Revoke Last Payment?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        This will undo the payment of <strong>{formatCurrency(payment.amount)}</strong> recorded on {format(parseISO(payment.date), "PPP")}. The loan balance will be increased accordingly.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleRevokeLastPayment(loan)} className="bg-destructive hover:bg-destructive/90">Confirm Revoke</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                            onClick={() => window.open(getWhatsAppPaymentLink(
+                                                                loan.phone,
+                                                                loan.name,
+                                                                payment.amount,
+                                                                loan.phoneModel,
+                                                                payment.remainingBalance,
+                                                                format(parseISO(payment.date), 'dd MMM yyyy')
+                                                            ), '_blank')}
+                                                        >
+                                                            <MessageCircle className="h-4 w-4" />
+                                                        </Button>
+                                                        {idx === 0 && isAdmin && (
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isRevoking === loan.id}>
+                                                                        {isRevoking === loan.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
+                                                                        Revoke
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AccordionContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Revoke Last Payment?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>
+                                                                            This will undo the payment of <strong>{formatCurrency(payment.amount)}</strong> recorded on {format(parseISO(payment.date), "PPP")}. The loan balance will be increased accordingly.
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleRevokeLastPayment(loan)} className="bg-destructive hover:bg-destructive/90">Confirm Revoke</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AccordionContent>
+                                                            </AlertDialog>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

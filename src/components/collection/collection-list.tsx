@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter } from "date-fns";
 import { Button } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight, Clock, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -18,6 +18,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +37,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getWhatsAppPaymentLink } from "@/lib/whatsapp-utils";
 
 type EmiEntry = {
   customerName: string;
@@ -59,6 +68,13 @@ export function CollectionList() {
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [successInfo, setSuccessInfo] = useState<{
+    customer: WithId<Customer>;
+    amount: number;
+    balance: number;
+    date: string;
+  } | null>(null);
 
   const realCurrentMonth = startOfMonth(new Date());
   const isPastMonth = isBefore(currentMonth, realCurrentMonth);
@@ -109,7 +125,6 @@ export function CollectionList() {
         let expectedBeforeThisMonth = 0;
         let expectedByEndOfMonth = 0;
 
-        // EMI #1 is month AFTER start
         for (let i = 1; i <= customer.duration; i++) {
             const dueDate = startOfMonth(addMonths(startDate, i));
             if (isBefore(dueDate, monthStart)) {
@@ -127,7 +142,6 @@ export function CollectionList() {
         const monthlyTarget = Math.max(0, expectedByEndOfMonth - expectedBeforeThisMonth);
         const totalNetTarget = openingArrears + monthlyTarget;
 
-        // Dynamic Remaining Balances for real-time subtraction
         const remainingArrears = Math.max(0, openingArrears - paidThisMonth);
         const remainingMonthlyTarget = Math.max(0, monthlyTarget - Math.max(0, paidThisMonth - openingArrears));
         const remainingTotalNetTarget = remainingArrears + remainingMonthlyTarget;
@@ -236,6 +250,12 @@ export function CollectionList() {
 
     updateDoc(customerDocRef, updatePayload).then(() => {
         toast({ title: "Payment Recorded", description: `${formatCurrency(amount)} collected from ${customer.name}.` });
+        setSuccessInfo({
+            customer: customer,
+            amount: amount,
+            balance: newRemainingBalance,
+            date: format(paymentDate, 'dd MMM yyyy')
+        });
         setSelectedEmiForPayment(null);
     }).catch(e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -408,6 +428,48 @@ export function CollectionList() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!successInfo} onOpenChange={o => !o && setSuccessInfo(null)}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-6 w-6" />
+                    Payment Successful
+                </DialogTitle>
+                <DialogDescription>
+                    The collection has been recorded in the system.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="rounded-lg bg-muted p-4 space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Customer:</span> <span className="font-bold uppercase">{successInfo?.customer.name}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Amount:</span> <span className="font-bold">{formatCurrency(successInfo?.amount || 0)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Balance:</span> <span className="font-bold text-primary">{formatCurrency(successInfo?.balance || 0)}</span></div>
+                </div>
+                <Button 
+                    className="w-full bg-[#25D366] hover:bg-[#20bd5c] text-white" 
+                    onClick={() => {
+                        if (successInfo) {
+                            window.open(getWhatsAppPaymentLink(
+                                successInfo.customer.phone,
+                                successInfo.customer.name,
+                                successInfo.amount,
+                                successInfo.customer.phoneModel,
+                                successInfo.balance,
+                                successInfo.date
+                            ), '_blank');
+                        }
+                    }}
+                >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Send WhatsApp Receipt
+                </Button>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setSuccessInfo(null)}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }

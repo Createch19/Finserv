@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, parseISO, addMonths, isBefore, startOfMonth } from "date-fns";
-import { RotateCcw, Loader2 } from "lucide-react";
+import { RotateCcw, Loader2, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getWhatsAppPaymentLink } from "@/lib/whatsapp-utils";
 
 const DetailItem = ({ label, value }: { label: string, value: React.ReactNode }) => (
     <div className="flex flex-col">
@@ -142,7 +143,7 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                                 <TableHead>Mode</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead className="text-right">Balance</TableHead>
-                                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -152,9 +153,24 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                                     <TableCell className="capitalize text-xs"><Badge variant="outline">{p.mode}</Badge></TableCell>
                                     <TableCell className="text-right font-semibold text-primary">{formatCurrency(p.amount)}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">{formatCurrency(p.remainingBalance)}</TableCell>
-                                    {isAdmin && (
-                                        <TableCell className="text-right">
-                                            {index === 0 && (
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                onClick={() => window.open(getWhatsAppPaymentLink(
+                                                    customer.phone,
+                                                    customer.name,
+                                                    p.amount,
+                                                    customer.phoneModel,
+                                                    p.remainingBalance,
+                                                    format(parseISO(p.date), 'dd MMM yyyy')
+                                                ), '_blank')}
+                                            >
+                                                <MessageCircle className="h-4 w-4" />
+                                            </Button>
+                                            {isAdmin && index === 0 && (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={isRevoking}>
@@ -175,11 +191,11 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             )}
-                                        </TableCell>
-                                    )}
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24 text-muted-foreground">No payments recorded yet.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No payments recorded yet.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
