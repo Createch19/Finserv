@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, parseISO, startOfMonth, isBefore, isSameMonth } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle, RotateCcw, History, MessageCircle } from "lucide-react";
+import { Loader2, Search, CheckCircle2, Clock, CalendarDays, AlertCircle, RotateCcw, History, MessageCircle, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Accordion,
@@ -17,8 +17,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, WithId } from "@/types";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
+import type { Customer, WithId, AppSettings } from "@/types";
+import { useCollection, useDoc, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where, doc, updateDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getWhatsAppPaymentLink } from "@/lib/whatsapp-utils";
+import { getWhatsAppPaymentLink, getWhatsAppReminderLink } from "@/lib/whatsapp-utils";
 
 type EmiStatus = "paid" | "partial" | "due" | "upcoming";
 
@@ -56,6 +56,9 @@ export function EmiList() {
   const [isRevoking, setIsRevoking] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  const settingsRef = useMemo(() => firestore ? doc(firestore, 'settings', 'defaults') : null, [firestore]);
+  const { data: appSettings } = useDoc<AppSettings>(settingsRef);
 
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -186,7 +189,7 @@ export function EmiList() {
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                                         {loan.emis.map(emi => (
-                                            <div key={emi.number} className={cn("flex items-center justify-between p-3 rounded-md border text-xs", emi.status === 'paid' ? "bg-green-50/50 border-green-100" : "bg-muted/30")}>
+                                            <div key={emi.number} className={cn("relative flex items-center justify-between p-3 rounded-md border text-xs", emi.status === 'paid' ? "bg-green-50/50 border-green-100" : "bg-muted/30")}>
                                                 <div className="flex items-center gap-3">
                                                     {getStatusIcon(emi.status)}
                                                     <div>
@@ -194,9 +197,31 @@ export function EmiList() {
                                                         <div className="text-muted-foreground">{format(emi.dueDate, "dd MMM yyyy")}</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    {emi.status === 'partial' && <Badge className="bg-orange-500 mb-1 text-[10px] h-4">Partial</Badge>}
-                                                    {emi.status === 'paid' && <Badge className="bg-green-600 mb-1 text-[10px] h-4">Paid</Badge>}
+                                                <div className="text-right flex flex-col items-end gap-1">
+                                                    {emi.status === 'partial' && <Badge className="bg-orange-500 text-[10px] h-4">Partial</Badge>}
+                                                    {emi.status === 'paid' && <Badge className="bg-green-600 text-[10px] h-4">Paid</Badge>}
+                                                    {(emi.status === 'due' || emi.status === 'partial') && (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-6 w-6 text-primary"
+                                                            title="Send Reminder"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                window.open(getWhatsAppReminderLink(
+                                                                    loan.phone,
+                                                                    loan.name,
+                                                                    emi.amount - emi.paidAmount,
+                                                                    loan.phoneModel,
+                                                                    loan.totalPayable - loan.totalPaid,
+                                                                    format(emi.dueDate, "dd MMM yyyy"),
+                                                                    appSettings as AppSettings
+                                                                ), '_blank');
+                                                            }}
+                                                        >
+                                                            <Send className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
                                                     <div className="font-mono">{formatCurrency(emi.paidAmount)}</div>
                                                 </div>
                                             </div>
@@ -236,7 +261,8 @@ export function EmiList() {
                                                                 loan.phoneModel,
                                                                 payment.remainingBalance,
                                                                 format(parseISO(payment.date), 'dd MMM yyyy'),
-                                                                emiInfo
+                                                                emiInfo,
+                                                                appSettings as AppSettings
                                                             ), '_blank')}
                                                         >
                                                             <MessageCircle className="h-4 w-4" />
@@ -253,7 +279,7 @@ export function EmiList() {
                                                                     <AlertDialogHeader>
                                                                         <AlertDialogTitle>Revoke Last Payment?</AlertDialogTitle>
                                                                         <AlertDialogDescription>
-                                                                            This will undo the payment of <strong>{formatCurrency(payment.amount)}</strong> recorded on {format(parseISO(payment.date), "PPP")}. The loan balance will be increased accordingly.
+                                                                            This will undo the payment of <strong>{formatCurrency(payment.amount)}</strong> recorded on {format(parseISO(payment.date), "PPP")}.
                                                                         </AlertDialogDescription>
                                                                     </AlertDialogHeader>
                                                                     <AlertDialogFooter>

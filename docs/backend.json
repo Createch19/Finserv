@@ -146,6 +146,14 @@
         },
         "agent": {
             "$ref": "#/entities/Agent"
+        },
+        "agentCommissionRate": {
+            "type": "number",
+            "description": "The commission rate for the agent on this loan."
+        },
+        "commissionSettled": {
+            "type": "boolean",
+            "description": "Whether the agent's commission for this loan has been paid."
         }
       },
       "required": [
@@ -165,7 +173,9 @@
         "monthlyEMI",
         "startDate",
         "status",
-        "agent"
+        "agent",
+        "agentCommissionRate",
+        "commissionSettled"
       ]
     },
     "Payment": {
@@ -308,6 +318,34 @@
             "processedBy": { "type": "string", "description": "UID of the super admin who processed the request." }
         },
         "required": ["id", "companyId", "companyName", "adminId", "adminName", "amount", "status", "requestedAt"]
+    },
+    "AppSettings": {
+        "title": "Application Settings",
+        "type": "object",
+        "description": "Stores global application settings.",
+        "properties": {
+            "defaultInterestRate": {
+                "type": "number",
+                "description": "The default interest rate percentage for new loans."
+            },
+            "agentCommissionRate": {
+                "type": "number",
+                "description": "The default commission rate percentage for agents."
+            },
+            "whatsappPaymentTemplate": {
+                "type": "string",
+                "description": "Template for WhatsApp payment received notification."
+            },
+            "whatsappReminderTemplate": {
+                "type": "string",
+                "description": "Template for WhatsApp EMI reminder notification."
+            },
+            "businessUpiId": {
+                "type": "string",
+                "description": "The business UPI ID for payments."
+            }
+        },
+        "required": ["defaultInterestRate", "agentCommissionRate"]
     }
   },
   "auth": {
@@ -340,6 +378,10 @@
       "withdrawalRequests": {
           "schema": "#/entities/WithdrawalRequest",
           "description": "A top-level collection for managing fund withdrawal requests."
+      },
+      "settings": {
+          "schema": "#/entities/AppSettings",
+          "description": "A collection for storing global application settings. Should contain a single document with ID 'defaults'."
       }
     }
   }

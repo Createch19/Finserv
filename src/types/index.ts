@@ -1,5 +1,4 @@
 
-
 export type Company = {
     id: string;
     name: string;
@@ -84,9 +83,11 @@ export type WithdrawalRequest = {
 };
 
 export type AppSettings = {
+    defaultInterestRate?: number;
     agentCommissionRate: number;
+    whatsappPaymentTemplate?: string;
+    whatsappReminderTemplate?: string;
+    businessUpiId?: string;
 }
 
 export type WithId<T> = T & { id: string };
-
-    

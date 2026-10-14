@@ -19,7 +19,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Loader2, Palette, PlusCircle, Trash2, DatabaseZap, AlertTriangle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Download, Loader2, Palette, PlusCircle, Trash2, DatabaseZap, AlertTriangle, BellRing } from "lucide-react";
 import { useCollection, useDoc, useFirestore } from "@/firebase";
 import { collection, addDoc, doc, deleteDoc, query, where, orderBy, setDoc } from "firebase/firestore";
 import type { Customer, WithId, User, ExpenseType, AppSettings } from "@/types";
@@ -212,6 +213,9 @@ export function SettingsTabs() {
   
   const [interestRate, setInterestRate] = useState(10);
   const [commissionRate, setCommissionRate] = useState(10);
+  const [paymentTemplate, setPaymentTemplate] = useState("");
+  const [reminderTemplate, setReminderTemplate] = useState("");
+  const [upiId, setUpiId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -219,19 +223,25 @@ export function SettingsTabs() {
     if (defaultSettings) {
         setInterestRate(defaultSettings.defaultInterestRate || 10);
         setCommissionRate(defaultSettings.agentCommissionRate || 10);
+        setPaymentTemplate(defaultSettings.whatsappPaymentTemplate || "");
+        setReminderTemplate(defaultSettings.whatsappReminderTemplate || "");
+        setUpiId(defaultSettings.businessUpiId || "");
     }
   }, [defaultSettings]);
 
-  const handleSaveDefaults = () => {
+  const handleSaveSettings = () => {
     if (!settingsRef) return;
     setIsSaving(true);
-    const newSettings = {
+    const newSettings: AppSettings = {
         defaultInterestRate: interestRate,
-        agentCommissionRate: commissionRate
+        agentCommissionRate: commissionRate,
+        whatsappPaymentTemplate: paymentTemplate,
+        whatsappReminderTemplate: reminderTemplate,
+        businessUpiId: upiId
     };
     setDoc(settingsRef, newSettings, { merge: true })
       .then(() => {
-        toast({ title: 'Settings Saved', description: 'Default values have been updated.' });
+        toast({ title: 'Settings Saved', description: 'Application configuration has been updated.' });
       })
       .catch((err) => {
         const permissionError = new FirestorePermissionError({
@@ -251,7 +261,7 @@ export function SettingsTabs() {
     try {
         const result = await seedDatabase();
         if (result.success) {
-            toast({ title: "Database Seeded", description: "Demo data has been successfully reset. The Collector user is now available." });
+            toast({ title: "Database Seeded", description: "Demo data has been successfully reset." });
         } else {
             toast({ variant: "destructive", title: "Seed Failed", description: result.error });
         }
@@ -327,8 +337,9 @@ export function SettingsTabs() {
 
   return (
     <Tabs defaultValue="defaults" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="defaults">Defaults</TabsTrigger>
+        <TabsTrigger value="notifications">Notifications</TabsTrigger>
         {isAdmin && <TabsTrigger value="expense-types">Expense Types</TabsTrigger>}
         <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
@@ -357,9 +368,61 @@ export function SettingsTabs() {
           </CardContent>
           {isAdmin && (
             <CardFooter>
-                <Button onClick={handleSaveDefaults} disabled={isSaving || settingsLoading}>
+                <Button onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Changes
+                </Button>
+            </CardFooter>
+          )}
+        </Card>
+      </TabsContent>
+      <TabsContent value="notifications">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <BellRing className="h-5 w-5 text-primary" />
+                WhatsApp Notifications
+            </CardTitle>
+            <CardDescription>
+              Manage templates for automated messages. Use placeholders like [CUSTOMER_NAME], [AMOUNT], [BALANCE], [DATE], [EMI_INFO], [UPI_LINK], [MODEL], and [MISSED_DATE].
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {settingsLoading ? <Loader2 className="animate-spin" /> : (
+                <>
+                    <div className="space-y-2">
+                        <Label>Business UPI ID (for Payment QR Link)</Label>
+                        <Input placeholder="e.g., yourname@upi" value={upiId} onChange={e => setUpiId(e.target.value)} disabled={!isAdmin} />
+                        <p className="text-[10px] text-muted-foreground italic">This ID is used to generate a one-click payment link in reminder messages.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Payment Received Template</Label>
+                        <Textarea 
+                            className="min-h-[150px] font-mono text-xs" 
+                            value={paymentTemplate} 
+                            onChange={e => setPaymentTemplate(e.target.value)} 
+                            disabled={!isAdmin} 
+                            placeholder="Type your template here..."
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>EMI Overdue Reminder Template</Label>
+                        <Textarea 
+                            className="min-h-[150px] font-mono text-xs" 
+                            value={reminderTemplate} 
+                            onChange={e => setReminderTemplate(e.target.value)} 
+                            disabled={!isAdmin} 
+                            placeholder="Type your template here..."
+                        />
+                    </div>
+                </>
+            )}
+          </CardContent>
+          {isAdmin && (
+            <CardFooter>
+                <Button onClick={handleSaveSettings} disabled={isSaving || settingsLoading}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Templates
                 </Button>
             </CardFooter>
           )}
@@ -437,7 +500,7 @@ export function SettingsTabs() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Reset Database to Seed State?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This will recreate the standard demo users (Admin, Agent, Collector) and reset their customer records. This action cannot be reversed.
+                                        This will recreate the standard demo users and reset their customer records. This action cannot be reversed.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
