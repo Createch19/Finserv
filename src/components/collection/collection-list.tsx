@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addMonths, isBefore, startOfMonth, endOfMonth, parseISO, isSameMonth, isAfter } from "date-fns";
 import { Button } from "../ui/button";
-import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight, Clock, MessageCircle } from "lucide-react";
+import { Loader2, CalendarIcon, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight, Clock, MessageCircle, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -29,15 +29,15 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Payment, WithId } from "@/types";
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
+import type { Customer, Payment, WithId, AppSettings } from "@/types";
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter, useDoc } from "@/firebase";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, doc, updateDoc, arrayUnion, query, where } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from "@/lib/utils";
 import { Label } from "../ui/label";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getWhatsAppPaymentLink } from "@/lib/whatsapp-utils";
+import { getWhatsAppPaymentLink, getWhatsAppReminderLink } from "@/lib/whatsapp-utils";
 
 type EmiEntry = {
   customerName: string;
@@ -81,6 +81,9 @@ export function CollectionList() {
   const isPastMonth = isBefore(currentMonth, realCurrentMonth);
   const isCurrentMonth = isSameMonth(currentMonth, realCurrentMonth);
   const isFutureMonth = isAfter(currentMonth, realCurrentMonth);
+
+  const settingsRef = useMemo(() => firestore ? doc(firestore, 'settings', 'defaults') : null, [firestore]);
+  const { data: appSettings } = useDoc<AppSettings>(settingsRef);
 
   const customersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -344,18 +347,43 @@ export function CollectionList() {
                         {emi.isPartiallyPaid && <Badge className="bg-orange-500 h-5 text-[10px]">Partial</Badge>}
                     </div>
                 </div>
-                {!emi.isPaidInFullForMonth && isCurrentMonth && (
-                    <Button size="sm" className="h-8 px-3" onClick={() => handleOpenPayment(emi)}>Pay</Button>
-                )}
-                {!emi.isPaidInFullForMonth && !isCurrentMonth && (
-                    <div className="text-[10px] font-bold flex items-center gap-1 uppercase mt-2">
-                        {isPastMonth ? (
-                            <span className="text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Missed</span>
-                        ) : (
-                            <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Upcoming</span>
-                        )}
-                    </div>
-                )}
+                <div className="flex gap-1 items-center">
+                    {!emi.isPaidInFullForMonth && (
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-primary hover:bg-primary/10"
+                            onClick={() => {
+                                const customer = customersData?.find(c => c.id === emi.customerId);
+                                if (customer) {
+                                    window.open(getWhatsAppReminderLink(
+                                        customer.phone,
+                                        customer.name,
+                                        emi.remainingTotalNetTarget,
+                                        customer.phoneModel,
+                                        customer.totalPayable - (customer.payments?.reduce((s, p) => s + Math.round(p.amount), 0) || 0),
+                                        format(currentMonth, "dd MMM yyyy"),
+                                        appSettings as AppSettings
+                                    ), '_blank');
+                                }
+                            }}
+                        >
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {!emi.isPaidInFullForMonth && isCurrentMonth && (
+                        <Button size="sm" className="h-8 px-3" onClick={() => handleOpenPayment(emi)}>Pay</Button>
+                    )}
+                    {!emi.isPaidInFullForMonth && !isCurrentMonth && (
+                        <div className="text-[10px] font-bold flex items-center gap-1 uppercase">
+                            {isPastMonth ? (
+                                <span className="text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Overdue</span>
+                            ) : (
+                                <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Future</span>
+                            )}
+                        </div>
+                    )}
+                </div>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-2">
                 <div className="flex justify-between items-end">
@@ -464,7 +492,8 @@ export function CollectionList() {
                                 successInfo.customer.phoneModel,
                                 successInfo.balance,
                                 successInfo.date,
-                                successInfo.emiInfo
+                                successInfo.emiInfo,
+                                appSettings as AppSettings
                             ), '_blank');
                         }
                     }}
@@ -481,3 +510,4 @@ export function CollectionList() {
     </TooltipProvider>
   );
 }
+
