@@ -74,6 +74,7 @@ export function CollectionList() {
     amount: number;
     balance: number;
     date: string;
+    emiInfo: string;
   } | null>(null);
 
   const realCurrentMonth = startOfMonth(new Date());
@@ -250,11 +251,16 @@ export function CollectionList() {
 
     updateDoc(customerDocRef, updatePayload).then(() => {
         toast({ title: "Payment Recorded", description: `${formatCurrency(amount)} collected from ${customer.name}.` });
+        
+        const emiNumber = Math.floor((currentTotalPaid + amount) / Math.round(customer.monthlyEMI));
+        const emiInfo = `EMI #${emiNumber} of ${customer.duration}`;
+
         setSuccessInfo({
             customer: customer,
             amount: amount,
             balance: newRemainingBalance,
-            date: format(paymentDate, 'dd MMM yyyy')
+            date: format(paymentDate, 'dd MMM yyyy'),
+            emiInfo: emiInfo
         });
         setSelectedEmiForPayment(null);
     }).catch(e => {
@@ -445,6 +451,7 @@ export function CollectionList() {
                     <div className="flex justify-between"><span className="text-muted-foreground">Customer:</span> <span className="font-bold uppercase">{successInfo?.customer.name}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Amount:</span> <span className="font-bold">{formatCurrency(successInfo?.amount || 0)}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Balance:</span> <span className="font-bold text-primary">{formatCurrency(successInfo?.balance || 0)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Installment:</span> <span className="font-bold">{successInfo?.emiInfo}</span></div>
                 </div>
                 <Button 
                     className="w-full bg-[#25D366] hover:bg-[#20bd5c] text-white" 
@@ -456,7 +463,8 @@ export function CollectionList() {
                                 successInfo.amount,
                                 successInfo.customer.phoneModel,
                                 successInfo.balance,
-                                successInfo.date
+                                successInfo.date,
+                                successInfo.emiInfo
                             ), '_blank');
                         }
                     }}

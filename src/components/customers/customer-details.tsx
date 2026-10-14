@@ -43,6 +43,12 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
+    const sortedPayments = useMemo(() => {
+        return [...(customer.payments || [])].sort((a, b) => 
+            parseISO(a.date).getTime() - parseISO(b.date).getTime()
+        );
+    }, [customer.payments]);
+
     const loanSummary = useMemo(() => {
         const monthlyEmi = Math.round(customer.monthlyEMI);
         const totalPayable = Math.round(customer.totalPayable);
@@ -147,7 +153,13 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {customer.payments?.length > 0 ? [...customer.payments].reverse().map((p, index) => (
+                            {customer.payments?.length > 0 ? [...customer.payments].reverse().map((p, index) => {
+                                const reversedIndex = customer.payments.length - 1 - index;
+                                const totalPaidUpToThis = sortedPayments.slice(0, reversedIndex + 1).reduce((s, curr) => s + curr.amount, 0);
+                                const emiNum = Math.ceil(totalPaidUpToThis / Math.round(customer.monthlyEMI));
+                                const emiInfo = `EMI #${emiNum} of ${customer.duration}`;
+
+                                return (
                                 <TableRow key={p.paymentId}>
                                     <TableCell className="font-medium">{format(parseISO(p.date), 'dd MMM yyyy')}</TableCell>
                                     <TableCell className="capitalize text-xs"><Badge variant="outline">{p.mode}</Badge></TableCell>
@@ -165,7 +177,8 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                                                     p.amount,
                                                     customer.phoneModel,
                                                     p.remainingBalance,
-                                                    format(parseISO(p.date), 'dd MMM yyyy')
+                                                    format(parseISO(p.date), 'dd MMM yyyy'),
+                                                    emiInfo
                                                 ), '_blank')}
                                             >
                                                 <MessageCircle className="h-4 w-4" />
@@ -194,7 +207,7 @@ export function CustomerDetails({ customer }: { customer: WithId<Customer> }) {
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                            )) : (
+                            )}) : (
                                 <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No payments recorded yet.</TableCell></TableRow>
                             )}
                         </TableBody>

@@ -153,7 +153,12 @@ export function EmiList() {
 
         <div className="p-4 md:p-6 flex-1 overflow-y-auto">
             <Accordion type="single" collapsible className="space-y-4">
-                {processedLoans.map(loan => (
+                {processedLoans.map(loan => {
+                    const sortedPayments = [...(loan.payments || [])].sort((a, b) => 
+                        parseISO(a.date).getTime() - parseISO(b.date).getTime()
+                    );
+
+                    return (
                     <AccordionItem key={loan.id} value={loan.id} className="border rounded-lg bg-card overflow-hidden">
                         <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 transition-colors">
                             <div className="flex flex-1 items-center justify-between gap-4 text-left">
@@ -206,7 +211,13 @@ export function EmiList() {
                                             Recent Transactions
                                         </h4>
                                         <div className="rounded-md border bg-muted/10 overflow-hidden">
-                                            {[...loan.payments].reverse().map((payment, idx) => (
+                                            {[...loan.payments].reverse().map((payment, idx) => {
+                                                const originalIndex = loan.payments.length - 1 - idx;
+                                                const totalPaidUpToThis = sortedPayments.slice(0, originalIndex + 1).reduce((s, curr) => s + curr.amount, 0);
+                                                const emiNum = Math.ceil(totalPaidUpToThis / Math.round(loan.monthlyEMI));
+                                                const emiInfo = `EMI #${emiNum} of ${loan.duration}`;
+
+                                                return (
                                                 <div key={payment.paymentId} className="flex items-center justify-between p-3 border-b last:border-0 bg-background/50 text-xs">
                                                     <div className="flex items-center gap-4">
                                                         <span className="font-medium text-muted-foreground">{format(parseISO(payment.date), "dd MMM yyyy")}</span>
@@ -224,7 +235,8 @@ export function EmiList() {
                                                                 payment.amount,
                                                                 loan.phoneModel,
                                                                 payment.remainingBalance,
-                                                                format(parseISO(payment.date), 'dd MMM yyyy')
+                                                                format(parseISO(payment.date), 'dd MMM yyyy'),
+                                                                emiInfo
                                                             ), '_blank')}
                                                         >
                                                             <MessageCircle className="h-4 w-4" />
@@ -237,7 +249,7 @@ export function EmiList() {
                                                                         Revoke
                                                                     </Button>
                                                                 </AlertDialogTrigger>
-                                                                <AccordionContent>
+                                                                <AlertDialogContent>
                                                                     <AlertDialogHeader>
                                                                         <AlertDialogTitle>Revoke Last Payment?</AlertDialogTitle>
                                                                         <AlertDialogDescription>
@@ -248,19 +260,19 @@ export function EmiList() {
                                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                                         <AlertDialogAction onClick={() => handleRevokeLastPayment(loan)} className="bg-destructive hover:bg-destructive/90">Confirm Revoke</AlertDialogAction>
                                                                     </AlertDialogFooter>
-                                                                </AccordionContent>
+                                                                </AlertDialogContent>
                                                             </AlertDialog>
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                ))}
+                )})}
             </Accordion>
             {processedLoans.length === 0 && <div className="py-20 text-center text-muted-foreground font-medium">No records found matching filters.</div>}
         </div>

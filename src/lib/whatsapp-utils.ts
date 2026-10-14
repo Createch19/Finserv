@@ -8,7 +8,8 @@ export function getWhatsAppPaymentLink(
   amount: number,
   model: string,
   balance: number,
-  date: string
+  date: string,
+  emiInfo?: string
 ) {
   // Clean phone number: remove non-digits
   const cleanPhone = phone.replace(/\D/g, '');
@@ -16,10 +17,12 @@ export function getWhatsAppPaymentLink(
   // Ensure country code (defaulting to 91 for India as per local app context)
   const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
+  const emiText = emiInfo ? `towards your *${emiInfo}* for *${model}*` : `towards your *${model}* EMI`;
+
   const message = `*Payment Received!*
 
 Dear *${name.toUpperCase()}*,
-We have received your payment of *₹${Math.round(amount).toLocaleString('en-IN')}* towards your *${model}* EMI on ${date}.
+We have received your payment of *₹${Math.round(amount).toLocaleString('en-IN')}* ${emiText} on ${date}.
 
 *Remaining Balance:* ₹${Math.round(balance).toLocaleString('en-IN')}
 
