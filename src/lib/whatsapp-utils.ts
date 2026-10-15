@@ -38,6 +38,7 @@ Ignore if already paid.
 
 /**
  * Generates a WhatsApp deep link with a dynamic message.
+ * Attempts to bypass the intermediate landing page on desktop by using web.whatsapp.com directly.
  */
 export function getWhatsAppLink(
   phone: string,
@@ -58,7 +59,16 @@ export function getWhatsAppLink(
   // Ensure country code (defaulting to 91 for India)
   const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-  return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+  // Detect if we are on a mobile device to choose the best URL
+  const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+
+  if (isMobile) {
+    // Standard deep link for mobile apps
+    return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+  } else {
+    // Direct web link for desktop to bypass "Continue to Chat" landing page
+    return `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+  }
 }
 
 /**
